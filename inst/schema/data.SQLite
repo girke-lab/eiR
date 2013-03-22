@@ -1,0 +1,10 @@
+
+
+-- meant to be added to the schema defined by ChmmineR
+
+CREATE TABLE embeddedDescriptors (
+	descriptor_id INTEGER REFERENCES descriptors(descriptor_id) ON DELETE CASCADE,
+	order INTEGER NOT NULL,
+	value REAL NOT NULL,
+	UNIQUE(descriptor_id,order)
+);

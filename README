@@ -1,0 +1,12 @@
+
+
+On Windows and Mac the binary libraries for GSL  will need to be
+installed. On Linux you will also need the header files for these libraries.
+
+You can find GSL for different platforms here:
+
+    1. Linux:  http://www.gnu.org/software/gsl/
+    2. Mac:
+          https://trac.macports.org/browser/trunk/dports/math/gsl/Portfile
+          https://trac.macports.org/browser/trunk/dports/math/gsl-devel/Portfile
+    3. Windows: http://gnuwin32.sourceforge.net/packages/gsl.htm

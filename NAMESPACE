@@ -1,0 +1,9 @@
+useDynLib(eiR)
+
+import(tools,snow,snowfall,digest)
+import(ChemmineR)
+
+
+export("eiInit","eiMakeDb","eiQuery","eiAdd","eiPerformanceTest","eiCluster")
+
+export("setDefaultDistance","addTransform")
