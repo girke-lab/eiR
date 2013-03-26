@@ -1,7 +1,7 @@
 Package: eiR
 Type: Package
 Title: Accelerated similarity searching of small molecules
-Version: 0.99.4
+Version: 0.99.5
 Date: 2012-05-19
 Author: Kevin Horan
 Maintainer: Kevin Horan <khoran@cs.ucr.edu>
