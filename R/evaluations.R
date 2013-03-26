@@ -66,8 +66,8 @@ evaluator <- function(reference,result,output=NA)
    for(lineNum in 1:maxQueries)
    {
 		suppressWarnings({
-			refLine<<-readLines(refFile,n=1)
-			targetLine<<-readLines(targetFile,n=1)
+			refLine=readLines(refFile,n=1)
+			targetLine=readLines(targetFile,n=1)
 		})
 
       if(length(refLine)==0 || length(targetLine)==0)

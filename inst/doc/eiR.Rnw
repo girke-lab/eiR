@@ -29,6 +29,7 @@
 <<echo=false,term=false>>=
    unlink("data",recursive=TRUE)
    unlink(paste("run",60,40,sep="-"),recursive=TRUE)
+   set.seed(80)
 @
 
 \section{Introduction}

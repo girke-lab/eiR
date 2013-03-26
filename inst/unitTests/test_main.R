@@ -3,6 +3,7 @@ library(eiR)
 library(snow)
 
 options(warn=2)
+test_dir="test_workspace"
 r<- 50
 d<- 40
 N<- 100
@@ -13,8 +14,10 @@ descType="ap"
 
 
 test_aa.eiInit <- function() {
-    cleanup()
 #	DEACTIVATED("slow")
+
+   cleanup()
+
 	checkData <- function(cids,dir="."){
 		checkTrue(file.exists(file.path(dir,"data","chem.db")))
 		checkTrue(file.exists(file.path(dir,"data","main.iddb")))
@@ -186,7 +189,7 @@ test_fn.cluster_comparison <- function(){
 	#print(tail(cl2nnm))
 
 
-	cl2 = jarvisPatrick_c(cl2nnm$ids,minNbrs,fast=fast)
+	cl2 = jarvisPatrick_c(cl2nnm$indexes,minNbrs,fast=fast)
 	names(cl2)=compoundNames
 	#print(cl2)
 
@@ -299,7 +302,7 @@ trueNnm <- function(compoundIds,numNbrs,minNbrs,dir,cutoff=NA){
 	dim(nnm)=d
 	rownames(nnm)=cid(aps)
 
-	nnm$ids
+	nnm$indexes
 }
 
 clusterSizes <- function(clustering) {
@@ -311,9 +314,12 @@ clusterSizes <- function(clustering) {
 
 
 cleanup<- function(){
-   junk <- c("data","example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"),fpDir)
+   unlink(test_dir,recursive=T)
+   dir.create(test_dir)
+   setwd(test_dir)
+   #junk <- c("data","example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"),fpDir)
    #junk <- c("example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"))
-   unlink(junk,recursive=T)
+   #unlink(junk,recursive=T)
 }
 findRefIddb <- function(runDir){
    matches<-dir(runDir,pattern=".cdb$",full.names=T)
