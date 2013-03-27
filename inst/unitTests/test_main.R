@@ -8,8 +8,8 @@ r<- 50
 d<- 40
 N<- 100
 j=1
-runDir<-paste("run",r,d,sep="-")
-fpDir="fp_test"
+runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
+fpDir=file.path(test_dir,"fp_test")
 descType="ap"
 
 
@@ -18,7 +18,7 @@ test_aa.eiInit <- function() {
 
    cleanup()
 
-	checkData <- function(cids,dir="."){
+	checkData <- function(cids,dir=test_dir){
 		checkTrue(file.exists(file.path(dir,"data","chem.db")))
 		checkTrue(file.exists(file.path(dir,"data","main.iddb")))
 		i <- readLines(file.path(dir,"data","main.iddb"))
@@ -36,7 +36,7 @@ test_aa.eiInit <- function() {
 
 
    data(sdfsample)
-   compoundIds = eiInit(sdfsample,descriptorType=descType)
+   compoundIds = eiInit(sdfsample,descriptorType=descType,dir=test_dir)
 	checkData(compoundIds)
 
 	dir.create(fpDir)
@@ -66,18 +66,19 @@ test_ba.eiMakeDb <- function() {
    }
 
 	print("by file name")
-	eiR:::writeIddb((1:r)+200,"reference_file.cdb")
-   eiMakeDb("reference_file.cdb",d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType)
+   refFile = file.path(test_dir,"reference_file.cdb")
+	eiR:::writeIddb((1:r)+200,refFile)
+   eiMakeDb(refFile,d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType,dir=test_dir)
    runChecks()
 	unlink(runDir,recursive=TRUE)
 
 	print("by number")
-   eiMakeDb(r,d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType)
+   eiMakeDb(r,d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType,dir=test_dir)
    runChecks()
 	unlink(runDir,recursive=TRUE)
 
 	print("by vector")
-   eiMakeDb(testRefs(),d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType)
+   eiMakeDb(testRefs(),d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType,dir=test_dir)
    runChecks()
 
 	
@@ -87,16 +88,16 @@ test_ca.eiQuery <- function(){
 	#DEACTIVATED("slow")
    data(sdfsample)
    refIddb = findRefIddb(runDir)
-   results = eiQuery(r,d,refIddb,sdfsample[1:2],K=15,descriptorType=descType)
+   results = eiQuery(r,d,refIddb,sdfsample[1:2],K=15,descriptorType=descType,dir=test_dir)
    checkTrue(length(results$distance) != 0)
    checkTrue(all(results$distance <= 1))
    checkEquals(results$distance[16],0)
 
 
-	results=eiQuery(r,d,refIddb,203:204,format="compound_id",K=15,descriptorType=descType)
+	results=eiQuery(r,d,refIddb,203:204,format="compound_id",K=15,descriptorType=descType,dir=test_dir)
    checkEquals(results$distance[1],0)
 
-	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,descriptorType=descType)
+	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,descriptorType=descType,dir=test_dir)
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
 
@@ -104,8 +105,8 @@ test_ca.eiQuery <- function(){
 
 test_da.eiPerformanceTest <- function() {
 	#DEACTIVATED("slow")
-   eiPerformanceTest(r,d,K=22,descriptorType=descType)
-   checkMatrix("chemical-search.results$",20, N,"data")
+   eiPerformanceTest(r,d,K=22,descriptorType=descType,dir=test_dir)
+   checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
    checkMatrix(sprintf("eucsearch.%d-%d",r,d),20,N)
    checkMatrix("^indexed$",20,22)
    checkMatrix("indexed.performance",20,1)
@@ -114,18 +115,18 @@ test_ea.eiAdd<- function(){
 
 	#DEACTIVATED("slow")
    data(example_compounds)
-   cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),file="example_compounds.sdf")
+   cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),file=file.path(test_dir,"example_compounds.sdf"))
    options(warn=-1)
-   examples=read.SDFset("example_compounds.sdf")
+   examples=read.SDFset(file.path(test_dir,"example_compounds.sdf"))
    options(warn=2)
-   eiAdd(r,d,findRefIddb(runDir),examples[1:2],descriptorType=descType)
+   eiAdd(r,d,findRefIddb(runDir),examples[1:2],descriptorType=descType,dir=test_dir)
 
-   results = eiQuery(r,d,findRefIddb(runDir),examples[1:2],descriptorType=descType)
+   results = eiQuery(r,d,findRefIddb(runDir),examples[1:2],descriptorType=descType,dir=test_dir)
    print(results)
    checkEquals(results$distance[1],0)
 
-   eiAdd(r,d,findRefIddb(runDir),examples[4:8],descriptorType=descType)
-   results = eiQuery(r,d,findRefIddb(runDir),examples[4],descriptorType=descType)
+   eiAdd(r,d,findRefIddb(runDir),examples[4:8],descriptorType=descType,dir=test_dir)
+   results = eiQuery(r,d,findRefIddb(runDir),examples[4],descriptorType=descType,dir=test_dir)
    checkEquals(results$distance[1],0)
    print(results)
 }
@@ -136,10 +137,10 @@ test_fa.eiCluster <- function(){
 	cutoff=0.5
 
 
-	clustering=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,descriptorType=descType)
+	clustering=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,descriptorType=descType,dir=test_dir)
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
 
-	conn = initDb("data/chem.db")
+	conn = initDb(file.path(test_dir,"data","chem.db"))
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
@@ -158,7 +159,7 @@ test_fn.cluster_comparison <- function(){
 	fast=TRUE
 	cutoff=0.8
 
-	dir="."
+	dir=test_dir
 	#dir="/home/khoran/runs/drug_bank_1000"
 	#r=300
 	#d=100
@@ -167,7 +168,7 @@ test_fn.cluster_comparison <- function(){
 	clustering=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,dir=dir,cutoff=1-cutoff,descriptorType=descType)
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
 
-	conn = initDb(file.path(dir,"data/chem.db"))
+	conn = initDb(file.path(dir,"data","chem.db"))
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
@@ -288,7 +289,7 @@ queriedNnm <- function(compoundIds,r,d,numNbrs,dir){
 }
 trueNnm <- function(compoundIds,numNbrs,minNbrs,dir,cutoff=NA){
 
-	conn = initDb(file.path(dir,"data/chem.db"))
+	conn = initDb(file.path(test_dir,"data","chem.db"))
 	preProcess = eiR:::getTransform(descType)$toObject
 	aps=as(preProcess(eiR:::getDescriptors(conn,descType,compoundIds)),"APset")
 	#cid(aps)=compoundNames
@@ -316,7 +317,7 @@ clusterSizes <- function(clustering) {
 cleanup<- function(){
    unlink(test_dir,recursive=T)
    dir.create(test_dir)
-   setwd(test_dir)
+#   setwd(test_dir) # this breaks check
    #junk <- c("data","example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"),fpDir)
    #junk <- c("example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"))
    #unlink(junk,recursive=T)
