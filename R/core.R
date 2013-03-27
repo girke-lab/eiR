@@ -81,15 +81,16 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 			stop("failed to create data directory ",file.path(dir,DataDir))
 
 	descriptorFunction = function(set)
-		data.frame(descriptor=getTransform(descriptorType,format)$toString(set),
+		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set),
 					  descriptor_type=descriptorType)
 	
 
 	conn = initDb(file.path(dir,ChemDb))
 	if(tolower(format) == "sdf"){
 		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction)
-	}else if(tolower(format) == "smile"){
-		compoundIds = loadSmile(conn,compoundDb,descriptors=descriptorFunction)
+	}else if(tolower(format) == "smiles" || tolower(format)=="smi"){
+		stop("smiles are not yet supported")
+		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction)
 	}else{
 		stop(paste("unknown input format:",format," supported formats: SDF, SMILE"))
 	}
