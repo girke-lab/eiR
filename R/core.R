@@ -345,6 +345,9 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 
 		conn = initDb(file.path(dir,ChemDb))
 		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
+		if(type=="matrix")
+			similarities = array(NA,dim=c(length(mainIndex),K))
+	
 		#print("refining")
 		batchByIndex(mainIndex,function(indexSet){
 
@@ -367,15 +370,22 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 				names(reverseIndex)=mainIndex[n[,1]]
 			   n[,1] = mainIndex[n[,1]]
 				#print(reverseIndex)
-			#	print(n)
-				#print(paste("refining",i))
+				print(n)
+				print(paste("refining",i))
 				refined = refine(n,descriptors[i],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
 				dim(refined)=c(min(sum(nonNegs),K) ,2)
+				print("refined: ")
+				print(refined)
 				#print(paste(mainIndex[i],paste(refined[,1],collapse=",")))
-				refinedNeighbors[i,1:(dim(refined)[1])]<<-
-							#as.character(refined[,1])
+				refinedNeighbors[i,1:nrow(refined)]<<-
 							reverseIndex[as.character(refined[,1])]
-				#print(refinedNeighbors[i,1:(dim(refined)[1])])
+				if(type=="matrix"){
+					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
+					print(similarities[i,1:nrow(refined)])
+				}
+					
+
+				print(refinedNeighbors[i,1:nrow(refined)])
 			})
 		 })
 
@@ -386,7 +396,9 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 		#print((refinedNeighbors))
 
 		if(type=="matrix")
-			return(refinedNeighbors)
+			return(list(indexes=refinedNeighbors,
+							names=rownames(refinedNeighbors),
+							similarities=similarities))
 
 		#print("clustering")
 		rawClustering = jarvisPatrick_c(refinedNeighbors,minNbrs,fast=TRUE)
@@ -434,7 +446,7 @@ embed <- function(r,d,coords, query2RefDists)
 		embeddedQueries = apply(query2RefDists,c(1),
 			function(x) embedCoord(solver,d,x))
 }
-refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorType,cutoff=NA, conn=NULL)
+refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorType,cutoff=NULL, conn=NULL)
 {
 
 	d = t(IddbVsGivenDist(file.path(dir,ChemDb),lshNeighbors[,1],
@@ -444,7 +456,7 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 	#if(debug) print(str(d))
 	lshNeighbors[,2]=d 
 
-	if(!is.na(cutoff))
+	if(!is.null(cutoff))
 		lshNeighbors[lshNeighbors[,2] > cutoff,]=NA
 
 	limit = min(limit,length(lshNeighbors[,2]))
