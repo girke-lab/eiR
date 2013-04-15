@@ -149,6 +149,11 @@ test_fa.eiCluster <- function(){
 	checkTrue(nrow(sizes) %in% c(9,10)) # 10 if eiAdd has run
 	checkTrue(all(sizes[,2]==2))
 
+
+	nnm=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,type="matrix",cutoff=1-cutoff,descriptorType=descType,dir=test_dir)
+   clustering = jarvisPatrick(nnm,k=numNbrs)
+	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
+
 	#print(sort(clustering))
 }
 test_fn.cluster_comparison <- function(){
