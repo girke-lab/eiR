@@ -180,9 +180,9 @@
 #define __LSHKIT_WDONG__
 
 #include <lshkit/common.h>
-#include <lshkit/composite.h>
-#include <lshkit/lsh.h>
 #include <lshkit/lsh-index.h>
+#include <lshkit/lsh.h>
+#include <lshkit/composite.h>
 #include <lshkit/sketch.h>
 #include <lshkit/histogram.h>
 #include <lshkit/metric.h>

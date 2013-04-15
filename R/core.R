@@ -139,6 +139,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 	matrixFile = file.path(workDir,sprintf("matrix.%d-%d",r,d))
 
+	if(d >= length(refIds))
+		stop("d must be less than the number of reference compounds")
 	if(file.exists(matrixFile))
 		stop(paste("found existing",matrixFile),"stopping")
 	if(!file.exists(file.path(dir,Main)))
