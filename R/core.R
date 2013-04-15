@@ -370,22 +370,18 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 				names(reverseIndex)=mainIndex[n[,1]]
 			   n[,1] = mainIndex[n[,1]]
 				#print(reverseIndex)
-				print(n)
-				print(paste("refining",i))
+				#print(n)
+				#print(paste("refining",i))
 				refined = refine(n,descriptors[i],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
 				dim(refined)=c(min(sum(nonNegs),K) ,2)
-				print("refined: ")
-				print(refined)
+				#print("refined: ")
+				#print(refined)
 				#print(paste(mainIndex[i],paste(refined[,1],collapse=",")))
 				refinedNeighbors[i,1:nrow(refined)]<<-
 							reverseIndex[as.character(refined[,1])]
-				if(type=="matrix"){
+				if(type=="matrix")
 					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
-					print(similarities[i,1:nrow(refined)])
-				}
-					
-
-				print(refinedNeighbors[i,1:nrow(refined)])
+				#print(refinedNeighbors[i,1:nrow(refined)])
 			})
 		 })
 
