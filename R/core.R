@@ -18,7 +18,6 @@ debug=FALSE
 #  Need function to compute distances between descriptors
 
 cdbSize <- function(dir=".") {
-#	getSegmentSize(file.path(dir,ChemDb),dir)
 	#TODO: make this more efficient
 	length(readIddb(file.path(dir,Main)))
 }
@@ -74,7 +73,8 @@ lshsearchAll <- function(matrixFile,
 # and compound format, ei, "SDF", "SMILE", etc.
 # X optionally: compound -> string and string -> compound
 
-eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE)
+eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE,
+						 conn=defaultConn(dir))
 {
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
@@ -85,7 +85,12 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 					  descriptor_type=descriptorType)
 	
 
-	conn = initDb(file.path(dir,ChemDb))
+	print("CONNECTION:")
+	print(str(conn))
+	if(is.null(conn))
+		conn = initDb(file.path(dir,ChemDb))
+	print(str(conn))
+	
 	if(tolower(format) == "sdf"){
 		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction)
 	}else if(tolower(format) == "smiles" || tolower(format)=="smi"){
@@ -101,7 +106,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 }
 
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
-				dir=".",numSamples=cdbSize(dir)*0.1,
+				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK"))
 {
 	workDir=NA
@@ -111,6 +116,9 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			if(!dir.create(workDir))
 				stop("Could not create run directory ",workDir)
 	}
+
+	if(is.null(conn))
+		stop("no database connection given")
 
 	if(is.character(refs)){ #assume its a filename
 		refIds=readIddb(refs)
@@ -145,9 +153,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		stop(paste("found existing",matrixFile),"stopping")
 	if(!file.exists(file.path(dir,Main)))
 		stop(file.path(dir,Main)," not found. Did you run eiInit first?")
-	if(!file.exists(file.path(dir,ChemDb)))
-		stop(file.path(dir,ChemDb)," not found. Did you run eiInit first?")
-
+	
 
 	queryIds=genTestQueryIds(numSamples,dir,refIds)
 	mainIds <- readIddb(file.path(dir,Main))
@@ -169,7 +175,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		#compute pairwise distances for all references
 		if(! file.exists(selfDistFile)){
 			message("generating selfDistFile")
-			IddbVsIddbDist(file.path(dir,ChemDb),refIds,refIds,distance,descriptorType,file=selfDistFile)
+			IddbVsIddbDist(conn,refIds,refIds,distance,descriptorType,file=selfDistFile)
 		}
 		selfDist<-read.table(selfDistFile)
 		#print(head(selfDist))
@@ -182,7 +188,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	}
 	#compute dist between refs and all compounds
 	if(!file.exists(ref2AllDistFile))
-		IddbVsIddbDist(file.path(dir,ChemDb),readIddb(file.path(dir,Main)),
+		IddbVsIddbDist(conn,readIddb(file.path(dir,Main)),
 							refIds,distance,descriptorType,file=ref2AllDistFile)
 	
 	#each job needs: R, D, coords, a chunk of distance data
@@ -245,6 +251,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 }
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
+		conn=defaultConn(dir),
 		K=200, W = 1.39564, M=19,L=10,T=30)
 {
 		tmpDir=tempdir()
@@ -262,8 +269,7 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 
 		#embed queries in search space
 		embeddedQueries = embedFromRefs(r,d,refIddb, 
-								  t(IddbVsGivenDist(file.path(dir,ChemDb), 
-														  refIds,queryDescriptors,distance,descriptorType)))
+								  t(IddbVsGivenDist(conn,refIds,queryDescriptors,distance,descriptorType)))
 
 		#search for nearby compounds
 		#if(debug) print(embeddedQueries)
@@ -304,13 +310,13 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 }
 
 eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
-		descriptorType="ap",distance=getDefaultDist(descriptorType))
+						conn=defaultConn(dir), descriptorType="ap",
+						distance=getDefaultDist(descriptorType))
 {
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 
 		# add additions to database
-		conn = initDb(file.path(dir,ChemDb))
 		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE)
 		additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
 		numAdditions = length(compoundIds)
@@ -318,7 +324,7 @@ eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
 
 		#embed queries in search space
 		embeddedAdditions= embedFromRefs(r,d,refIddb,
-									t(IddbVsGivenDist(file.path(dir,ChemDb),refIds,additionDescriptors,distance,descriptorType)))
+									t(IddbVsGivenDist(conn,refIds,additionDescriptors,distance,descriptorType)))
 		#if(debug) print(dim(embeddedAdditions))
 		#if(debug) print(embeddedAdditions)
 		embeddedFile <- file.path(workDir,sprintf("coord.%d-%d",r,d))
@@ -331,6 +337,7 @@ eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
 
 eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 							 descriptorType="ap",distance=getDefaultDist(descriptorType),
+							 conn=defaultConn(dir),
 							  W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single"){
 
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
@@ -345,7 +352,6 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 #		neighbors[,,2]=-2.0
 		#print(neighbors)
 
-		conn = initDb(file.path(dir,ChemDb))
 		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
 		if(type=="matrix")
 			similarities = array(NA,dim=c(length(mainIndex),K))
@@ -444,11 +450,12 @@ embed <- function(r,d,coords, query2RefDists)
 		embeddedQueries = apply(query2RefDists,c(1),
 			function(x) embedCoord(solver,d,x))
 }
-refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorType,cutoff=NULL, conn=NULL)
+refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorType,cutoff=NULL,
+						 conn=defaultConn(dir))
 {
 
-	d = t(IddbVsGivenDist(file.path(dir,ChemDb),lshNeighbors[,1],
-								 queryDescriptors,distance,descriptorType,conn=conn))
+	d = t(IddbVsGivenDist(conn,lshNeighbors[,1],
+								 queryDescriptors,distance,descriptorType))
 
 	#if(debug) print("result distance: ")
 	#if(debug) print(str(d))
@@ -461,8 +468,8 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 	#print(paste("num dists:",length(lshNeighbors[,2]), "limit:",limit,"cutoff: ",cutoff))
 	lshNeighbors[order(lshNeighbors[,2])[1:limit],]
 }
-getNames <- function(indexes,dir)
-	getCompoundNames(initDb(file.path(dir,ChemDb)),indexes)
+getNames <- function(indexes,dir,conn=defaultConn(dir))
+	getCompoundNames(conn,indexes)
 
 writeIddb <- function(data, file,append=FALSE)
 		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
@@ -498,13 +505,13 @@ genRefName <- function(workDir)
 				 paste(paste(sample(c(0:9,letters),32,replace=TRUE),
 								 collapse=""),
 						 "cdb",sep="."))
-genTestQueryResults <- function(distance,dir,descriptorType)
+genTestQueryResults <- function(distance,dir,descriptorType,conn=defaultConn(dir))
 {
 	if(file.exists(file.path(dir,TestQueryResults)))
 		return()
 
 	out=file(file.path(dir,TestQueryResults),"w")
-	d=IddbVsIddbDist(file.path(dir,ChemDb),
+	d=IddbVsIddbDist(conn,
 		readIddb(file.path(dir,TestQueries)),
 		readIddb(file.path(dir,Main)),distance,descriptorType)
 	if(debug) print(paste("dim(d): ",dim(d)))
@@ -516,7 +523,8 @@ genTestQueryResults <- function(distance,dir,descriptorType)
 	close(out)
 }
 eiPerformanceTest <- function(r,d,distance=getDefaultDist(descriptorType),descriptorType="ap",
-	dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
+										conn=defaultConn(dir),
+										dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
 {
 	workDir=file.path(dir,paste("run",r,d,sep="-"))
 	eucsearch=file.path(workDir,sprintf("eucsearch.%s-%s",r,d))
@@ -532,7 +540,6 @@ eiPerformanceTest <- function(r,d,distance=getDefaultDist(descriptorType),descri
 	matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 	coordQueryFile =file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 
-	conn = initDb(file.path(dir,ChemDb))
 	testQueryDescriptors=getDescriptors(conn,descriptorType,readIddb(file.path(dir,TestQueries)) )
 	embeddedTestQueries = t(as.matrix(read.table(coordQueryFile)))
 	hits = search(embeddedTestQueries,matrixFile,
@@ -559,8 +566,7 @@ desc2descDist <- function(desc1,desc2,dist)
 	as.matrix(sapply(desc2,function(x) sapply(desc1,function(y) dist(x,y))))
 
 
-IddbVsGivenDist<- function(db,iddb,descriptors,dist,descriptorType,file=NA, conn=NULL){
-	if(is.null(conn)) conn=initDb(db)
+IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
 
 	preProcess = getTransform(descriptorType)$toObject
 	descriptors=preProcess(descriptors)
@@ -573,8 +579,7 @@ IddbVsGivenDist<- function(db,iddb,descriptors,dist,descriptorType,file=NA, conn
 	}
 	output(file,length(iddb),length(descriptors),process)
 }
-IddbVsIddbDist<- function(db,iddb1,iddb2,dist,descriptorType,file=NA,conn=NULL){
-	if(is.null(conn)) conn=initDb(db)
+IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA){
 
 	#print(paste("iddb2:",paste(iddb2,collapse=",")))
 	preProcess = getTransform(descriptorType)$toObject
