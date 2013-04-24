@@ -64,7 +64,7 @@ int eucsearch2file(const char* matrix,const char* queryMatrix,int n_results,char
 {
    std::fstream ofs;
    ofs.open(outfile,std::ios::out);
-   eucsearch(matrix,queryMatrix,n_results,ofs);
+   return eucsearch(matrix,queryMatrix,n_results,ofs);
 }
 #ifndef NO_MAIN
 int main(int argc, const char* argv[])
