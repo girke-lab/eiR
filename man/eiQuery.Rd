@@ -8,7 +8,7 @@
 }
 \usage{
 	eiQuery(r,d,refIddb,queries,format="sdf",
-		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
+		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),conn=defaultConn(dir),
 		K=200, W = 1.39564, M=19,L=10,T=30)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -50,6 +50,9 @@
 		provided for "ap" and "fp" descriptors. The Tanimoto function is used by default.
 	}
 
+	\item{conn}{
+		Database connection to use.
+	}
   \item{K}{
      The number of results to return.
    }

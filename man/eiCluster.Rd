@@ -10,7 +10,7 @@
 \usage{
 	eiCluster(r,d,K,minNbrs, dir=".",cutoff=NULL,
 							 descriptorType="ap",distance=getDefaultDist(descriptorType),
-							  W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single")
+							 conn=defaultConn(dir), W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single")
 }
 \arguments{
   \item{r}{
@@ -46,6 +46,9 @@
 	  value, as is often used in other ChemmineR functions.
 	}
 
+	\item{conn}{
+		Database connection to use.
+	}
 	\item{W}{
      Tunable LSH parameter. See LSHKIT page for details.
      \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html}
