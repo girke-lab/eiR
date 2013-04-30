@@ -104,7 +104,6 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 	writeIddb(compoundIds,file.path(dir,Main),append=append)
 	compoundIds
 }
-
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK"))

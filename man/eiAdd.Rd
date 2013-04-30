@@ -7,7 +7,7 @@
    Add additional compounds to and existing database
 }
 \usage{
-	eiAdd(r,d,refIddb,additions,dir=".",format="sdf",
+	eiAdd(r,d,refIddb,additions,dir=".",format="sdf",conn=defaultConn(dir),
 		descriptorType="ap",distance=getDefaultDist(descriptorType))
 
 }
@@ -38,6 +38,9 @@
 	  The format of the data given in  \code{additions}. Currently only "sdf" is
 	  supported.
    }
+	\item{conn}{
+		Database connection to use.
+	}
 	\item{descriptorType}{
 		The format of the descriptor. Currently supported values are "ap" for atom pair, and 
 		"fp" for fingerprint.
