@@ -274,14 +274,14 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		#if(debug) print(embeddedQueries)
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 		hits = search(embeddedQueries,matrixFile,
-							queryDescriptors,distance,dir,descriptorType=descriptorType,K=K,W=W,M=M,L=L,T=T)
+							queryDescriptors,distance,dir,conn=conn,descriptorType=descriptorType,K=K,W=W,M=M,L=L,T=T)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
 
 		targetIds=unlist(lapply(1:length(hits),function(x) hits[[x]][,1]))
 		#targetIds=targetIds[targetIds!=-1]
 		targetIds=targetIds[!is.na(targetIds)]
-		targetNames=as.matrix(getNames(targetIds,dir))
+		targetNames=as.matrix(getNames(targetIds,dir,conn=conn))
 		rownames(targetNames)=targetIds
 		#print(paste(targetIds,targetNames))
 
@@ -411,7 +411,7 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 }
 
 #expects one query per column
-search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,...)
+search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,conn=defaultConn(dir),...)
 {
 		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,...)
 		mainIds <- readIddb(file.path(dir,Main))
@@ -431,7 +431,7 @@ search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,de
 			 n[,1] = mainIds[n[,1]]
 		#	 print("neighbors:")
 		#	 print(n)
-			 refine(n,queryDescriptors[i],K,distance,dir,descriptorType=descriptorType)
+			 refine(n,queryDescriptors[i],K,distance,dir,descriptorType=descriptorType,conn=conn)
 		  }, 1:(dim(embeddedQueries)[2]))
 }
 #fetch coords from refIddb.distmat.coord and call embed
@@ -527,7 +527,7 @@ eiPerformanceTest <- function(r,d,distance=getDefaultDist(descriptorType),descri
 {
 	workDir=file.path(dir,paste("run",r,d,sep="-"))
 	eucsearch=file.path(workDir,sprintf("eucsearch.%s-%s",r,d))
-	genTestQueryResults(distance,dir,descriptorType)
+	genTestQueryResults(distance,dir,descriptorType,conn=conn)
 	eucsearch2file(file.path(workDir,sprintf("matrix.%s-%s",r,d)),
 				 file.path(workDir,sprintf("matrix.query.%s-%s",r,d)),
 				 50000,eucsearch)
@@ -542,7 +542,7 @@ eiPerformanceTest <- function(r,d,distance=getDefaultDist(descriptorType),descri
 	testQueryDescriptors=getDescriptors(conn,descriptorType,readIddb(file.path(dir,TestQueries)) )
 	embeddedTestQueries = t(as.matrix(read.table(coordQueryFile)))
 	hits = search(embeddedTestQueries,matrixFile,
-						testQueryDescriptors,distance,descriptorType=descriptorType,dir,K=K,W=W,M=M,L=L,T=T)
+						testQueryDescriptors,distance,descriptorType=descriptorType,dir=dir,conn=conn,K=K,W=W,M=M,L=L,T=T)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
 	#if(debug) print(hits)
