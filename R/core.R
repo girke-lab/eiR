@@ -85,11 +85,8 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 					  descriptor_type=descriptorType)
 	
 
-	print("CONNECTION:")
-	print(str(conn))
 	if(is.null(conn))
 		conn = initDb(file.path(dir,ChemDb))
-	print(str(conn))
 	
 	if(tolower(format) == "sdf"){
 		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction)
