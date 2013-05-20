@@ -81,7 +81,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 			stop("failed to create data directory ",file.path(dir,DataDir))
 
 	descriptorFunction = function(set)
-		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set),
+		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set,conn,dir),
 					  descriptor_type=descriptorType)
 	
 
@@ -105,6 +105,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK"))
 {
+	conn
 	workDir=NA
 	createWorkDir <- function(r){
 		workDir<<-file.path(dir,paste("run",r,d,sep="-"))
@@ -250,12 +251,14 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		conn=defaultConn(dir),
 		K=200, W = 1.39564, M=19,L=10,T=30)
 {
+		conn
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		refIds = readIddb(refIddb)
 
+		if(debug) print("eiQuery")
 
-		descriptorInfo = getTransform(descriptorType,format)$toObject(queries,dir)
+		descriptorInfo = getTransform(descriptorType,format)$toObject(queries,conn,dir)
 		queryDescriptors = descriptorInfo$descriptors
 		numQueries = length(queryDescriptors)
 		queryNames = descriptorInfo$names
@@ -309,6 +312,7 @@ eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
 						conn=defaultConn(dir), descriptorType="ap",
 						distance=getDefaultDist(descriptorType))
 {
+		conn
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 
@@ -336,6 +340,9 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 							 conn=defaultConn(dir),
 							  W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single"){
 
+		if(debug) print("staring eiCluster")
+
+		conn
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 		mainIndex = readIddb(file.path(dir,Main))
@@ -522,6 +529,7 @@ eiPerformanceTest <- function(r,d,distance=getDefaultDist(descriptorType),descri
 										conn=defaultConn(dir),
 										dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
 {
+	conn
 	workDir=file.path(dir,paste("run",r,d,sep="-"))
 	eucsearch=file.path(workDir,sprintf("eucsearch.%s-%s",r,d))
 	genTestQueryResults(distance,dir,descriptorType,conn=conn)
