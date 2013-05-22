@@ -9,7 +9,7 @@
 \usage{
 	eiQuery(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
-		K=200, W = 1.39564, M=19,L=10,T=30)
+		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -49,7 +49,11 @@
 		The distance function to be used to compute the distance between two descriptors. A default function is
 		provided for "ap" and "fp" descriptors. The Tanimoto function is used by default.
 	}
-
+	\item{asSimilarity}{
+		If true, return similarity values instead of distance values. This only works in the given
+		distance function returns values between 0 and 1. This is true for the default atom pair and 
+		finger print distance functions.
+	}
   \item{K}{
      The number of results to return.
    }
@@ -74,6 +78,10 @@
 	different formats, see the \code{queries} parameter for details. 
 	The LSH algorithm is used to quickly identify compounds similar to the
 	queries. 
+	This function must use a distance function rather than a similarity function.
+	However, if the distance function given returns values between 0 and 1, then
+	the \code{asSimilarity} parameter may be used to return similarity values rather
+	than distance values.
 }
 \value{
    Returns a data frame with columns 'query', 'target', 'target_ids', and
@@ -81,6 +89,8 @@
    distance is the distance between them, as computed by
    the given distance function.'target_ids' is the compound id of the target.
 	Query namess are repeated for each matching target found.
+	If \code{asSimilarity} is true then instead of a "distance"
+	column there will be a "similarity" column.
 }
 \author{
    Kevin Horan
