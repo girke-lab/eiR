@@ -1,4 +1,4 @@
-PKG_CXXFLAGS +=  -DNO_MAIN -Iinclude -I. -I$(LIB_GSL)$(R_ARCH)/include -Itrimmed_boost_1_49_0
+PKG_CXXFLAGS +=  -DNO_MAIN -DMSDOS -Iinclude -I. -I$(LIB_GSL)$(R_ARCH)/include -Itrimmed_boost_1_49_0
 PKG_LIBS +=-lm -Lf2c -lf2c  -L$(LIB_GSL)$(R_ARCH)/lib -lgsl -lgslcblas  
 
 $(SHLIB): f2c/libf2c.a
