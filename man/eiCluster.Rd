@@ -61,7 +61,13 @@
      Number of probes
    }
    \item{type}{
-		If "cluster", returns a clustering, else, if "matrix", returns a nearest neighbor matrix.
+		If "cluster", returns a clustering, else, if "matrix", returns a list in the format 
+		expected by the \code{jarvisPatrick} function in ChemmineR. This list contains the 
+		nearest neighbor matrix along with the similarity matrix. This allows one to quickly try
+		different cutoff values without having to re-compute the whole similarity matrix each time.
+		Note that since we are returning similarity values here instead of distance values,
+		this will only work if the given distance function returns a value between 0 and 1. This is
+		true of the default funtions.
 	}
 	\item{linkage}{
 		Can be one of "single", "average", or "complete", for single linkage, average linkage and complete linkage
@@ -73,17 +79,27 @@
 
 }
 \details{
-	The jarvis patrick clustering algorithm takes a set of items, a distance function, and two parameters, \code{K}, and 
-	\code{minNbrs}. For each item, it find the \code{K} nearest neighbors of that item. Normally this requires computing the distance
-	between every pair of items. However, using Locality Sensative Hashing (LSH), the set of nearst neighbors can be
-	found in near constant time. Once the nearest neighbor matrix is computed, the algorithm makes one pass through
-	the items and merges all pairs that have at least \code{minNbrs} neighbors in common.
+	The jarvis patrick clustering algorithm takes a set of items, a distance function, and two
+	parameters, \code{K}, and \code{minNbrs}. For each item, it find the \code{K} nearest neighbors
+	of that item. Normally this requires computing the distance between every pair of items.
+	However, using Locality Sensative Hashing (LSH), the set of nearst neighbors can be found in
+	near constant time. Once the nearest neighbor matrix is computed, the algorithm makes one pass
+	through the items and merges all pairs that have at least \code{minNbrs} neighbors in common.
 
-	Although not required, it is avisable to specify a \code{cutoff} value. This is the maximum distance two items can
-	have from each other and still be considered to be neighbors. 	It is thus possible for an item to end up with less
-	than \code{K} neighbors if less than \code{K} items are close enough to it. If a cutoff is not specified, it is
-	possible for highly un-related items to be listed as neighbors of another item simply because nothing else was
-	nearby. This can lead to items being joined into clusters with which they have no true connection.
+	Although not required, it is avisable to specify a \code{cutoff} value. This is the maximum
+	distance two items can have from each other and still be considered to be neighbors. 	It is
+	thus possible for an item to end up with less than \code{K} neighbors if less than \code{K}
+	items are close enough to it. If a cutoff is not specified, it is possible for highly
+	un-related items to be listed as neighbors of another item simply because nothing else was
+	nearby. This can lead to items being joined into clusters with which they have no true
+	connection.
+
+	The \code{type} parameter can be used to return a list which can be used to call the
+	\code{jarvisPatrick} function in ChemmineR directly. The advantage of this is that it will
+	contain the similarity matrix which can then be used to quickly set different cutoff values
+	(using \code{trimNeighbors}) whithout having to re-compute the similarity matrix. Note that this 
+	requires that the given distance function return a value between 0 and 1 so it can be converted
+	to a similarity function.
 
 }
 \value{
