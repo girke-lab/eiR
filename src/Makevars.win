@@ -4,4 +4,4 @@ PKG_LIBS +=-lm -Lf2c -lf2c  -L$(LIB_GSL)$(R_ARCH)/lib -lgsl -lgslcblas
 $(SHLIB): f2c/libf2c.a
 
 f2c/libf2c.a:
-	@(cd f2c && $(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS) $(CPICFLAGS)" AR="$(AR)" RANLIB="$(RANLIB)")
+	@(cd f2c && $(MAKE) CC="$(CC)" CXX="$(CXX)" 'CFLAGS=$(CFLAGS) -DMSDOS $(CPICFLAGS)' AR="$(AR)" RANLIB="$(RANLIB)")
