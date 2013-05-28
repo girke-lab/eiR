@@ -225,13 +225,13 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		})
 	close(distConn)
 
-
-	system(paste("cat",
-					 paste(Map(function(x) file.path(workDir,paste(r,d,x,sep="-")),1:numJobs),collapse=" "),
-					 ">",embeddedFile))
-	system(paste("cat",
-					 paste(Map(function(x) file.path(workDir,paste("q",r,d,x,sep="-")),1:numJobs),collapse=" "),
-					 ">",embeddedQueryFile))
+	unlink(c(embeddedFile,embeddedQueryFile))
+	for(x in 1:numJobs){
+		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
+			 sep="\n",file=embeddedFile, append=TRUE)
+		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
+			 sep="\n",file=embeddedQueryFile, append=TRUE)
+	}
 
 	Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
