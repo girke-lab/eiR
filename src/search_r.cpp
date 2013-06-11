@@ -217,12 +217,12 @@ SEXP lshsearch(SEXP queries, SEXP matrixFile, SEXP indexFile,
    int k=0;
    for(int i=0; i < numQueries; i++)
    {
-    //  Rprintf("query %d:\n",i);
+      Rprintf("query %d:\n",i);
       for(int j=0;j<querySize;j++){
          queryPtr[j]=(float)REAL(queries)[k++];
-     //    Rprintf("%f ",queryPtr[j]);
+         Rprintf("%f ",queryPtr[j]);
       }
-      //Rprintf("\n");
+      Rprintf("\n");
 
       unsigned cnt;
       Topk<unsigned> topk;
@@ -236,10 +236,10 @@ SEXP lshsearch(SEXP queries, SEXP matrixFile, SEXP indexFile,
       topk.swap(query.topk());
 
 
-      //for (unsigned j = 0; j < K; j ++)
-         //if(topk[j].dist != maxValue)
-            //Rprintf("%d:%f ",topk[j].key,topk[j].dist);
-      //Rprintf("\n");
+      for (unsigned j = 0; j < K; j ++)
+         if(topk[j].dist != maxValue)
+            Rprintf("%d:%f ",topk[j].key,topk[j].dist);
+      Rprintf("\n");
 
 
       for(unsigned j = 0; j < K; j++)

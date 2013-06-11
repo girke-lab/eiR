@@ -7,7 +7,7 @@ test_dir="test_workspace"
 r<- 50
 d<- 40
 N<- 100
-j=1
+j=3
 runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
 descType="ap"
@@ -47,7 +47,7 @@ test_aa.eiInit <- function() {
 testRefs <- function(){
 	200+c(1,2,5,8,9,10,11,17,18,19,20,23,24,25,26,29,31,33,34,36,38,43,45,46,47,48,49,51,53,66,67,70,71,72,73,74,75,77,78,79,80,81,82,83,87,88,89,91,99,100)
 }
-test_ba.eiMakeDb <- function() {
+test_bb.eiMakeDb <- function() {
 
 	#DEACTIVATED("slow")
    runChecks = function(){
@@ -65,23 +65,55 @@ test_ba.eiMakeDb <- function() {
          checkTrue(!file.exists(file.path(runDir,paste("q",r,d,x,sep="-")))),1:j)
    }
 
+	cl=makeCluster(j,type="SOCK",outfile=file.path(test_dir,"eiMakeDb.snow"))
 	print("by file name")
    refFile = file.path(test_dir,"reference_file.cdb")
 	eiR:::writeIddb((1:r)+200,refFile)
-   eiMakeDb(refFile,d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType,dir=test_dir)
+   eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir)
    runChecks()
 	unlink(runDir,recursive=TRUE)
 
 	print("by number")
-   eiMakeDb(r,d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType,dir=test_dir)
+   eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir)
    runChecks()
 	unlink(runDir,recursive=TRUE)
 
 	print("by vector")
-   eiMakeDb(testRefs(),d,numSamples=20,cl=makeCluster(j,type="SOCK",outfile=""),descriptorType=descType,dir=test_dir)
+   eiMakeDb(testRefs(),d,numSamples=20,cl=cl,descriptorType=descType, dir=test_dir,
+				connSource=function(){
+					require(eiR)
+					require(RSQLite)
+					initDb(file.path(test_dir,"data","chem.db"))
+				}
+				)
    runChecks()
 
 	
+}
+test_ba.parDist <- function(){
+
+	conn = initDb(file.path(test_dir,"data","chem.db"))
+	distance = eiR:::getDefaultDist("ap") 
+	require(snow)
+	cl = makeSOCKcluster(3,outfile="snow.out")
+
+	set1=eiR:::readIddb(file.path(test_dir,"data","main.iddb"))
+	set2 = testRefs()
+
+	print("set1")
+	print(set1)
+
+	print("set2")
+	print(set2)
+   
+	eiR:::IddbVsIddbDist(conn,set1,set2, distance,"ap",file=file.path(test_dir,"parDist.final"),
+								cl=cl,
+								connSource= function(){
+									print("making new connection")
+									require(eiR); require(RSQLite);  initDb(file.path(test_dir,"data","chem.db"))} )
+
+	checkTrue(file.exists(file.path(test_dir,"parDist.final")))
+
 }
 test_ca.eiQuery <- function(){
 
@@ -333,9 +365,9 @@ findRefIddb <- function(runDir){
    matches[1]
 }
 checkMatrix <- function(pattern,x,y,dir=runDir){
-	#print(paste("searching for ",pattern))
+#	print(paste("searching for ",pattern))
    matches<-dir(dir,pattern=pattern,full.names=T)
-	#print(matches)
+#	print(matches)
    checkEquals(length(matches),1)
    file <- matches[1]
    checkTrue(file.info(file)$size>0)
