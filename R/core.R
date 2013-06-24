@@ -644,58 +644,57 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 	}else{
 		if(is.null(connSource))
 			stop("the connSource parameter is required when using a cluster")
-		parBatchByIndex(iddb1,cl=cl,batchSize=10000,
-				indexProcessor=ip, reduce = ipReduce )
 
-#		process = function(record,recordPart){
-#			parBatchByIndex(iddb1,cl=cl,batchSize=10000,
-#				indexProcessor=function(ids,jobId){
-#					cat("hi",file=paste("job-",jobId,".out",sep=""))
-#					"nonexistant-filename"
-#				},
-#				function(ids,jobId){
-#					f = file(paste("job-",jobId,".out",sep=""),"a")
-#					message("in indexProcessor: ",jobId)
-#					cat("in indexProcessor: ",jobId,"\n",file=f); flush(f)
-#					#print(ids)
-#					#f=function(){
-#			#		recordPart({
-#			#			message("starting")
-#			#			cat("recording","\n",file=f); flush(f)
-#
-#			#			# this must be done here to ensure connSource() is evaluated
-#			#			# before getDescriptors starts to run
-#			#			conn=connSource()
-#
-#			#			outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
-#			#			dbDisconnect(conn)
-#			#			cat("got descriptors","\n",file=f); flush(f)
-#			#			d2d=desc2descDist(outerDesc,descriptors,dist)
-#			#			cat("got distances","\n",file=f); flush(f)
-#			#			d2d
-#			#		},jobId)
-#		#			ret = recordPart(8,jobId)
-#					cat("done with ",jobId,"\n",file=f); flush(f)
-#					close(f)
-#		#			ret
-#					"nonexistant-filename"
-#				},
-#				reduce = function(results){
-#					message("evaluationg results")
-#					results # force evaluation here
-#					message("in reduce")
-#					sapply(results,function(result) {
-#						if(is.character(result))
-#							record(read.table(result))
-#						else
-#							record(result)
-#						})
-#				})
-#		}
-#		absPath=file.path(getwd(),file)
-#		print(absPath)
-#
-#		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
+
+		process = function(record,recordPart){
+			parBatchByIndex(iddb1,cl=cl,batchSize=10000,
+				indexProcessor= function(ids,jobId){
+					tryCatch({
+						f = file(paste("job-",jobId,".out",sep=""),"a")
+						message("in indexProcessor: ",jobId)
+						cat("in indexProcessor: ",jobId,"\n",file=f); flush(f)
+						#print(ids)
+						#f=function(){
+				#		recordPart({
+				#			message("starting")
+				#			cat("recording","\n",file=f); flush(f)
+
+				#			# this must be done here to ensure connSource() is evaluated
+				#			# before getDescriptors starts to run
+				#			conn=connSource()
+
+				#			outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
+				#			dbDisconnect(conn)
+				#			cat("got descriptors","\n",file=f); flush(f)
+				#			d2d=desc2descDist(outerDesc,descriptors,dist)
+				#			cat("got distances","\n",file=f); flush(f)
+				#			d2d
+				#		},jobId)
+			#			ret = recordPart(8,jobId)
+						cat("done with ",jobId,"\n",file=f); flush(f)
+						close(f)
+			#			ret
+						"nonexistant-filename"
+					},
+					finally=function(e) cat(as.character(e),file=paste("error-",jobId,".out",sep="")) )
+					
+				},
+				reduce = function(results){
+					message("evaluationg results")
+					results # force evaluation here
+					message("in reduce")
+					sapply(results,function(result) {
+						if(is.character(result))
+							record(read.table(result))
+						else
+							record(result)
+						})
+				})
+		}
+		absPath=file.path(getwd(),file)
+		print(absPath)
+
+		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
 	}
 }
 
