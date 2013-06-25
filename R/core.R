@@ -616,13 +616,13 @@ IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
 	output(file,length(iddb),length(descriptors),process)
 }
 
-ip <- function(ids,jobId){
-					cat("hi",file=paste("job-",jobId,".out",sep=""))
-					"nonexistant-filename"
-				}
-ipReduce <- function(results) {
-					message("results: ",results)
-				}
+#ip <- function(ids,jobId){
+#					cat("hi",file=paste("job-",jobId,".out",sep=""))
+#					"nonexistant-filename"
+#				}
+#ipReduce <- function(results) {
+#					message("results: ",results)
+#				}
 
 
 IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,connSource=NULL){
@@ -647,38 +647,46 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 
 
 		process = function(record,recordPart){
+				ip=function(ids,jobId){
+					f = file(paste("job-",jobId,".out",sep=""),"a")
+					message("in indexProcessor: ",jobId)
+					cat("in indexProcessor: ",jobId,"\n",file=f); flush(f)
+					#print(ids)
+					ret=recordPart({
+						message("starting")
+						cat("recording","\n",file=f); flush(f)
+
+						# this must be done here to ensure connSource() is evaluated
+						# before getDescriptors starts to run
+						tryCatch({
+								conn=connSource()
+								outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
+							},
+							error=function(e) stop(e),
+							finally= dbDisconnect(conn)
+						)
+						cat("got descriptors","\n",file=f); flush(f)
+						d2d=desc2descDist(outerDesc,descriptors,dist)
+						cat("got distances","\n",file=f); flush(f)
+						d2d
+					},jobId)
+					cat("done with ",jobId,"\n",file=f); flush(f)
+					close(f)
+					ret
+				}
+
+			clusterExport(cl,c("descriptors","getDescriptors","desc2descDist","dist","descriptorType"),envir=environment())
+
+			ipEnv = new.env(parent=globalenv())
+
+			ipEnv$recordPart=recordPart
+			ipEnv$connSource=connSource
+			ipEnv$preProcess=preProcess
+
+			environment(ip)=ipEnv
+
 			parBatchByIndex(iddb1,cl=cl,batchSize=10000,
-				indexProcessor= function(ids,jobId){
-					tryCatch({
-						f = file(paste("job-",jobId,".out",sep=""),"a")
-						message("in indexProcessor: ",jobId)
-						cat("in indexProcessor: ",jobId,"\n",file=f); flush(f)
-						#print(ids)
-						#f=function(){
-				#		recordPart({
-				#			message("starting")
-				#			cat("recording","\n",file=f); flush(f)
-
-				#			# this must be done here to ensure connSource() is evaluated
-				#			# before getDescriptors starts to run
-				#			conn=connSource()
-
-				#			outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
-				#			dbDisconnect(conn)
-				#			cat("got descriptors","\n",file=f); flush(f)
-				#			d2d=desc2descDist(outerDesc,descriptors,dist)
-				#			cat("got distances","\n",file=f); flush(f)
-				#			d2d
-				#		},jobId)
-			#			ret = recordPart(8,jobId)
-						cat("done with ",jobId,"\n",file=f); flush(f)
-						close(f)
-			#			ret
-						"nonexistant-filename"
-					},
-					finally=function(e) cat(as.character(e),file=paste("error-",jobId,".out",sep="")) )
-					
-				},
+				indexProcessor=ip ,
 				reduce = function(results){
 					message("evaluationg results")
 					results # force evaluation here
@@ -727,6 +735,9 @@ toFile <- function(filename,body,mapReduce){
 		partFilename
 #			content=read.table(partFilename)
 	}
+	env = new.env(parent=globalenv())
+	env$filename=filename
+	environment(writePart)=env
 	
 	if(mapReduce)
 		body(write,writePart)
