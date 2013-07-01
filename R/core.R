@@ -10,8 +10,8 @@ ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
@@ -200,26 +200,36 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	}
 	
 	#each job needs: R, D, coords, a chunk of distance data
+	if(debug) message("getting solver")
 	solver <- getSolver(r,d,coords)	
 
 
 	numJobs=length(cl)
 	jobSize = as.integer(cdbSize(dir) / numJobs + 1) #make last job short
 
+	if(debug) message("numJobs: ",numJobs," jobSize: ",jobSize)
+
 	distConn <- file(ref2AllDistFile,"r")
+	if(debug) message("reading dataBlocks")
 	dataBlocks = Map(function(x)
 		strsplit(readLines(distConn,jobSize),"\\s+"),1:numJobs)
 	close(distConn)
+	if(debug) message("done reading dataBlocks")
 
 	#print(paste("numJobs:",numJobs))
 
 	currentDir=getwd()
+	if(debug) message("starting clusterApply")
 	clusterApply(cl,1:numJobs, 
 		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
 			solver <- getSolver(r,d,coords)	
-			data = sapply(dataBlocks[[i]],function(x) 
-								embedCoord(solver,d,as.numeric(x)))
-			print(paste("current dir: ",currentDir))
+
+			data = sapply( ((i-1)*jobSize):(i*jobSize-1),
+								function(x) embedCoord(sover,d,scan(ref2AllDistFile,skip=x,nlines=1)))
+			if(debug) message("embedded ",length(data)," compounds")
+
+			#data = sapply(dataBlocks[[i]],function(x) 
+			#					embedCoord(solver,d,as.numeric(x)))
 
 			write.table(t(data),
 				file=file.path(currentDir,workDir,paste(r,d,i,sep="-")),
@@ -242,6 +252,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				row.names=F,col.names=F)
 		})
 
+	if(debug) message("done with clusterApply. concatening parts")
 
 	system(paste("cat",
 					 paste(Map(function(x) file.path(workDir,paste(r,d,x,sep="-")),1:numJobs),collapse=" "),
@@ -250,8 +261,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 					 paste(Map(function(x) file.path(workDir,paste("q",r,d,x,sep="-")),1:numJobs),collapse=" "),
 					 ">",embeddedQueryFile))
 
-	Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
-	Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
+	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
+	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
 	binaryCoord(embeddedFile,matrixFile,d)
 	binaryCoord(embeddedQueryFile,
