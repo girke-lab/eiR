@@ -204,18 +204,21 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	solver <- getSolver(r,d,coords)	
 
 
-	numJobs=length(cl)
 	numCompounds = cdbSize(dir)
+
+	#ensure we have at least as many jobs as cluster nodes, but if
+	# we have a large number of compounds, batch them by no more than 100,000
+	numJobs = max(length(cl), as.integer(numCompounds / 100000))
 	jobSize = as.integer(numCompounds / numJobs + 1) #make last job short
 
 	if(debug) message("numJobs: ",numJobs," jobSize: ",jobSize)
 
-	distConn <- file(ref2AllDistFile,"r")
-	if(debug) message("reading dataBlocks")
-	dataBlocks = Map(function(x)
-		strsplit(readLines(distConn,jobSize),"\\s+"),1:numJobs)
-	close(distConn)
-	if(debug) message("done reading dataBlocks")
+	#distConn <- file(ref2AllDistFile,"r")
+	#if(debug) message("reading dataBlocks")
+	#dataBlocks = Map(function(x)
+		#strsplit(readLines(distConn,jobSize),"\\s+"),1:numJobs)
+	#close(distConn)
+	#if(debug) message("done reading dataBlocks")
 
 	#print(paste("numJobs:",numJobs))
 
@@ -225,12 +228,20 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
 			solver <- getSolver(r,d,coords)	
 
-			data = sapply( ((i-1)*jobSize):min(i*jobSize-1,numCompounds-1),
-								function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
-			if(debug) message("embedded ",length(data)," compounds")
+			start = (i-1)*jobSize+1 			 #inclusive
+			end = min(i*jobSize,numCompounds) #inclusive
+			numCompounds=end-start+1
+			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
+			if(numCompounds * r != length(rawDists))
+				stop("tried to read ",numCompunds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
+			dim(rawDists) = c(r,numCompounds)
+			rawDists=t(rawDists)
 
-			#data = sapply(dataBlocks[[i]],function(x) 
-			#					embedCoord(solver,d,as.numeric(x)))
+			data = sapply( 1:numCompounds,function(x),embedCoord(solver,d, rawDists[x,]))
+
+			#data = sapply( ((i-1)*jobSize):min(i*jobSize-1,numCompounds-1),
+			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
+			if(debug) message("embedded ",length(data)," compounds")
 
 			write.table(t(data),
 				file=file.path(currentDir,workDir,paste(r,d,i,sep="-")),
@@ -262,8 +273,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 					 paste(Map(function(x) file.path(workDir,paste("q",r,d,x,sep="-")),1:numJobs),collapse=" "),
 					 ">",embeddedQueryFile))
 
-	Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
-	Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
+	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
+	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
 	binaryCoord(embeddedFile,matrixFile,d)
 	binaryCoord(embeddedQueryFile,
