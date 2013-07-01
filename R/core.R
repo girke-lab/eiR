@@ -205,7 +205,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 
 	numJobs=length(cl)
-	jobSize = as.integer(cdbSize(dir) / numJobs + 1) #make last job short
+	numCompounds = cdbSize(dir)
+	jobSize = as.integer(numCompounds / numJobs + 1) #make last job short
 
 	if(debug) message("numJobs: ",numJobs," jobSize: ",jobSize)
 
@@ -224,8 +225,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
 			solver <- getSolver(r,d,coords)	
 
-			data = sapply( ((i-1)*jobSize):(i*jobSize-1),
-								function(x) embedCoord(sover,d,scan(ref2AllDistFile,skip=x,nlines=1)))
+			data = sapply( ((i-1)*jobSize):min(i*jobSize-1,numCompounds-1),
+								function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
 			if(debug) message("embedded ",length(data)," compounds")
 
 			#data = sapply(dataBlocks[[i]],function(x) 
@@ -261,8 +262,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 					 paste(Map(function(x) file.path(workDir,paste("q",r,d,x,sep="-")),1:numJobs),collapse=" "),
 					 ">",embeddedQueryFile))
 
-	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
-	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
+	Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
+	Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
 	binaryCoord(embeddedFile,matrixFile,d)
 	binaryCoord(embeddedQueryFile,
