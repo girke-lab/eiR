@@ -237,7 +237,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			dim(rawDists) = c(r,numCompounds)
 			rawDists=t(rawDists)
 
-			data = sapply( 1:numCompounds,function(x),embedCoord(solver,d, rawDists[x,]))
+			data = sapply( 1:numCompounds,function(x) embedCoord(solver,d, rawDists[x,]))
 
 			#data = sapply( ((i-1)*jobSize):min(i*jobSize-1,numCompounds-1),
 			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
