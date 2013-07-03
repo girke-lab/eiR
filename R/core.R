@@ -215,9 +215,14 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 	currentDir=getwd()
 	if(debug) message("starting clusterApply")
-	clusterApply(cl,1:numJobs, 
+	clusterApplyLB(cl,1:numJobs, 
 		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
 			solver <- getSolver(r,d,coords)	
+			dataPartFilename = file.path(currentDir,workDir,paste(r,d,i,sep="-"))
+			queryPartFilename = file.path(currentDir,workDir,paste("q",r,d,i,sep="-"))
+
+			if(file.exists(dataPartFilename) && file.exists(queryPartFilename))
+				return()
 
 			start = (i-1)*jobSize+1 			 #inclusive
 			end = min(i*jobSize,numCompounds) #inclusive
@@ -234,9 +239,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
 			if(debug) message("embedded ",length(data)," compounds")
 
-			write.table(t(data),
-				file=file.path(currentDir,workDir,paste(r,d,i,sep="-")),
-				row.names=F,col.names=F)
+			write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
 
 			#list indexes for this job, see which of them are queries, 
 			#then shift indexes back to this jobs range before selecting 
@@ -250,9 +253,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			# R magically changes the data type depending on the size, yay!
 			qd = if(length(selected)==1) 
 						t(data[,selected]) else t(data)[selected, ]
-			write.table(qd ,
-				file=file.path(currentDir,workDir,paste("q",r,d,i,sep="-")),
-				row.names=F,col.names=F)
+			write.table(qd, file=queryPartFilename, row.names=F,col.names=F)
 		})
 
 	if(debug) message("done with clusterApply. concatening parts")
