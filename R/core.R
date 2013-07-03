@@ -207,20 +207,11 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	numCompounds = cdbSize(dir)
 
 	#ensure we have at least as many jobs as cluster nodes, but if
-	# we have a large number of compounds, batch them by no more than 100,000
-	numJobs = max(length(cl), as.integer(numCompounds / 100000))
+	# we have a large number of compounds, batch them by no more than 10,000
+	numJobs = max(length(cl), as.integer(numCompounds / 10000))
 	jobSize = as.integer(numCompounds / numJobs + 1) #make last job short
 
 	if(debug) message("numJobs: ",numJobs," jobSize: ",jobSize)
-
-	#distConn <- file(ref2AllDistFile,"r")
-	#if(debug) message("reading dataBlocks")
-	#dataBlocks = Map(function(x)
-		#strsplit(readLines(distConn,jobSize),"\\s+"),1:numJobs)
-	#close(distConn)
-	#if(debug) message("done reading dataBlocks")
-
-	#print(paste("numJobs:",numJobs))
 
 	currentDir=getwd()
 	if(debug) message("starting clusterApply")
@@ -237,7 +228,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			dim(rawDists) = c(r,numCompounds)
 			rawDists=t(rawDists)
 
-			data = sapply( 1:numCompounds,function(x),embedCoord(solver,d, rawDists[x,]))
+			data = sapply( 1:numCompounds,function(x) embedCoord(solver,d, rawDists[x,]))
 
 			#data = sapply( ((i-1)*jobSize):min(i*jobSize-1,numCompounds-1),
 			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
