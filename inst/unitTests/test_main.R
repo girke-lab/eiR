@@ -12,6 +12,8 @@ runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
 descType="ap"
 
+debug=TRUE
+
 
 test_aa.eiInit <- function() {
 #	DEACTIVATED("slow")
@@ -365,12 +367,14 @@ findRefIddb <- function(runDir){
    matches[1]
 }
 checkMatrix <- function(pattern,x,y,dir=runDir){
-#	print(paste("searching for ",pattern))
+	if(debug) print(paste("searching for ",pattern," expected dims: ",x,y))
    matches<-dir(dir,pattern=pattern,full.names=T)
-#	print(matches)
+	if(debug) print(matches)
    checkEquals(length(matches),1)
    file <- matches[1]
    checkTrue(file.info(file)$size>0)
-   checkEquals(dim(read.table(file)),c(x,y))
+	d = dim(read.table(file))
+	if(debug) print(paste("found dims: ",d))
+   checkEquals(d,c(x,y))
 }
 
