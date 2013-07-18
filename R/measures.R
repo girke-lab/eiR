@@ -29,6 +29,8 @@ defaultConn <- function(dir="."){
 		# but not re-loaded because we won't re-call initDb if we already have a connection
 		#eiOptions$defaultConn=conn
 	}
+	if(is.null(conn))
+		stop("no default connection found, looked for SQLite db in ",file.path(dir,ChemDb))
 	conn
 }
 setDefaultConn <- function(conn){
