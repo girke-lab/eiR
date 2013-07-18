@@ -113,6 +113,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			if(!dir.create(workDir))
 				stop("Could not create run directory ",workDir)
 	}
+	message("createWorkDir envir: ",ls(environment(createWorkDir)))
 
 	if(is.null(conn))
 		stop("no database connection given")
@@ -215,8 +216,12 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 	currentDir=getwd()
 	if(debug) message("starting clusterApply")
-	clusterApplyLB(cl,1:numJobs, 
-		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
+	message("outer envir: ",ls(environment()))
+
+	embedJob <-	function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
+
+			cat(paste("inner environment: ",paste(ls(),collapse=" "),"\n",paste(ls(parent.env(environment())),collapse=" "),"\n"),file=paste("job2-",i,".out",sep=""))
+
 			solver <- getSolver(r,d,coords)	
 			dataPartFilename = file.path(currentDir,workDir,paste(r,d,i,sep="-"))
 			queryPartFilename = file.path(currentDir,workDir,paste("q",r,d,i,sep="-"))
@@ -254,7 +259,14 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			qd = if(length(selected)==1) 
 						t(data[,selected]) else t(data)[selected, ]
 			write.table(qd, file=queryPartFilename, row.names=F,col.names=F)
-		})
+	}
+	
+	#copy large items to nodes once, then remove them from the closures scope
+	# so that they don't get copied to ndoes each time
+	clusterExport(cl,c("coords","mainIds","queryIds"),envir=environment())
+	rm(coords,mainIds,queryIds,distance,envir=environment(embedJob))
+
+	clusterApplyLB(cl,1:numJobs,embedJob )
 
 	if(debug) message("done with clusterApply. concatening parts")
 
