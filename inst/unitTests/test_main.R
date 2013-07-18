@@ -147,7 +147,7 @@ test_da.eiPerformanceTest <- function() {
 }
 test_ea.eiAdd<- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
    data(example_compounds)
    cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),file=file.path(test_dir,"example_compounds.sdf"))
    options(warn=-1)

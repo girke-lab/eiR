@@ -10,8 +10,8 @@ ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
 
-debug=TRUE
-#debug=FALSE
+#debug=TRUE
+debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
