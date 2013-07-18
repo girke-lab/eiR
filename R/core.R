@@ -508,13 +508,13 @@ writeIddb <- function(data, file,append=FALSE)
 readIddb <- function(file){
 	binFile=paste(file,".Rdata",sep="")
 	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){
-		message("reading from binary iddb: ",binFile)
+		if(debug) message("reading from binary iddb: ",binFile)
 		f=file(binFile,"r")
 		x=unserialize(f)
 		close(f)
 		x
 	}else{
-		message("no binary iddb found, ",binFile)
+		if(debug) message("no binary iddb found, ",binFile)
 		x=as.numeric(readLines(file))
 		if(length(x) > 1000000){
 			message("large iddb found (",length(x),"), generating binary version")
