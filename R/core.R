@@ -10,8 +10,8 @@ ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
 
-debug=TRUE
-#debug=FALSE
+#debug=TRUE
+debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
@@ -643,14 +643,6 @@ IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
 	output(file,length(iddb),length(descriptors),process)
 }
 
-#ip <- function(ids,jobId){
-#					cat("hi",file=paste("job-",jobId,".out",sep=""))
-#					"nonexistant-filename"
-#				}
-#ipReduce <- function(results) {
-#					message("results: ",results)
-#				}
-
 
 IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,connSource=NULL){
 
@@ -760,7 +752,6 @@ toFile <- function(filename,body,mapReduce){
 		}
 
 		partFilename
-#			content=read.table(partFilename)
 	}
 	env = new.env(parent=globalenv())
 	env$filename=filename
