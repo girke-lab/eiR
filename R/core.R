@@ -74,7 +74,7 @@ lshsearchAll <- function(matrixFile,
 # X optionally: compound -> string and string -> compound
 
 eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE,
-						 conn=defaultConn(dir))
+						 conn=defaultConn(dir),updateByName=FALSE)
 {
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
@@ -89,10 +89,10 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 		conn = initDb(file.path(dir,ChemDb))
 	
 	if(tolower(format) == "sdf"){
-		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction)
+		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction,updateByName=updateByName)
 	}else if(tolower(format) == "smiles" || tolower(format)=="smi"){
 		stop("smiles are not yet supported")
-		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction)
+		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction,updateByName=updateByName)
 	}else{
 		stop(paste("unknown input format:",format," supported formats: SDF, SMILE"))
 	}
@@ -339,14 +339,16 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 
 eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
 						conn=defaultConn(dir), descriptorType="ap",
-						distance=getDefaultDist(descriptorType))
+						distance=getDefaultDist(descriptorType),updateByName=FALSE)
 {
 		conn
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 
+		#TODO make this work for modified descriptors
+
 		# add additions to database
-		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE)
+		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName)
 		additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
 		numAdditions = length(compoundIds)
 		refIds = readIddb(refIddb)
