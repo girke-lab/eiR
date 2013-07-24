@@ -20,10 +20,10 @@ getDefaultDist <- function(descriptorType){
 setDefaultDistance("ap", function(d1,d2) 1-cmp.similarity(d1,d2) )
 setDefaultDistance("fp", function(d1,d2) 1-fpSim(d1,d2) )
 
-defaultConn <- function(dir="."){
+defaultConn <- function(dir=".",create=FALSE){
 
 	conn=eiOptions$defaultConn
-	if(is.null(conn) && file.exists(file.path(dir,ChemDb))){
+	if(is.null(conn) && (create || file.exists(file.path(dir,ChemDb)))){
 		conn = initDb(file.path(dir,ChemDb))
 		# if we set this, the examples fail because the DBI packages are unloaded
 		# but not re-loaded because we won't re-call initDb if we already have a connection
@@ -31,6 +31,7 @@ defaultConn <- function(dir="."){
 	}
 	if(is.null(conn))
 		stop("no default connection found, looked for SQLite db in ",file.path(dir,ChemDb))
+	
 	conn
 }
 setDefaultConn <- function(conn){
