@@ -74,7 +74,7 @@ lshsearchAll <- function(matrixFile,
 # X optionally: compound -> string and string -> compound
 
 eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE,
-						 conn=defaultConn(dir))
+						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE)
 {
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
@@ -84,15 +84,14 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set,conn,dir),
 					  descriptor_type=descriptorType)
 	
-
 	if(is.null(conn))
-		conn = initDb(file.path(dir,ChemDb))
+		stop("no database connection found")
 	
 	if(tolower(format) == "sdf"){
-		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction)
+		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction,updateByName=updateByName)
 	}else if(tolower(format) == "smiles" || tolower(format)=="smi"){
 		stop("smiles are not yet supported")
-		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction)
+		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction,updateByName=updateByName)
 	}else{
 		stop(paste("unknown input format:",format," supported formats: SDF, SMILE"))
 	}
@@ -258,12 +257,14 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 	if(debug) message("done with clusterApply. concatening parts")
 
-	system(paste("cat",
-					 paste(Map(function(x) file.path(workDir,paste(r,d,x,sep="-")),1:numJobs),collapse=" "),
-					 ">",embeddedFile))
-	system(paste("cat",
-					 paste(Map(function(x) file.path(workDir,paste("q",r,d,x,sep="-")),1:numJobs),collapse=" "),
-					 ">",embeddedQueryFile))
+
+	unlink(c(embeddedFile,embeddedQueryFile))
+	for(x in 1:numJobs){
+		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
+			 sep="\n",file=embeddedFile, append=TRUE)
+		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
+			 sep="\n",file=embeddedQueryFile, append=TRUE)
+	}
 
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
@@ -272,7 +273,6 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	binaryCoord(embeddedQueryFile,
 		file.path(workDir,sprintf("matrix.query.%d-%d",r,d)),d)
 
-	#file.path(workDir,sprintf("matrix.%d-%d",r,d))
 	refIddb
 }
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
@@ -339,14 +339,16 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 
 eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
 						conn=defaultConn(dir), descriptorType="ap",
-						distance=getDefaultDist(descriptorType))
+						distance=getDefaultDist(descriptorType),updateByName=FALSE)
 {
 		conn
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 
+		#TODO make this work for modified descriptors
+
 		# add additions to database
-		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE)
+		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName)
 		additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
 		numAdditions = length(compoundIds)
 		refIds = readIddb(refIddb)

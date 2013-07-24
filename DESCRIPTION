@@ -1,8 +1,8 @@
 Package: eiR
 Type: Package
 Title: Accelerated similarity searching of small molecules
-Version: 1.1.8
-Date: 2013-05-29
+Version: 1.1.9
+Date: 2013-07-23
 Author: Kevin Horan
 Maintainer: Kevin Horan <khoran@cs.ucr.edu>
 Suggests: RCurl,snow
@@ -11,7 +11,7 @@ Description: The eiR package provides utilities for accelerated structure simila
 	indexing approach. 
 License: Artistic-2.0
 System Requirements: GSL (>=1.14) http://www.gnu.org/software/gsl/
-Depends: R (>= 2.10.0), ChemmineR (>= 2.13.6), methods
+Depends: R (>= 2.10.0), ChemmineR (>= 2.13.8), methods
 biocViews: Infrastructure, DataImport, Clustering, Bioinformatics,
         Proteomics
 Imports: snow, tools, snowfall, RUnit, methods,ChemmineR,RCurl,digest,
