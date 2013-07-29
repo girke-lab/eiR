@@ -73,8 +73,9 @@ lshsearchAll <- function(matrixFile,
 # and compound format, ei, "SDF", "SMILE", etc.
 # X optionally: compound -> string and string -> compound
 
-eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE,
-						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE)
+eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
+						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
+						 cl=NULL,connSource=NULL)
 {
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
@@ -84,17 +85,51 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set,conn,dir),
 					  descriptor_type=descriptorType)
 	
+	message("input type: ",class(inputs))
+
 	if(is.null(conn))
 		stop("no database connection found")
+
 	
 	if(tolower(format) == "sdf"){
-		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction,updateByName=updateByName)
+		loadFormat=loadSdf
 	}else if(tolower(format) == "smiles" || tolower(format)=="smi"){
-		stop("smiles are not yet supported")
-		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction,updateByName=updateByName)
+		loadFormat=loadSmiles
 	}else{
 		stop(paste("unknown input format:",format," supported formats: SDF, SMILE"))
 	}
+
+	connSource
+	loadInput = function(input){
+		tryCatch({
+			require(ChemmineR)
+			if(is.character(input)) message("loading ",input)
+			conn=connSource()
+			ids = loadFormat(conn,input, descriptors=descriptorFunction,updateByName=updateByName)
+			if(is.character(input))
+				message("loaded ",length(ids)," compounds from ",input)
+			else
+				message("loaded ",length(ids)," compounds")
+			ids
+		  },error = function(e) stop(e),
+		  finally = dbDisconnect(conn)
+		)
+	}
+
+		
+
+	if(!is.null(cl) && is.character(inputs)){ #if its a list of filenames, use the cluster
+		if(is.null(connSource))
+			stop("a connSource must be provided when using a cluster")
+		message("using cluster")
+		compoundIds = unlist(clusterApplyLB(cl,inputs, loadInput))
+	}else{
+		message("loading locally")
+		connSource=function() conn
+		compoundIds=loadInput(inputs)
+	}
+
+
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(compoundIds,file.path(dir,Main),append=append)
