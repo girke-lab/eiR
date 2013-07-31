@@ -19,7 +19,7 @@ debug=FALSE
 
 cdbSize <- function(dir=".") {
 	#TODO: make this more efficient
-	length(readIddb(file.path(dir,Main)))
+	length(readIddb(conn,file.path(dir,Main)))
 }
 embedCoord <- function(s,len,coords) 
 	.Call("embedCoord",s,as.integer(len),as.double(coords))
@@ -86,6 +86,8 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 	
 	if(is.null(conn))
 		stop("no database connection found")
+
+	ensureSchema(conn)
 	
 	if(tolower(format) == "sdf"){
 		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction,updateByName=updateByName)
@@ -97,7 +99,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 	}
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
-	writeIddb(compoundIds,file.path(dir,Main),append=append)
+	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
@@ -117,7 +119,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		stop("no database connection given")
 
 	if(is.character(refs)){ #assume its a filename
-		refIds=readIddb(refs)
+		refIds=readIddb(conn,refs)
 		r=length(refIds)
 		createWorkDir(r)
 		refIddb=file.path(workDir,basename(refs))
@@ -135,7 +137,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			r=length(refIds)
 			createWorkDir(r)
 			refIddb=genRefName(workDir)
-			writeIddb(refIds,refIddb)
+			writeIddb(conn,refIds,refIddb)
 		}
 	}else{
 		stop(paste("don't know how to handle refs:",str(refs)))
@@ -152,7 +154,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	
 
 	message("readding main.iddb")
-	mainIds <- readIddb(file.path(dir,Main))
+	mainIds <- readIddb(conn,file.path(dir,Main))
 	message("generating test query ids")
 	queryIds=genTestQueryIds(numSamples,dir,refIds,mainIds)
 	#print("queryids")
@@ -283,7 +285,7 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		conn
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
-		refIds = readIddb(refIddb)
+		refIds = readIddb(conn,refIddb)
 
 		if(debug) print("eiQuery")
 
@@ -351,7 +353,7 @@ eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
 		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName)
 		additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
 		numAdditions = length(compoundIds)
-		refIds = readIddb(refIddb)
+		refIds = readIddb(conn,refIddb)
 
 		#embed queries in search space
 		embeddedAdditions= embedFromRefs(r,d,refIddb,
@@ -376,7 +378,7 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 		conn
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-		mainIndex = readIddb(file.path(dir,Main))
+		mainIndex = readIddb(conn,file.path(dir,Main))
 		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T)
 
 
@@ -449,7 +451,7 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,conn=defaultConn(dir),...)
 {
 		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,...)
-		mainIds <- readIddb(file.path(dir,Main))
+		mainIds <- readIddb(conn,file.path(dir,Main))
 		#print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
 		#print("neighbors:")
 		#print(neighbors)
@@ -505,51 +507,51 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 getNames <- function(indexes,dir,conn=defaultConn(dir))
 	getCompoundNames(conn,indexes)
 
-writeIddb <- function(data, file,append=FALSE)
-		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
-readIddb <- function(file){
-	binFile=paste(file,".Rdata",sep="")
-	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){
-		if(debug) message("reading from binary iddb: ",binFile)
-		f=file(binFile,"r")
-		x=unserialize(f)
-		close(f)
-		x
-	}else{
-		if(debug) message("no binary iddb found, ",binFile)
-		x=as.numeric(readLines(file))
-		if(length(x) > 1000000){
-			message("large iddb found (",length(x),"), generating binary version")
-			f=file(binFile,"w")
-			serialize(x,f)
-			close(f)
-		}
-		x
-	}
-}
+#writeIddb <- function(data, file,append=FALSE)
+#		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
+#readIddb <- function(file){
+#	binFile=paste(file,".Rdata",sep="")
+#	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){
+#		if(debug) message("reading from binary iddb: ",binFile)
+#		f=file(binFile,"r")
+#		x=unserialize(f)
+#		close(f)
+#		x
+#	}else{
+#		if(debug) message("no binary iddb found, ",binFile)
+#		x=as.numeric(readLines(file))
+#		if(length(x) > 1000000){
+#			message("large iddb found (",length(x),"), generating binary version")
+#			f=file(binFile,"w")
+#			serialize(x,f)
+#			close(f)
+#		}
+#		x
+#	}
+#}
 readNames <- function(file) as.numeric(readLines(file))
 
 
 # randomly select n reference compounds. Also sample and stash away
 # numSamples query compounds that are not references for later
 # testing
-genTestQueryIds <- function(numSamples,dir,refIds=c(),mainIds=readIddb(file.path(dir,Main)) )
+genTestQueryIds <- function(numSamples,dir,refIds=c(),mainIds=readIddb(conn,file.path(dir,Main)) )
 {
 	testQueryFile <-file.path(dir,TestQueries)
 	set=setdiff(mainIds,refIds)
 	if(numSamples < 0 || numSamples > length(set)) 
 		stop(paste("trying to take more samples than there are compounds available",numSamples,length(set)))
 	queryIds <- sort(sample(set,numSamples))
-	writeIddb(queryIds,testQueryFile)
+	writeIddb(conn,queryIds,testQueryFile)
 	queryIds
 }
 genRefs <- function(n,refFile,dir,queryIds=c())
 {
-	mainIds <- readIddb(file.path(dir,Main))
+	mainIds <- readIddb(conn,file.path(dir,Main))
 	set=setdiff(mainIds,queryIds)
 	if(n < 0 || n > length(set)) stop(paste("found more refereneces than compound candidates",n,length(set)))
 	refIds = sort(sample(set,n))
-	writeIddb(refIds,refFile)
+	writeIddb(conn,refIds,refFile)
 	refIds
 }
 genRefName <- function(workDir)
@@ -564,8 +566,8 @@ genTestQueryResults <- function(distance,dir,descriptorType,conn=defaultConn(dir
 
 	out=file(file.path(dir,TestQueryResults),"w")
 	d=IddbVsIddbDist(conn,
-		readIddb(file.path(dir,TestQueries)),
-		readIddb(file.path(dir,Main)),distance,descriptorType)
+		readIddb(conn,file.path(dir,TestQueries)),
+		readIddb(conn,file.path(dir,Main)),distance,descriptorType)
 	if(debug) print(paste("dim(d): ",dim(d)))
 	maxLength=min(dim(d)[2],50000)
 	for(i in 1:(dim(d)[1]))
@@ -593,7 +595,7 @@ eiPerformanceTest <- function(r,d,distance=getDefaultDist(descriptorType),descri
 	matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 	coordQueryFile =file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 
-	testQueryDescriptors=getDescriptors(conn,descriptorType,readIddb(file.path(dir,TestQueries)) )
+	testQueryDescriptors=getDescriptors(conn,descriptorType,readIddb(conn,file.path(dir,TestQueries)) )
 	embeddedTestQueries = t(as.matrix(read.table(coordQueryFile)))
 	hits = search(embeddedTestQueries,matrixFile,
 						testQueryDescriptors,distance,descriptorType=descriptorType,dir=dir,conn=conn,K=K,W=W,M=M,L=L,T=T)

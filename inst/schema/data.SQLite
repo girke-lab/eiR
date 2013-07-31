@@ -3,13 +3,14 @@
 -- meant to be added to the schema defined by ChmmineR
 CREATE TABLE compound_groups (
 	compound_group_id INTEGER PRIMARY KEY,
-	name TEXT DEFAULT ''  -- UNIQUE ?
+	name TEXT  UNIQUE 
 );
 CREATE TABLE compound_group_members (
 	compound_group_id INTEGER REFERENCES compound_groups(compound_group_id) ON DELETE CASCADE,
 	compound_id INTEGER REFERENCES compounds(compound_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	UNIQUE(compound_group_id,compound_id)
 );
+CREATE INDEX compound_group_members_compound_group_id ON compound_group_members(compound_group_id);
 CREATE TABLE embedding(
 	embedding_id INTEGER PRIMARY KEY,
 	name TEXT NOT NULL UNIQUE,
