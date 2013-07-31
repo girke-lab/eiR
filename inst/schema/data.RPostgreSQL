@@ -2,7 +2,7 @@
 
 -- meant to be added to the schema defined by ChmmineR
 CREATE TABLE compound_groups (
-	compound_group_id INTEGER PRIMARY KEY,
+	compound_group_id serial PRIMARY KEY,
 	name TEXT DEFAULT ''  -- UNIQUE ?
 );
 CREATE TABLE compound_group_members (
@@ -11,7 +11,7 @@ CREATE TABLE compound_group_members (
 	UNIQUE(compound_group_id,compound_id)
 );
 CREATE TABLE embedding(
-	embedding_id INTEGER PRIMARY KEY,
+	embedding_id serial PRIMARY KEY,
 	name TEXT NOT NULL UNIQUE,
 	dimension INTEGER NOT NULL,
 	num_references INTEGER NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE embedding(
 
 
 CREATE TABLE runs (
-	run_id INTEGER PRIMARY KEY,
+	run_id serial PRIMARY KEY,
 	name TEXT DEFAULT '',
 	embedding_id INTEGER REFERENCES embedding(embedding_id) ON DELETE RESTRICT,
 	compound_group_id INTEGER REFERENCES compound_groups(compound_group_id) ON DELETE RESTRICT,
