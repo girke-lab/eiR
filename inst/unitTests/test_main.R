@@ -51,7 +51,7 @@ testRefs <- function(){
 }
 test_bb.eiMakeDb <- function() {
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
    runChecks = function(){
       checkMatrix(".cdb$",r,1)
       checkMatrix(".cdb.distmat$",r,r)
@@ -121,7 +121,7 @@ test_ba.parDist <- function(){
 }
 test_ca.eiQuery <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	message("eiQuery")
    data(sdfsample)
    refIddb = findRefIddb(runDir)
@@ -141,7 +141,7 @@ test_ca.eiQuery <- function(){
 }
 
 test_da.eiPerformanceTest <- function() {
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
    eiPerformanceTest(r,d,K=22,descriptorType=descType,dir=test_dir)
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
    checkMatrix(sprintf("eucsearch.%d-%d",r,d),20,N)
@@ -150,7 +150,7 @@ test_da.eiPerformanceTest <- function() {
 }
 test_ea.eiAdd<- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
    data(example_compounds)
    cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),file=file.path(test_dir,"example_compounds.sdf"))
    options(warn=-1)
@@ -168,7 +168,7 @@ test_ea.eiAdd<- function(){
    print(results)
 }
 test_fa.eiCluster <- function(){
-#	DEACTIVATED("off")
+	DEACTIVATED("off")
 	numNbrs=5
 	minNbrs=2
 	cutoff=0.5
@@ -195,7 +195,7 @@ test_fa.eiCluster <- function(){
 }
 test_fn.cluster_comparison <- function(){
 
-	#DEACTIVATED("off")
+	DEACTIVATED("off")
 	numNbrs=10
 	minNbrs=2
 	fast=TRUE
@@ -258,7 +258,7 @@ test_fn.cluster_comparison <- function(){
 }
 
 test_fo.nnm_test  <- function(){
-	DEACTIVATED("off")
+	DEACTIVATED("off, local only")
 	numNbrs=10
 	minNbrs=2
 	fast=TRUE

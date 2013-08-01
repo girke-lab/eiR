@@ -277,13 +277,13 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 	if(debug) message("done with clusterApply. concatening parts")
 
 
-	unlink(c(embeddedFile,embeddedQueryFile))
-	for(x in 1:numJobs){
-		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=embeddedFile, append=TRUE)
-		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=embeddedQueryFile, append=TRUE)
-	}
+#	unlink(c(embeddedFile,embeddedQueryFile))
+#	for(x in 1:numJobs){
+#		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
+#			 sep="\n",file=embeddedFile, append=TRUE)
+#		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
+#			 sep="\n",file=embeddedQueryFile, append=TRUE)
+#	}
 
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)

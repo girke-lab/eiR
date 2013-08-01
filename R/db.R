@@ -100,9 +100,18 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,descriptorType
 
 }
 getDescriptorIds <- function(conn,compoundIds,descriptorType){
-
+	data = dbGetQuery(conn,
+										paste("SELECT descriptor_ids FROM descriptors
+													  JOIN descriptor_types USING(descriptor_type_id) 
+													  WHERE descriptor_type = '",descriptorType,"'
+													  AND compound_id IN (",paste(compoundIds,collapse=","),")",sep=""))
+	descriptorIds =data[[1]]
+	descriptorIds
 }
 
+writeMatrixFile<- function(conn,runId){
+
+}
 
 getOrCreate <- function(conn,getQuery,createQuery,create=TRUE,errorTag=getQuery){
 
