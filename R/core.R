@@ -118,48 +118,61 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	if(is.null(conn))
 		stop("no database connection given")
 
+	message("readding main.iddb")
+	mainIds <- readIddb(conn,file.path(dir,Main))
+
 	if(is.character(refs)){ #assume its a filename
-		refIds=readIddb(conn,refs)
+		refIds=readIddbFile(refs)
 		r=length(refIds)
 		createWorkDir(r)
-		refIddb=file.path(workDir,basename(refs))
-		file.copy(refs,workDir,overwrite=TRUE)
+		#refIddb=file.path(workDir,basename(refs))
+		#file.copy(refs,workDir,overwrite=TRUE)
 	}else if(is.numeric(refs)){
 		if(length(refs)==0){ #assume its the number of refs to use
 			stop(paste("variable refs must be posative, found ",refs))
 		}else if(length(refs)==1){ #assume its the number of refs to use
 			r=refs
 			createWorkDir(r)
-			refIddb=genRefName(workDir)
-			refIds=genRefs(r,refIddb,dir)
+			#refIddb=genRefName(workDir)
+			refIds=genRefs(r,mainIds)
 		}else{ #refs is a vector of compound indexes to use a referances
 			refIds=refs
 			r=length(refIds)
 			createWorkDir(r)
-			refIddb=genRefName(workDir)
-			writeIddb(conn,refIds,refIddb)
+			#refIddb=genRefName(workDir)
+			#writeIddb(conn,refIds,refIddb)
 		}
 	}else{
 		stop(paste("don't know how to handle refs:",str(refs)))
 	}
-
+	refGroupName = genGroupName(refIds)
+	refGroupId = writeIddb(conn,refIds,refGroupName)
 	matrixFile = file.path(workDir,sprintf("matrix.%d-%d",r,d))
 
 	if(d >= length(refIds))
 		stop("d must be less than the number of reference compounds")
 	if(file.exists(matrixFile))
 		stop(paste("found existing",matrixFile),"stopping")
-	if(!file.exists(file.path(dir,Main)))
-		stop(file.path(dir,Main)," not found. Did you run eiInit first?")
+	#if(!file.exists(file.path(dir,Main)))
+		#stop(file.path(dir,Main)," not found. Did you run eiInit first?")
 	
 
-	message("readding main.iddb")
-	mainIds <- readIddb(conn,file.path(dir,Main))
+	#create run and embedding context
+	#create embedding
+	# need: name, d, r,, descriptor type,refIds
+	embeddingId = getEmbeddingId(conn,refGroupName,r,d,descriptorType,refGroupId)
+
 	message("generating test query ids")
 	queryIds=genTestQueryIds(numSamples,dir,refIds,mainIds)
+	queryGroupId = writeIddb(conn,queryIds,file.path(dir,TestQueries))
 	#print("queryids")
 	#print(queryIds)
 	message("done generating test query ids")
+
+	#create run
+	# need: name,embedding id, compound group id, sample group id
+	mainGroupId = getCompoundGroupId(conn,file.path(dir,Main),create=FALSE)
+	runId = getRunId(conn,workDir,embeddingId,mainGroupId,queryGroupId)
 
 
 	selfDistFile <- paste(refIddb,"distmat",sep=".")
@@ -167,8 +180,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	coordFile <- paste(selfDistFile,"coord",sep=".")
 	ref2AllDistFile <- paste(refIddb,"distances",sep=".")
 	ref2AllDistFileTemp	 <- paste(ref2AllDistFile,"temp",sep=".")
-	embeddedFile <- file.path(workDir,sprintf("coord.%d-%d",r,d))
-	embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
+embeddedFile <- file.path(workDir,sprintf("coord.%d-%d",r,d))
+embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 
 	#embed references in d dimensional space 
 	coords <- if(file.exists(coordFile)){
@@ -205,7 +218,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	solver <- getSolver(r,d,coords)	
 
 
-	numCompounds = cdbSize(dir)
+	numCompounds = length(mainIds)
 
 	#ensure we have at least as many jobs as cluster nodes, but if
 	# we have a large number of compounds, batch them by no more than 10,000
@@ -228,6 +241,9 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			start = (i-1)*jobSize+1 			 #inclusive
 			end = min(i*jobSize,numCompounds) #inclusive
 			numCompounds=end-start+1
+
+
+
 			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
 			if(numCompounds * r != length(rawDists))
 				stop("tried to read ",numCompunds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
@@ -240,21 +256,22 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
 			if(debug) message("embedded ",length(data)," compounds")
 
-			write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
+			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],descriptorType,t(data))
 
-			#list indexes for this job, see which of them are queries, 
-			#then shift indexes back to this jobs range before selecting 
-			#from data.
-			#print(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds)
-			#print(which(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds))
-			selected = which( mainIds[((i-1)*jobSize+1):(i*jobSize)]  %in% queryIds ) 
-							- ((i-1)*jobSize)
-			#print("selected:")
-			#print(selected)
-			# R magically changes the data type depending on the size, yay!
-			qd = if(length(selected)==1) 
-						t(data[,selected]) else t(data)[selected, ]
-			write.table(qd, file=queryPartFilename, row.names=F,col.names=F)
+			#write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
+
+			##list indexes for this job, see which of them are queries, 
+			##then shift indexes back to this jobs range before selecting 
+			##from data.
+			##print(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds)
+			##print(which(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds))
+			#selected = which( mainIds[start:end]  %in% queryIds ) - start - 1
+			##print("selected:")
+			##print(selected)
+			## R magically changes the data type depending on the size, yay!
+			#qd = if(length(selected)==1) 
+			#			t(data[,selected]) else t(data)[selected, ]
+			#write.table(qd, file=queryPartFilename, row.names=F,col.names=F)
 		})
 
 	if(debug) message("done with clusterApply. concatening parts")
@@ -509,51 +526,52 @@ getNames <- function(indexes,dir,conn=defaultConn(dir))
 
 #writeIddb <- function(data, file,append=FALSE)
 #		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
-#readIddb <- function(file){
-#	binFile=paste(file,".Rdata",sep="")
-#	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){
-#		if(debug) message("reading from binary iddb: ",binFile)
-#		f=file(binFile,"r")
-#		x=unserialize(f)
-#		close(f)
-#		x
-#	}else{
-#		if(debug) message("no binary iddb found, ",binFile)
-#		x=as.numeric(readLines(file))
-#		if(length(x) > 1000000){
-#			message("large iddb found (",length(x),"), generating binary version")
-#			f=file(binFile,"w")
-#			serialize(x,f)
-#			close(f)
-#		}
-#		x
-#	}
-#}
+readIddbFile <- function(file){
+	binFile=paste(file,".Rdata",sep="")
+	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){
+		if(debug) message("reading from binary iddb: ",binFile)
+		f=file(binFile,"r")
+		x=unserialize(f)
+		close(f)
+		x
+	}else{
+		if(debug) message("no binary iddb found, ",binFile)
+		x=as.numeric(readLines(file))
+		if(length(x) > 1000000){
+			message("large iddb found (",length(x),"), generating binary version")
+			f=file(binFile,"w")
+			serialize(x,f)
+			close(f)
+		}
+		x
+	}
+}
 readNames <- function(file) as.numeric(readLines(file))
 
 
 # randomly select n reference compounds. Also sample and stash away
 # numSamples query compounds that are not references for later
 # testing
-genTestQueryIds <- function(numSamples,dir,refIds=c(),mainIds=readIddb(conn,file.path(dir,Main)) )
+genTestQueryIds <- function(numSamples,dir,mainIds,refIds=c())
 {
-	testQueryFile <-file.path(dir,TestQueries)
+	#testQueryFile <-file.path(dir,TestQueries)
 	set=setdiff(mainIds,refIds)
 	if(numSamples < 0 || numSamples > length(set)) 
 		stop(paste("trying to take more samples than there are compounds available",numSamples,length(set)))
 	queryIds <- sort(sample(set,numSamples))
-	writeIddb(conn,queryIds,testQueryFile)
+#	writeIddb(conn,queryIds,testQueryFile)
 	queryIds
 }
-genRefs <- function(n,refFile,dir,queryIds=c())
+genRefs <- function(n,mainIds,queryIds=c())
 {
-	mainIds <- readIddb(conn,file.path(dir,Main))
 	set=setdiff(mainIds,queryIds)
 	if(n < 0 || n > length(set)) stop(paste("found more refereneces than compound candidates",n,length(set)))
 	refIds = sort(sample(set,n))
-	writeIddb(conn,refIds,refFile)
+	#writeIddb(conn,refIds,refFile)
 	refIds
 }
+genGroupName <- function(members)
+	digest(paste(members,collapse=""),serialize=FALSE)
 genRefName <- function(workDir)
 	file.path(workDir,
 				 paste(paste(sample(c(0:9,letters),32,replace=TRUE),

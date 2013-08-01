@@ -21,36 +21,101 @@ ensureSchema <- function(conn) {
 
 }
 
-writeIddb <- function(conn,ids,name,appned=FALSE) {
+getEmbeddingId <- function(conn,name,r,d,descriptorType,refGroupId,create=TRUE){
+
+	embeddingId = getOrCreate(conn,
+									  paste("SELECT embedding_id FROM embeddings WHERE name='", name,"'",sep=""),
+									  paste("INSERT INTO
+											  embeddings(name,dimension,num_references,descriptor_type_id,references_group_id)",
+											  "VALUES('",name,"',",d,",",r,
+													",(SELECT descriptor_type_id FROM descriptor_types WHERE descriptor_type='",descriptorType,"')",
+													refGroupId,")",sep=""),
+									  errorTag=paste("embedding",name) )
+	embeddingId
+}
+getRunId <- function(conn,name,embeddingId,mainGroupId,queryGroupId) {
+	runId = getOrCreate(conn,
+							  paste("SELECT run_id FROM runs WHERE embedding_id
+									  =",embeddingId," AND compound_group_id =
+									  ",mainGroupId,sep=""),
+							  paste("INSERT INTO runs(name,embedding_id,compound_group_id,sample_group_id)", 
+									  "VALUES('",name,"',",embeddingId,",",mainGroupId,",",mainGroupId,",",queryGroupId,")",sep=""),
+							  errorTag = paste("run "+name))
+	runId
+}
+	
+
+writeIddb <- function(conn,ids,name,append=FALSE) {
 
 	dbTransaction(conn,{
-		groupId = compoundGroupId(name)
-		#search for existing group
-		if(is.na(groupId)){ #create new group if not found
-			dbGetQuery(conn,paste("INSERT INTO compound_groups(name) VALUES('",name,"'",sep=""))
-			groupId = compoundGroupId(name)
-			if(is.na(groupId))
-				stop("could not find or create an entry for compound group ",name)
-		}
-		if(!append){ # delete existing group
+		groupId = getCompoundGroupId(name)
+		if(!append) # delete existing group
 			dbGetQuery(conn,paste("DELETE FROM compound_groups WHERE compound_group_id = ",groupId))
-		}
 
 		#insert ids
 		insertGroupMembers(conn,data.frame(compound_group_id=groupId,compound_id=ids))
+		groupId
    })
 
 }
 readIddb <- function(conn,name) {
-	groupId = compoundGroupId(name)
+	groupId = getCompoundGroupId(conn,name)
 	if(is.na(groupId))
 		stop("compound group ",name," was not found in the database")
 	dbGetQuery(conn,paste("SELECT compound_id FROM compound_groups WHERE compound_group_id=
 								 ",groupId))[[1]]
 }
-compoundGroupId<- function(conn,name) {
-	dbGetQuery(conn,paste("SELECT compound_group_id FROM compound_groups WHERE name =
-								 '",name,"'",sep=""))[[1]][1]
+getCompoundGroupId<- function(conn,name,create=TRUE) {
+	getOrCreate(conn, 
+					paste("SELECT compound_group_id FROM compound_groups WHERE name = '",name,"'",sep=""), 
+					paste("INSERT INTO compound_groups(name) VALUES('",name,"'",sep=""),
+					errorTag=paste("compound group",name))
+}
+
+insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,descriptorType,data){
+
+	descriptorIds = getDescriptorIds(conn,compoundIds,descriptorType)
+	numDescriptors = nrow(data)
+	descriptorLength = ncol(data)
+	assert(numDescriptors == length(descriptorIds))
+	data=as.vector(data)
+	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
+				  order = rep(1:descriptorLength,numDescriptors),
+				  value = data
+
+	if(inherits(conn,"SQLiteConnection")){
+		dbGetPreparedQuery(conn, 
+			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
+				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
+	}else if(inherits(conn,"PostgreSQLConnection")){
+		fields = c("compound_group_id","compound_id")
+		apply(toInsert,1,function(row) 
+			dbGetQuery(conn,
+				paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
+					"VALUES( $1,$2,$3,$4)"),row)
+	}else{
+		stop("database ",class(conn)," unsupported")
+	}
+
+
+}
+getDescriptorIds <- function(conn,compoundIds,descriptorType){
+
+}
+
+
+getOrCreate <- function(conn,getQuery,createQuery,create=TRUE,errorTag=getQuery){
+
+	id = dbGetQuery(conn,getQuery)[[1]]
+	if(is.na(id)){
+		dbGetQuery(conn,createQuery)
+		id = getOrCreate(conn,getQuery,createQuery,create=FALSE)
+		if(is.na(id))
+			stop("could not find or create an entry for ",errorTag)
+	}
+	if(length(id) > 1)
+		stop("found more than one matches for ",errorTag)
+	id
 }
 
 insertGroupMembers <- function(conn,data){
