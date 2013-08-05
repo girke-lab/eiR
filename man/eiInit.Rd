@@ -8,7 +8,8 @@
    measure supports and creates a "data" directory.
 }
 \usage{
-	eiInit(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE, conn=defaultConn(dir))
+	eiInit(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE,
+	conn=defaultConn(dir,create=TRUE), updateByName = FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -36,6 +37,18 @@
 	\item{conn}{
 		Database connection to use.
 	}
+	\item{updateByName}{
+		If true we make the assumption that all compounds, both in the existing database and the
+		given dataset, have unique names. This function will then avoid re-adding existing,
+		identical compounds, and will update existing compounds with a new definition if a new
+		compound definition with an existing name is given. 
+
+		If false, we allow duplicate compound names to exist in the database, though not
+		duplicate definitions. So identical compounds will not be re-added, but if a new version of
+		an existing compound is added it will not update the existing one, it will add the modified one 
+		as a completely new compound with a new compound id. 
+	}
+
 
 }
 \details{

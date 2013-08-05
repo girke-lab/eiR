@@ -102,7 +102,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK"),connSource=NULL)
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
 {
 	conn
 	workDir=NA
@@ -111,6 +111,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		if(!file.exists(workDir))
 			if(!dir.create(workDir))
 				stop("Could not create run directory ",workDir)
+		workDir <<- normalizePath(workDir)
 	}
 	message("createWorkDir envir: ",ls(environment(createWorkDir)))
 
@@ -222,9 +223,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			cat(paste("inner environment: ",paste(ls(),collapse=" "),"\n",paste(ls(parent.env(environment())),collapse=" "),"\n"),file=paste("job2-",i,".out",sep=""))
 
 			solver <- getSolver(r,d,coords)	
-			dataPartFilename = file.path(currentDir,workDir,paste(r,d,i,sep="-"))
-			queryPartFilename = file.path(currentDir,workDir,paste("q",r,d,i,sep="-"))
-
+			dataPartFilename = file.path(workDir,paste(r,d,i,sep="-"))
+			queryPartFilename = file.path(workDir,paste("q",r,d,i,sep="-"))
 			if(file.exists(dataPartFilename) && file.exists(queryPartFilename))
 				return()
 
@@ -725,7 +725,9 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 						})
 				})
 		}
-		absPath=file.path(getwd(),file)
+		#absPath=file.path(getwd(),file)
+		#absPath=normalizePath(file)
+		absPath=file #given file is now absolute already
 		print(absPath)
 
 		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
