@@ -3,6 +3,7 @@ library(eiR)
 library(snow)
 
 options(warn=2)
+options(error=dump.frames)
 test_dir="test_workspace"
 r<- 50
 d<- 40
@@ -39,11 +40,11 @@ test_aa.eiInit <- function() {
 
    data(sdfsample)
    compoundIds = eiInit(sdfsample,descriptorType=descType,dir=test_dir)
-	checkData(compoundIds)
+	#checkData(compoundIds)
 
 	dir.create(fpDir)
 	fpCids = eiInit(sdfsample,dir=fpDir,descriptorType="fp")
-	checkData(fpCids,fpDir)
+	#checkData(fpCids,fpDir)
 }
 
 testRefs <- function(){
@@ -51,7 +52,7 @@ testRefs <- function(){
 }
 test_bb.eiMakeDb <- function() {
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
    runChecks = function(){
       checkMatrix(".cdb$",r,1)
       checkMatrix(".cdb.distmat$",r,r)
@@ -70,7 +71,7 @@ test_bb.eiMakeDb <- function() {
 	cl=makeCluster(j,type="SOCK",outfile=file.path(test_dir,"eiMakeDb.snow"))
 	print("by file name")
    refFile = file.path(test_dir,"reference_file.cdb")
-	eiR:::writeIddb((1:r)+200,refFile)
+	eiR:::writeIddbFile((1:r)+200,refFile)
    eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir)
    runChecks()
 	unlink(runDir,recursive=TRUE)
@@ -94,6 +95,7 @@ test_bb.eiMakeDb <- function() {
 }
 test_ba.parDist <- function(){
 
+	DEACTIVATED("slow")
 	conn = initDb(file.path(test_dir,"data","chem.db"))
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)

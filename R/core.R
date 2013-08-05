@@ -10,17 +10,17 @@ ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
 #  Need function to compute distances between descriptors
 
-cdbSize <- function(dir=".") {
-	#TODO: make this more efficient
-	length(readIddb(conn,file.path(dir,Main)))
-}
+#cdbSize <- function(dir=".") {
+#	#TODO: make this more efficient
+#	length(readIddb(conn,file.path(dir,Main)))
+#}
 embedCoord <- function(s,len,coords) 
 	.Call("embedCoord",s,as.integer(len),as.double(coords))
 
@@ -103,7 +103,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
-				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
+				dir=".",numSamples=getGroupSize(conn,dir)*0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK"),connSource=NULL)
 {
 	conn
@@ -163,7 +163,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	embeddingId = getEmbeddingId(conn,refGroupName,r,d,descriptorType,refGroupId)
 
 	message("generating test query ids")
-	queryIds=genTestQueryIds(numSamples,dir,refIds,mainIds)
+	queryIds=genTestQueryIds(numSamples,dir,mainIds,refIds)
 	queryGroupId = writeIddb(conn,queryIds,file.path(dir,TestQueries))
 	#print("queryids")
 	#print(queryIds)
@@ -175,10 +175,10 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	runId = getRunId(conn,workDir,embeddingId,mainGroupId,queryGroupId)
 
 
-	selfDistFile <- paste(refIddb,"distmat",sep=".")
+	selfDistFile <- paste(refGroupName,"distmat",sep=".")
 	selfDistFileTemp <- paste(selfDistFile,"temp",sep=".")
 	coordFile <- paste(selfDistFile,"coord",sep=".")
-	ref2AllDistFile <- paste(refIddb,"distances",sep=".")
+	ref2AllDistFile <- paste(refGroupName,"distances",sep=".")
 	ref2AllDistFileTemp	 <- paste(ref2AllDistFile,"temp",sep=".")
 embeddedFile <- file.path(workDir,sprintf("coord.%d-%d",r,d))
 embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
@@ -256,7 +256,9 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
 			if(debug) message("embedded ",length(data)," compounds")
 
+			conn=connSource()
 			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],descriptorType,t(data))
+			dbDisconnect(conn)
 
 			#write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
 
@@ -292,7 +294,7 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 	binaryCoord(embeddedQueryFile,
 		file.path(workDir,sprintf("matrix.query.%d-%d",r,d)),d)
 
-	refIddb
+	refGroupName	
 }
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
@@ -524,8 +526,8 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 getNames <- function(indexes,dir,conn=defaultConn(dir))
 	getCompoundNames(conn,indexes)
 
-#writeIddb <- function(data, file,append=FALSE)
-#		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
+writeIddbFile <- function(data, file,append=FALSE)
+		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
 readIddbFile <- function(file){
 	binFile=paste(file,".Rdata",sep="")
 	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){

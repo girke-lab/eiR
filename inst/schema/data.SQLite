@@ -43,13 +43,14 @@ CREATE INDEX embedded_desc_embed_id_desc_id ON embedded_descriptors(embedding_id
 
 --compounds in compound group for run id=3 that are do not have descriptors of type 'ap'
 --in embedded_descriptors
-CREATE OR REPLACE VIEW unembedded_descriptors AS
+
+CREATE  VIEW unembedded_descriptors AS
 	SELECT cgm.compound_id, r.run_id, dt.descriptor_type
 	FROM	 runs AS r 
 			 JOIN compound_groups AS cg USING(compound_group_id)
 			 JOIN compound_group_members AS cgm USING(compound_group_id)
 			 JOIN descriptors AS d USING(compound_id)
-			 JOIN descriptor_types AS dt USING(descriptor_type_id
+			 JOIN descriptor_types AS dt USING(descriptor_type_id)
 			 LEFT JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
 	WHERE
 			ed.descriptor_id IS NULL
