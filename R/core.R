@@ -290,7 +290,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		K=200, W = 1.39564, M=19,L=10,T=30)
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30)
 {
 		conn
 		tmpDir=tempdir()
@@ -341,9 +341,14 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 					results[i,"query"]<<-queryNames[queryIndex]
 					results[i,"target"]<<-targetNames[ as.character(hits[[queryIndex]][hitIndex,1]),1]
 					results[i,"target_ids"]<<-hits[[queryIndex]][hitIndex,1]
-					results[i,"distance"]<<- hits[[queryIndex]][hitIndex,2]
+					d=hits[[queryIndex]][hitIndex,2]
+					results[i,"distance"]<<- if(asSimilarity) 1-d else d
 					i<<-i+1
 			}))
+
+		if(asSimilarity)
+			names(results)=c("query","target","similarity","target_ids")
+
 		if(debug) print("results:")
 		if(debug) print(results)
 		results
