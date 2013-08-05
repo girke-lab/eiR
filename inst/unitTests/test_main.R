@@ -125,15 +125,18 @@ test_ca.eiQuery <- function(){
 	message("eiQuery")
    data(sdfsample)
    refIddb = findRefIddb(runDir)
+	message("eiQuery test 1")
    results = eiQuery(r,d,refIddb,sdfsample[1:2],K=15,descriptorType=descType,dir=test_dir)
    checkTrue(length(results$distance) != 0)
    checkTrue(all(results$distance <= 1))
    checkEquals(results$distance[16],0)
 
 
+	message("eiQuery test 2")
 	results=eiQuery(r,d,refIddb,203:204,format="compound_id",K=15,descriptorType=descType,dir=test_dir)
    checkEquals(results$distance[1],0)
 
+	message("eiQuery test 3")
 	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,descriptorType=descType,dir=test_dir)
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
