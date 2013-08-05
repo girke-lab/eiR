@@ -34,7 +34,7 @@ test_aa.eiInit <- function() {
 	setDefaultDistance("dummy",function(x,y) x-y)
 	checkTrue(!is.null(eiR:::getDefaultDist("dummy")))
 
-	addTransform("dummy","d2",toObject=function(x)x)
+	addTransform("dummy","d2",toObject=function(x,conn=NA,dir=".")x)
 	checkTrue(!is.null(eiR:::getTransform("dummy","d2")))
 
 
@@ -68,26 +68,30 @@ test_bb.eiMakeDb <- function() {
          checkTrue(!file.exists(file.path(runDir,paste("q",r,d,x,sep="-")))),1:j)
    }
 
-	cl=makeCluster(j,type="SOCK",outfile=file.path(test_dir,"eiMakeDb.snow"))
+#	cl=makeCluster(j,type="SOCK",outfile=file.path(test_dir,"eiMakeDb.snow"))
+	cl=makeCluster(j,type="SOCK",outfile="")
+	connSource=function(){
+					require(eiR)
+					require(RSQLite)
+					initDb(file.path(test_dir,"data","chem.db"))
+				}
 	print("by file name")
    refFile = file.path(test_dir,"reference_file.cdb")
 	eiR:::writeIddbFile((1:r)+200,refFile)
-   eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir)
+   eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
+		connSource=connSource	)
    runChecks()
 	unlink(runDir,recursive=TRUE)
 
 	print("by number")
-   eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir)
+   eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
+		connSource=connSource	)
    runChecks()
 	unlink(runDir,recursive=TRUE)
 
 	print("by vector")
    eiMakeDb(testRefs(),d,numSamples=20,cl=cl,descriptorType=descType, dir=test_dir,
-				connSource=function(){
-					require(eiR)
-					require(RSQLite)
-					initDb(file.path(test_dir,"data","chem.db"))
-				})
+		connSource=connSource	)
 	stopCluster(cl)
    runChecks()
 
@@ -127,16 +131,19 @@ test_ca.eiQuery <- function(){
 	message("eiQuery")
    data(sdfsample)
    refIddb = findRefIddb(runDir)
-   results = eiQuery(r,d,refIddb,sdfsample[1:2],K=15,descriptorType=descType,dir=test_dir)
-   checkTrue(length(results$distance) != 0)
-   checkTrue(all(results$distance <= 1))
-   checkEquals(results$distance[16],0)
+	message("eiQuery test 1")
+	results = eiQuery(r,d,refIddb,sdfsample[1:2],K=15,asSimilarity=TRUE,descriptorType=descType,dir=test_dir)
+   checkTrue(length(results$similarity) != 0)
+   checkTrue(all(results$similarity>= 0))
+   checkEquals(results$similarity[16],1)
 
+	message("eiQuery test 2")
+	results=eiQuery(r,d,refIddb,203:204,format="compound_id",K=15,asSimilarity=TRUE,descriptorType=descType,dir=test_dir)
+   checkEquals(results$similarity[1],1)
 
-	results=eiQuery(r,d,refIddb,203:204,format="compound_id",K=15,descriptorType=descType,dir=test_dir)
-   checkEquals(results$distance[1],0)
-
+	message("eiQuery test 3")
 	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,descriptorType=descType,dir=test_dir)
+   
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
 

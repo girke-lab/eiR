@@ -104,7 +104,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=getGroupSize(conn,dir)*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK"),connSource=NULL)
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
 {
 	conn
 	workDir=NA
@@ -113,7 +113,9 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		if(!file.exists(workDir))
 			if(!dir.create(workDir))
 				stop("Could not create run directory ",workDir)
+		workDir <<- normalizePath(workDir)
 	}
+	message("createWorkDir envir: ",ls(environment(createWorkDir)))
 
 	if(is.null(conn))
 		stop("no database connection given")
@@ -229,12 +231,17 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 
 	currentDir=getwd()
 	if(debug) message("starting clusterApply")
-	clusterApplyLB(cl,1:numJobs, 
-		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
-			solver <- getSolver(r,d,coords)	
-			dataPartFilename = file.path(currentDir,workDir,paste(r,d,i,sep="-"))
-			queryPartFilename = file.path(currentDir,workDir,paste("q",r,d,i,sep="-"))
 
+
+	message("outer envir: ",ls(environment()))
+
+	embedJob <-	function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
+
+			cat(paste("inner environment: ",paste(ls(),collapse=" "),"\n",paste(ls(parent.env(environment())),collapse=" "),"\n"),file=paste("job2-",i,".out",sep=""))
+
+			solver <- getSolver(r,d,coords)	
+			dataPartFilename = file.path(workDir,paste(r,d,i,sep="-"))
+			queryPartFilename = file.path(workDir,paste("q",r,d,i,sep="-"))
 			if(file.exists(dataPartFilename) && file.exists(queryPartFilename))
 				return()
 
@@ -267,14 +274,22 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 			##from data.
 			##print(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds)
 			##print(which(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds))
-			#selected = which( mainIds[start:end]  %in% queryIds ) - start - 1
+			#selected = which( mainIds[((i-1)*jobSize+1):(i*jobSize)]  %in% queryIds ) 
+			#				- ((i-1)*jobSize)
 			##print("selected:")
 			##print(selected)
 			## R magically changes the data type depending on the size, yay!
 			#qd = if(length(selected)==1) 
 			#			t(data[,selected]) else t(data)[selected, ]
 			#write.table(qd, file=queryPartFilename, row.names=F,col.names=F)
-		})
+	}
+	
+	#copy large items to nodes once, then remove them from the closures scope
+	# so that they don't get copied to ndoes each time
+	clusterExport(cl,c("coords","mainIds","queryIds"),envir=environment())
+	rm(coords,mainIds,queryIds,distance,envir=environment(embedJob))
+
+	clusterApplyLB(cl,1:numJobs,embedJob )
 
 	if(debug) message("done with clusterApply. concatening parts")
 
@@ -299,7 +314,7 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		K=200, W = 1.39564, M=19,L=10,T=30)
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30)
 {
 		conn
 		tmpDir=tempdir()
@@ -350,9 +365,14 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 					results[i,"query"]<<-queryNames[queryIndex]
 					results[i,"target"]<<-targetNames[ as.character(hits[[queryIndex]][hitIndex,1]),1]
 					results[i,"target_ids"]<<-hits[[queryIndex]][hitIndex,1]
-					results[i,"distance"]<<- hits[[queryIndex]][hitIndex,2]
+					d=hits[[queryIndex]][hitIndex,2]
+					results[i,"distance"]<<- if(asSimilarity) 1-d else d
 					i<<-i+1
 			}))
+
+		if(asSimilarity)
+			names(results)=c("query","target","similarity","target_ids")
+
 		if(debug) print("results:")
 		if(debug) print(results)
 		results
@@ -524,7 +544,7 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 	lshNeighbors[order(lshNeighbors[,2])[1:limit],]
 }
 getNames <- function(indexes,dir,conn=defaultConn(dir))
-	getCompoundNames(conn,indexes)
+	getCompoundNames(conn,indexes,keepOrder=TRUE,allowMissing=TRUE)
 
 writeIddbFile <- function(data, file,append=FALSE)
 		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
@@ -730,7 +750,9 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 						})
 				})
 		}
-		absPath=file.path(getwd(),file)
+		#absPath=file.path(getwd(),file)
+		#absPath=normalizePath(file)
+		absPath=file #given file is now absolute already
 		print(absPath)
 
 		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)

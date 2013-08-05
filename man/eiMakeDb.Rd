@@ -10,7 +10,7 @@
 \usage{
 	eiMakeDb(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK"),connSource=NULL)
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
 
 }
 %- maybe also 'usage' for other objects documented here.
