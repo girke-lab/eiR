@@ -270,13 +270,17 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	if(debug) message("done with clusterApply. concatening parts")
 
 
-	unlink(c(embeddedFile,embeddedQueryFile))
+	#unlink(c(embeddedFile,embeddedQueryFile))
+	f1 = file(embeddedFile,"w")
+	f2 = file(embeddedQueryFile,"w")
 	for(x in 1:numJobs){
 		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=embeddedFile, append=TRUE)
+			 sep="\n",file=f1)
 		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=embeddedQueryFile, append=TRUE)
+			 sep="\n",file=f2)
 	}
+	close(f2)
+	close(f1)
 
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
