@@ -33,7 +33,7 @@ test_aa.eiInit <- function() {
 	setDefaultDistance("dummy",function(x,y) x-y)
 	checkTrue(!is.null(eiR:::getDefaultDist("dummy")))
 
-	addTransform("dummy","d2",toObject=function(x)x)
+	addTransform("dummy","d2",toObject=function(x,conn=NA,dir=".")x)
 	checkTrue(!is.null(eiR:::getTransform("dummy","d2")))
 
 

@@ -44,9 +44,10 @@ addTransform <- function(descriptorType,compoundFormat=NULL,toString=NULL,toObje
 	name = buildType(descriptorType,compoundFormat)
 
 	if(!is.null(compoundFormat) && is.null(toString))
-		toString = function(input,dir=".",conn=defaultConn()) 
+		toString = function(input,conn=defaultConn(),dir=".") 
 			getTransform(descriptorType)$toString(getTransform(
 																	descriptorType,compoundFormat)$toObject(input,conn,dir)$descriptors,
+															  conn=conn,
 															  dir=dir)
 	else if(is.null(toString))
 		stop("toString function must be specified if compoundFormat is NULL")		
@@ -126,7 +127,8 @@ addTransform("fp","sdf",
 )
 addTransform("ap",  
    # APset -> string,
-	toString = function(apset,conn=NULL,dir="."){
+	toString = function(apset,conn=8,dir="."){
+		conn
 		unlist(lapply(ap(apset), function(x) paste(x,collapse=", ")))
 	},
    # string or list -> AP set list
