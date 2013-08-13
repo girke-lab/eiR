@@ -73,7 +73,7 @@ public:
         dim = _dim;
         N = _N;
         if (dims != NULL) delete[] dims;
-        dims = new T[dim * N];
+        dims = new T[(unsigned long)dim * (unsigned long)N];
     }
 
     /// Release memory.

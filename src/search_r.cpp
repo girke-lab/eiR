@@ -34,11 +34,12 @@ typedef MultiProbeLshIndex<unsigned> Index;
 int loadIndex(Index &index, FloatMatrix &data, string &index_file,
       float W, unsigned H, unsigned M, unsigned L)
 {
+	cout<<"loading index: "<<index_file<<endl;
    ifstream is(index_file.c_str(), ios_base::binary);
 	// if we can open and read index file use it and return
    if (is) {
     	is.exceptions(ios_base::eofbit | ios_base::failbit | ios_base::badbit);
-    	//cout << "LOADING INDEX..." << endl;
+    	cout << "LOADING INDEX..." << endl;
     	index.load(is);
     	BOOST_VERIFY(is);
 		return 1;
@@ -62,9 +63,13 @@ int loadIndex(Index &index, FloatMatrix &data, string &index_file,
 
    // Initialize the index structure.  Note L is passed here.
 
+	Rprintf("inserting\n");
+	cout<<"inserting into index. data size: "<<data.getSize()<<endl;
 
    for (unsigned i = 0; i < data.getSize(); ++i)
    {
+//		cout<<"i="<<i<<endl;
+//		cout<<data[i]<<endl;
        // Insert an item to the hash table.
        // Note that only the key is passed in here.
        // MPLSH will get the feature from the accessor.
@@ -72,11 +77,12 @@ int loadIndex(Index &index, FloatMatrix &data, string &index_file,
    }
 
 
-	//cout << "SAVING INDEX..." << endl;
+	cout << "SAVING INDEX..." << endl;
 	ofstream os(index_file.c_str(), ios_base::binary);
 	os.exceptions(ios_base::eofbit | ios_base::failbit | ios_base::badbit);
 	index.save(os);
 
+	Rprintf("done loading index\n");
 	return 1;
 
 }
@@ -192,9 +198,11 @@ SEXP lshsearch(SEXP queries, SEXP matrixFile, SEXP indexFile,
    unsigned T = check(Tin,1);
    float R = ISNA(REAL(Rin)[0])? std::numeric_limits<float>::max() : 
                                  (float)(REAL(Rin)[0]*REAL(Rin)[0]);
-   //Rprintf("W: %f H:%d M:%d L:%d K:%d T:%d R:%f\n",W,H,M,L,K,T,R);
+   Rprintf("W: %f H:%d M:%d L:%d K:%d T:%d R:%f\n",W,H,M,L,K,T,R);
 
+	Rprintf("loading matrix data\n");
    FloatMatrix data(CHAR(STRING_ELT(matrixFile,0)));
+	Rprintf("done loading matrix data\n");
 
 
    FloatMatrix::Accessor accessor(data);
@@ -208,7 +216,7 @@ SEXP lshsearch(SEXP queries, SEXP matrixFile, SEXP indexFile,
    SEXP queryDim = getAttrib(queries,R_DimSymbol);
    int numQueries = INTEGER(queryDim)[1];
    int querySize = INTEGER(queryDim)[0];
-   //Rprintf("numQueries: %d, querySize: %d\n",numQueries,querySize);
+   Rprintf("numQueries: %d, querySize: %d\n",numQueries,querySize);
    SEXP result;
    PROTECT(result = alloc3DArray(REALSXP,numQueries,K,2));
    float *queryPtr = new float[querySize];
@@ -217,12 +225,12 @@ SEXP lshsearch(SEXP queries, SEXP matrixFile, SEXP indexFile,
    int k=0;
    for(int i=0; i < numQueries; i++)
    {
-      //Rprintf("query %d:\n",i);
+      Rprintf("query %d:\n",i);
       for(int j=0;j<querySize;j++){
          queryPtr[j]=(float)REAL(queries)[k++];
-         //Rprintf("%f ",queryPtr[j]);
+         Rprintf("%f ",queryPtr[j]);
       }
-      //Rprintf("\n");
+      Rprintf("\n");
 
       unsigned cnt;
       Topk<unsigned> topk;
@@ -236,10 +244,10 @@ SEXP lshsearch(SEXP queries, SEXP matrixFile, SEXP indexFile,
       topk.swap(query.topk());
 
 
-      //for (unsigned j = 0; j < K; j ++)
-         //if(topk[j].dist != maxValue)
-            //Rprintf("%d:%f ",topk[j].key,topk[j].dist);
-      //Rprintf("\n");
+      for (unsigned j = 0; j < K; j ++)
+         if(topk[j].dist != maxValue)
+            Rprintf("%d:%f ",topk[j].key,topk[j].dist);
+      Rprintf("\n");
 
 
       for(unsigned j = 0; j < K; j++)

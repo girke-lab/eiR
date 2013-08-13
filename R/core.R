@@ -101,10 +101,9 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 
 	connSource
 	loadInput = function(input){
+		conn=connSource()
 		tryCatch({
-			require(ChemmineR)
 			if(is.character(input)) message("loading ",input)
-			conn=connSource()
 			ids = loadFormat(conn,input, descriptors=descriptorFunction,updateByName=updateByName)
 			if(is.character(input))
 				message("loaded ",length(ids)," compounds from ",input)
@@ -816,7 +815,7 @@ selectDescriptors <- function(type,ids){
 	q=paste("SELECT compound_id, descriptor FROM descriptors JOIN descriptor_types USING(descriptor_type_id) WHERE ",
 				" descriptor_type='",type,"' AND compound_id IN (", paste(ids,collapse=","),") ORDER
 				BY compound_id",sep="")
-	#print(q)
+	if(debug) message("select descriptors: ",q)
 	q
 }
 getDescriptors <- function(conn,type,idList){
