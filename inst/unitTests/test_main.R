@@ -42,7 +42,14 @@ test_aa.eiInit <- function() {
 	checkData(compoundIds)
 
 	dir.create(fpDir)
-	fpCids = eiInit(sdfsample,dir=fpDir,descriptorType="fp")
+	write.SDF(sdfsample[1:30],file.path(fpDir,"f1"))
+	write.SDF(sdfsample[31:60],file.path(fpDir,"f2"))
+	write.SDF(sdfsample[61:100],file.path(fpDir,"f3"))
+	# we just test with one node as SQLite does not support parallel writes
+	cl=makeCluster(1,type="SOCK",outfile=file.path(test_dir,"eiInit.snow"))
+	fpCids = eiInit(file.path(fpDir,c("f1","f2","f3")),dir=fpDir,descriptorType="fp",cl=cl,
+						 connSource=function() eiR:::defaultConn(fpDir))
+	stopCluster(cl)
 	checkData(fpCids,fpDir)
 }
 
