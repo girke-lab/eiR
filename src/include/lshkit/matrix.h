@@ -95,12 +95,12 @@ public:
 
     /// Access the ith vector.
     const T *operator [] (int i) const {
-        return dims + i * dim;
+        return dims + (unsigned long)i * dim;
     }
 
     /// Access the ith vector.
     T *operator [] (int i) {
-        return dims + i * dim;
+        return dims + (unsigned long)i * dim;
     }
 
     int getDim () const {return dim; }

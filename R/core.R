@@ -537,7 +537,7 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 	lshNeighbors[order(lshNeighbors[,2])[1:limit],]
 }
 getNames <- function(indexes,dir,conn=defaultConn(dir))
-	getCompoundNames(conn,indexes)
+	getCompoundNames(conn,indexes,allowMissing=TRUE,keepOrder=TRUE)
 
 writeIddb <- function(data, file,append=FALSE)
 		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
