@@ -100,9 +100,11 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,descriptorType
 	numDescriptors = nrow(data)
 	descriptorLength = ncol(data)
 	assert(numDescriptors == length(descriptorIds))
+	#save(embeddingId,descriptorIds,descriptorLength,numDescriptors,data,file="debug.RData")
 	data=as.vector(data)
 	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
-				  order = rep(1:descriptorLength,numDescriptors),
+				  #ordering = rep(1:descriptorLength,numDescriptors),
+				  ordering = as.vector(sapply(1:descriptorLength,function(i) rep(i,numDescriptors))),
 				  value = data)
 
 	if(inherits(conn,"SQLiteConnection")){
@@ -123,7 +125,7 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,descriptorType
 }
 getDescriptorIds <- function(conn,compoundIds,descriptorType){
 	data = dbGetQuery(conn,
-										paste("SELECT descriptor_ids FROM descriptors
+										paste("SELECT descriptor_id FROM descriptors
 													  JOIN descriptor_types USING(descriptor_type_id) 
 													  WHERE descriptor_type = '",descriptorType,"'
 													  AND compound_id IN (",paste(compoundIds,collapse=","),")",sep=""))

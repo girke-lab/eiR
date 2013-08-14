@@ -177,10 +177,10 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	runId = getRunId(conn,workDir,embeddingId,mainGroupId,queryGroupId)
 
 
-	selfDistFile <- paste(refGroupName,"distmat",sep=".")
+	selfDistFile <- paste(file.path(workDir,refGroupName),"distmat",sep=".")
 	selfDistFileTemp <- paste(selfDistFile,"temp",sep=".")
 	coordFile <- paste(selfDistFile,"coord",sep=".")
-	ref2AllDistFile <- paste(refGroupName,"distances",sep=".")
+	ref2AllDistFile <- paste(file.path(workDir,refGroupName),"distances",sep=".")
 	ref2AllDistFileTemp	 <- paste(ref2AllDistFile,"temp",sep=".")
 embeddedFile <- file.path(workDir,sprintf("coord.%d-%d",r,d))
 embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
@@ -309,7 +309,7 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 	binaryCoord(embeddedQueryFile,
 		file.path(workDir,sprintf("matrix.query.%d-%d",r,d)),d)
 
-	refGroupName	
+	runId
 }
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),

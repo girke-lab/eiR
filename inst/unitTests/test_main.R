@@ -8,7 +8,7 @@ test_dir="test_workspace"
 r<- 50
 d<- 40
 N<- 100
-j=3
+j=1  #can only use 1 when using sqlite
 runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
 descType="ap"
@@ -53,47 +53,81 @@ testRefs <- function(){
 test_bb.eiMakeDb <- function() {
 
 	#DEACTIVATED("slow")
-   runChecks = function(){
-      checkMatrix(".cdb$",r,1)
-      checkMatrix(".cdb.distmat$",r,r)
-      checkMatrix(".cdb.distmat.coord$",r,d)
-      checkMatrix(".cdb.distances$",N,r)
-      checkMatrix(sprintf("coord.%d-%d",r,d),N,d)
-      checkMatrix(sprintf("coord.query.%d-%d",r,d),20,d)
-      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
-      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
-      Map(function(x)
-         checkTrue(!file.exists(file.path(runDir,paste(r,d,x,sep="-")))),1:j)
-      Map(function(x)
-         checkTrue(!file.exists(file.path(runDir,paste("q",r,d,x,sep="-")))),1:j)
-   }
-
-#	cl=makeCluster(j,type="SOCK",outfile=file.path(test_dir,"eiMakeDb.snow"))
-	cl=makeCluster(j,type="SOCK",outfile="")
+#   runChecks = function(){
+#      checkMatrix(".cdb$",r,1)
+#      checkMatrix(".cdb.distmat$",r,r)
+#      checkMatrix(".cdb.distmat.coord$",r,d)
+#      checkMatrix(".cdb.distances$",N,r)
+#      checkMatrix(sprintf("coord.%d-%d",r,d),N,d)
+#      checkMatrix(sprintf("coord.query.%d-%d",r,d),20,d)
+#      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
+#      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
+#      Map(function(x)
+#         checkTrue(!file.exists(file.path(runDir,paste(r,d,x,sep="-")))),1:j)
+#      Map(function(x)
+#         checkTrue(!file.exists(file.path(runDir,paste("q",r,d,x,sep="-")))),1:j)
+#   }
 	connSource=function(){
 					require(eiR)
 					require(RSQLite)
 					initDb(file.path(test_dir,"data","chem.db"))
 				}
+
+	conn = connSource()
+	runDbChecks = function(rid){
+
+		parameters = dbGetQuery(conn,paste("SELECT dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
+										WHERE r.run_id = ",rid))
+		checkEquals(d,parameters$dimension)
+		checkEquals(r,parameters$num_references)
+
+		numRefs = dbGetQuery(conn,paste("SELECT count(*) FROM runs as r JOIN embeddings as e USING(embedding_id) 
+											JOIN compound_group_members as refs ON(e.references_group_id=refs.compound_group_id)
+										WHERE r.run_id = ",rid))[[1]]
+		message("found ",numRefs," refs")
+		checkEquals(r,numRefs)
+		numCompounds = dbGetQuery(conn,paste("SELECT count(*) FROM runs as r  
+											JOIN compound_group_members as cgm ON(r.compound_group_id=cgm.compound_group_id)
+										WHERE r.run_id = ",rid))[[1]]
+
+		checkEquals(N,numCompounds)
+		numSamples = dbGetQuery(conn,paste("SELECT count(*) FROM runs as r  
+											JOIN compound_group_members as cgm ON(r.sample_group_id=cgm.compound_group_id)
+										WHERE r.run_id = ",rid))[[1]]
+		checkEquals(20,numSamples)
+
+
+		numDescriptors = dbGetQuery(conn,paste("SELECT count(distinct descriptor_id) FROM runs as r JOIN embedded_descriptors as ed USING(embedding_id) 
+										WHERE r.run_id = ",rid))[[1]]
+		checkEquals(N,numDescriptors)
+
+      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
+      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
+
+
+	}
+
+	cl=makeCluster(j,type="SOCK",outfile="")
+
 	print("by file name")
    refFile = file.path(test_dir,"reference_file.cdb")
 	eiR:::writeIddbFile((1:r)+200,refFile)
-   eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
+   rid=eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
 		connSource=connSource	)
-   runChecks()
+   runDbChecks(rid)
 	unlink(runDir,recursive=TRUE)
 
 	print("by number")
-   eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
+   rid=eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
 		connSource=connSource	)
-   runChecks()
+   runDbChecks(rid)
 	unlink(runDir,recursive=TRUE)
 
 	print("by vector")
-   eiMakeDb(testRefs(),d,numSamples=20,cl=cl,descriptorType=descType, dir=test_dir,
+   rid=eiMakeDb(testRefs(),d,numSamples=20,cl=cl,descriptorType=descType, dir=test_dir,
 		connSource=connSource	)
 	stopCluster(cl)
-   runChecks()
+   runDbChecks(rid)
 
 	
 }
