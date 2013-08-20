@@ -7,3 +7,5 @@ import(ChemmineR)
 export("eiInit","eiMakeDb","eiQuery","eiAdd","eiPerformanceTest","eiCluster")
 
 export("setDefaultDistance","addTransform")
+
+export("loadLSHData","freeLSHData")

@@ -41,14 +41,35 @@ lshPrep <- function(matrixFile,
 	indexName
 }
 
+
+loadLSHData <- function(r,d, W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,dir=".",matrixFile=NULL) {
+
+	if(is.null(matrixFile)){
+		workDir=file.path(dir,paste("run",r,d,sep="-"))
+		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
+	}
+
+	indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
+	.Call("getIndexedData",as.character(matrixFile),indexFile,
+		as.double(W),as.integer(H),as.integer(M),as.integer(L))
+}
+
+freeLSHData <- function(lshData){
+	.Call("freeIndexedData",lshData)
+}
+
 # requires one query per column, not per row
 lshsearch <- function(queries,matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA) 
+	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,lshData=NULL) 
 {
-	indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
-	.Call("lshsearch",queries,as.character(matrixFile),indexFile,
-		as.double(W),as.integer(H),as.integer(M),as.integer(L),
-		as.integer(K),as.integer(T), as.double(R))
+	if(is.null(lshData)){
+		indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
+		.Call("lshsearch",queries,as.character(matrixFile),indexFile,
+			as.double(W),as.integer(H),as.integer(M),as.integer(L),
+			as.integer(K),as.integer(T), as.double(R))
+	}else{
+		.Call("query",queries,lshData, as.integer(K),as.integer(T), as.double(R))
+	}
 }
 lshsearchAll <- function(matrixFile,
 	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA) 
@@ -328,7 +349,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30)
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL)
 {
 		conn
 		tmpDir=tempdir()
@@ -353,7 +374,9 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		#if(debug) print(embeddedQueries)
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 		hits = search(embeddedQueries,matrixFile,
-							queryDescriptors,distance,dir,conn=conn,descriptorType=descriptorType,K=K,W=W,M=M,L=L,T=T)
+							queryDescriptors,distance,dir,conn=conn,descriptorType=descriptorType,
+							lshData=lshData,
+							K=K,W=W,M=M,L=L,T=T)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
 
@@ -501,9 +524,10 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 }
 
 #expects one query per column
-search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,conn=defaultConn(dir),...)
+search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,
+						 conn=defaultConn(dir),lshData=NULL,...)
 {
-		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,...)
+		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,lshData=lshData,...)
 		mainIds <- readIddb(file.path(dir,Main))
 		#print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
 		#print("neighbors:")
