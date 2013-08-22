@@ -134,10 +134,6 @@
    #create compound db
    eiMakeDb(r,d,numSamples=20,dir=dir, cl=makeCluster(1,type="SOCK",outfile=""))
 
-	print(dir())
-	print(dir(dir))
-	print(dir(file.path(dir,"data")))
-	print(dir(file.path(dir,"run-50-40")))
 	eiCluster(r,d,K=5,minNbrs=2,cutoff=0.5,dir=dir)
 
 }
