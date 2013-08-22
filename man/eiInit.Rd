@@ -8,19 +8,22 @@
    measure supports and creates a "data" directory.
 }
 \usage{
-	eiInit(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE, conn=defaultConn(dir))
+	eiInit(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
+	conn=defaultConn(dir,create=TRUE), updateByName = FALSE, cl = NULL, connSource = NULL)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{compoundDb}{
-	  Either a filename of and SDF file, or an SDFset.
+  \item{inputs}{
+	  Either a filename of a file in \code{format} format, or an SDFset. This can
+	  also be a vector of  filenames and if \code{cl} is also specified and if you database
+	  supports it (SQLite does not), it will load these file in parallel on the cluster.
    }
   \item{dir}{
       The directory where the "data" directory lives. Defaults to the
       current directory.
    }
 	\item{format}{
-		The format of the data in compoundDb. Currenly only "sdf" is 
+		The format of the data in \code{inputs}. Currenly only "sdf" and "smiles" is 
 		supported.
 	}
 	\item{descriptorType}{
@@ -36,12 +39,37 @@
 	\item{conn}{
 		Database connection to use.
 	}
+	\item{updateByName}{
+		If true we make the assumption that all compounds, both in the existing database and the
+		given dataset, have unique names. This function will then avoid re-adding existing,
+		identical compounds, and will update existing compounds with a new definition if a new
+		compound definition with an existing name is given. 
+
+		If false, we allow duplicate compound names to exist in the database, though not
+		duplicate definitions. So identical compounds will not be re-added, but if a new version of
+		an existing compound is added it will not update the existing one, it will add the modified one 
+		as a completely new compound with a new compound id. 
+	}
+  \item{cl}{
+     A SNOW cluster can be given here to run this function in
+     parrallel.
+   }
+	\item{connSource}{
+		A function returning a new database connection. Note that it is not suffient to return a
+		reference to an existing connection, it must be a distinct, new connection.  
+		This is needed for cluster operations
+		that make use of the database as they will each need to craete a new connection.
+		If not given, certain parts of this function will not be parrallelized.
+
+		This function can also be used to setup the envrionment on the cluster worker nodes. For
+		example, you might need to re-load libraries like RSQLite and such.
+	}
 
 }
 \details{
 
 
-   EiInit can take either an SDFset, or a filename.  SDF is supported
+   EiInit can take either an SDFset, or a filename.  SDF and SMILES is supported
    by default.
    It might complain if your SDF file does not
    follow the SDF specification. If this happens, you can create an

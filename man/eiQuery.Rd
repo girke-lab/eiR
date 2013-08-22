@@ -8,7 +8,8 @@
 }
 \usage{
 	eiQuery(r,d,refIddb,queries,format="sdf",
-		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
+		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),conn=defaultConn(dir),
+		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -47,6 +48,10 @@
 	\item{distance}{
 		The distance function to be used to compute the distance between two descriptors. A default function is
 		provided for "ap" and "fp" descriptors. The Tanimoto function is used by default.
+	}
+
+	\item{conn}{
+		Database connection to use.
 	}
 	\item{asSimilarity}{
 		If true, return similarity values instead of distance values. This only works in the given

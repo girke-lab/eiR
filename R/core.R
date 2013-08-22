@@ -73,8 +73,9 @@ lshsearchAll <- function(matrixFile,
 # and compound format, ei, "SDF", "SMILE", etc.
 # X optionally: compound -> string and string -> compound
 
-eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE,
-						 conn=defaultConn(dir))
+eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
+						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
+						 cl=NULL,connSource=NULL)
 {
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
@@ -84,18 +85,50 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set,conn,dir),
 					  descriptor_type=descriptorType)
 	
+	message("input type: ",class(inputs))
 
 	if(is.null(conn))
-		conn = initDb(file.path(dir,ChemDb))
+		stop("no database connection found")
+
 	
 	if(tolower(format) == "sdf"){
-		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction)
+		loadFormat=loadSdf
 	}else if(tolower(format) == "smiles" || tolower(format)=="smi"){
-		stop("smiles are not yet supported")
-		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction)
+		loadFormat=loadSmiles
 	}else{
 		stop(paste("unknown input format:",format," supported formats: SDF, SMILE"))
 	}
+
+	connSource
+	loadInput = function(input){
+		conn=connSource()
+		tryCatch({
+			if(is.character(input)) message("loading ",input)
+			ids = loadFormat(conn,input, descriptors=descriptorFunction,updateByName=updateByName)
+			if(is.character(input))
+				message("loaded ",length(ids)," compounds from ",input)
+			else
+				message("loaded ",length(ids)," compounds")
+			ids
+		  },error = function(e) stop(e),
+		  finally = dbDisconnect(conn)
+		)
+	}
+
+		
+
+	if(!is.null(cl) && is.character(inputs)){ #if its a list of filenames, use the cluster
+		if(is.null(connSource))
+			stop("a connSource must be provided when using a cluster")
+		message("using cluster")
+		compoundIds = unlist(clusterApplyLB(cl,inputs, loadInput))
+	}else{
+		message("loading locally")
+		connSource=function() conn
+		compoundIds=loadInput(inputs)
+	}
+
+
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(compoundIds,file.path(dir,Main),append=append)
@@ -103,7 +136,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK"),connSource=NULL)
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
 {
 	conn
 	workDir=NA
@@ -112,7 +145,9 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		if(!file.exists(workDir))
 			if(!dir.create(workDir))
 				stop("Could not create run directory ",workDir)
+		workDir <<- normalizePath(workDir)
 	}
+	message("createWorkDir envir: ",ls(environment(createWorkDir)))
 
 	if(is.null(conn))
 		stop("no database connection given")
@@ -200,30 +235,49 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	}
 	
 	#each job needs: R, D, coords, a chunk of distance data
+	if(debug) message("getting solver")
 	solver <- getSolver(r,d,coords)	
 
 
-	numJobs=length(cl)
-	jobSize = as.integer(cdbSize(dir) / numJobs + 1) #make last job short
+	numCompounds = cdbSize(dir)
 
-	distConn <- file(ref2AllDistFile,"r")
-	dataBlocks = Map(function(x)
-		strsplit(readLines(distConn,jobSize),"\\s+"),1:numJobs)
-	close(distConn)
+	#ensure we have at least as many jobs as cluster nodes, but if
+	# we have a large number of compounds, batch them by no more than 10,000
+	numJobs = max(length(cl), as.integer(numCompounds / 10000))
+	jobSize = as.integer(numCompounds / numJobs + 1) #make last job short
 
-	#print(paste("numJobs:",numJobs))
+	if(debug) message("numJobs: ",numJobs," jobSize: ",jobSize)
 
 	currentDir=getwd()
-	clusterApply(cl,1:numJobs, 
-		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
-			solver <- getSolver(r,d,coords)	
-			data = sapply(dataBlocks[[i]],function(x) 
-								embedCoord(solver,d,as.numeric(x)))
-			print(paste("current dir: ",currentDir))
+	if(debug) message("starting clusterApply")
+	message("outer envir: ",ls(environment()))
 
-			write.table(t(data),
-				file=file.path(currentDir,workDir,paste(r,d,i,sep="-")),
-				row.names=F,col.names=F)
+	embedJob <-	function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
+
+			cat(paste("inner environment: ",paste(ls(),collapse=" "),"\n",paste(ls(parent.env(environment())),collapse=" "),"\n"),file=paste("job2-",i,".out",sep=""))
+
+			solver <- getSolver(r,d,coords)	
+			dataPartFilename = file.path(workDir,paste(r,d,i,sep="-"))
+			queryPartFilename = file.path(workDir,paste("q",r,d,i,sep="-"))
+			if(file.exists(dataPartFilename) && file.exists(queryPartFilename))
+				return()
+
+			start = (i-1)*jobSize+1 			 #inclusive
+			end = min(i*jobSize,numCompounds) #inclusive
+			numCompounds=end-start+1
+			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
+			if(numCompounds * r != length(rawDists))
+				stop("tried to read ",numCompounds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
+			dim(rawDists) = c(r,numCompounds)
+			rawDists=t(rawDists)
+
+			data = sapply( 1:numCompounds,function(x) embedCoord(solver,d, rawDists[x,]))
+
+			#data = sapply( ((i-1)*jobSize):min(i*jobSize-1,numCompounds-1),
+			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
+			if(debug) message("embedded ",length(data)," compounds")
+
+			write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
 
 			#list indexes for this job, see which of them are queries, 
 			#then shift indexes back to this jobs range before selecting 
@@ -237,32 +291,44 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			# R magically changes the data type depending on the size, yay!
 			qd = if(length(selected)==1) 
 						t(data[,selected]) else t(data)[selected, ]
-			write.table(qd ,
-				file=file.path(currentDir,workDir,paste("q",r,d,i,sep="-")),
-				row.names=F,col.names=F)
-		})
+			write.table(qd, file=queryPartFilename, row.names=F,col.names=F)
+	}
+	
+	#copy large items to nodes once, then remove them from the closures scope
+	# so that they don't get copied to ndoes each time
+	clusterExport(cl,c("coords","mainIds","queryIds"),envir=environment())
+	rm(coords,mainIds,queryIds,distance,envir=environment(embedJob))
 
-	unlink(c(embeddedFile,embeddedQueryFile))
+	clusterApplyLB(cl,1:numJobs,embedJob )
+
+	if(debug) message("done with clusterApply. concatening parts")
+
+
+	#unlink(c(embeddedFile,embeddedQueryFile))
+	f1 = file(embeddedFile,"w")
+	f2 = file(embeddedQueryFile,"w")
 	for(x in 1:numJobs){
 		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=embeddedFile, append=TRUE)
+			 sep="\n",file=f1)
 		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=embeddedQueryFile, append=TRUE)
+			 sep="\n",file=f2)
 	}
+	close(f2)
+	close(f1)
 
-	Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
-	Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
+	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
+	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
 	binaryCoord(embeddedFile,matrixFile,d)
 	binaryCoord(embeddedQueryFile,
 		file.path(workDir,sprintf("matrix.query.%d-%d",r,d)),d)
 
-	#file.path(workDir,sprintf("matrix.%d-%d",r,d))
 	refIddb
 }
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
-		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30)
+		conn=defaultConn(dir),
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30)
 {
 		conn
 		tmpDir=tempdir()
@@ -328,14 +394,16 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 
 eiAdd <- function(r,d,refIddb,additions,dir=".",format="sdf",
 						conn=defaultConn(dir), descriptorType="ap",
-						distance=getDefaultDist(descriptorType))
+						distance=getDefaultDist(descriptorType),updateByName=FALSE)
 {
 		conn
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 
+		#TODO make this work for modified descriptors
+
 		# add additions to database
-		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE)
+		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName)
 		additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
 		numAdditions = length(compoundIds)
 		refIds = readIddb(refIddb)
@@ -490,20 +558,20 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 	lshNeighbors[order(lshNeighbors[,2])[1:limit],]
 }
 getNames <- function(indexes,dir,conn=defaultConn(dir))
-	getCompoundNames(conn,indexes)
+	getCompoundNames(conn,indexes,keepOrder=TRUE,allowMissing=TRUE)
 
 writeIddb <- function(data, file,append=FALSE)
 		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
 readIddb <- function(file){
 	binFile=paste(file,".Rdata",sep="")
 	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){
-		message("reading from binary iddb: ",binFile)
+		if(debug) message("reading from binary iddb: ",binFile)
 		f=file(binFile,"r")
 		x=unserialize(f)
 		close(f)
 		x
 	}else{
-		message("no binary iddb found, ",binFile)
+		if(debug) message("no binary iddb found, ",binFile)
 		x=as.numeric(readLines(file))
 		if(length(x) > 1000000){
 			message("large iddb found (",length(x),"), generating binary version")
@@ -620,14 +688,6 @@ IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
 	output(file,length(iddb),length(descriptors),process)
 }
 
-ip <- function(ids,jobId){
-					cat("hi",file=paste("job-",jobId,".out",sep=""))
-					"nonexistant-filename"
-				}
-ipReduce <- function(results) {
-					message("results: ",results)
-				}
-
 
 IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,connSource=NULL){
 
@@ -638,7 +698,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 	#print(str(descriptors))
 
 	if(is.null(cl)){
-		process = function(record){
+		process = function(record,recordPart=NULL){
 			batchByIndex(iddb1,function(ids){
 				outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
 				record(desc2descDist(outerDesc,descriptors,dist))
@@ -648,58 +708,67 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 	}else{
 		if(is.null(connSource))
 			stop("the connSource parameter is required when using a cluster")
-		parBatchByIndex(iddb1,cl=cl,batchSize=10000,
-				indexProcessor=ip, reduce = ipReduce )
 
-#		process = function(record,recordPart){
-#			parBatchByIndex(iddb1,cl=cl,batchSize=10000,
-#				indexProcessor=function(ids,jobId){
-#					cat("hi",file=paste("job-",jobId,".out",sep=""))
-#					"nonexistant-filename"
-#				},
-#				function(ids,jobId){
-#					f = file(paste("job-",jobId,".out",sep=""),"a")
-#					message("in indexProcessor: ",jobId)
-#					cat("in indexProcessor: ",jobId,"\n",file=f); flush(f)
-#					#print(ids)
-#					#f=function(){
-#			#		recordPart({
-#			#			message("starting")
-#			#			cat("recording","\n",file=f); flush(f)
-#
-#			#			# this must be done here to ensure connSource() is evaluated
-#			#			# before getDescriptors starts to run
-#			#			conn=connSource()
-#
-#			#			outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
-#			#			dbDisconnect(conn)
-#			#			cat("got descriptors","\n",file=f); flush(f)
-#			#			d2d=desc2descDist(outerDesc,descriptors,dist)
-#			#			cat("got distances","\n",file=f); flush(f)
-#			#			d2d
-#			#		},jobId)
-#		#			ret = recordPart(8,jobId)
-#					cat("done with ",jobId,"\n",file=f); flush(f)
-#					close(f)
-#		#			ret
-#					"nonexistant-filename"
-#				},
-#				reduce = function(results){
-#					message("evaluationg results")
-#					results # force evaluation here
-#					message("in reduce")
-#					sapply(results,function(result) {
-#						if(is.character(result))
-#							record(read.table(result))
-#						else
-#							record(result)
-#						})
-#				})
-#		}
-#		absPath=file.path(getwd(),file)
-#		print(absPath)
-#
-#		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
+
+		process = function(record,recordPart=NULL){
+				ip=function(ids,jobId){
+					f = file(paste("job-",jobId,".out",sep=""),"a")
+					message("in indexProcessor: ",jobId)
+					cat("in indexProcessor: ",jobId,"\n",file=f); flush(f)
+					#print(ids)
+					ret=recordPart({
+						message("starting")
+						cat("recording","\n",file=f); flush(f)
+
+						# this must be done here to ensure connSource() is evaluated
+						# before getDescriptors starts to run
+						tryCatch({
+								conn=connSource()
+								outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
+							},
+							error=function(e) stop(e),
+							finally= dbDisconnect(conn)
+						)
+						cat("got descriptors","\n",file=f); flush(f)
+						d2d=desc2descDist(outerDesc,descriptors,dist)
+						cat("got distances","\n",file=f); flush(f)
+						d2d
+					},jobId)
+					cat("done with ",jobId,"\n",file=f); flush(f)
+					close(f)
+					ret
+				}
+
+			clusterExport(cl,c("descriptors","getDescriptors","desc2descDist","dist","descriptorType"),envir=environment())
+
+			ipEnv = new.env(parent=globalenv())
+
+			ipEnv$recordPart=recordPart
+			ipEnv$connSource=connSource
+			ipEnv$preProcess=preProcess
+
+			environment(ip)=ipEnv
+
+			parBatchByIndex(iddb1,cl=cl,batchSize=10000,
+				indexProcessor=ip ,
+				reduce = function(results){
+					message("evaluationg results")
+					results # force evaluation here
+					message("in reduce")
+					sapply(results,function(result) {
+						if(is.character(result))
+							record(read.table(result))
+						else
+							record(result)
+						})
+				})
+		}
+		#absPath=file.path(getwd(),file)
+		#absPath=normalizePath(file)
+		absPath=file #given file is now absolute already
+		print(absPath)
+
+		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
 	}
 }
 
@@ -730,8 +799,10 @@ toFile <- function(filename,body,mapReduce){
 		}
 
 		partFilename
-#			content=read.table(partFilename)
 	}
+	env = new.env(parent=globalenv())
+	env$filename=filename
+	environment(writePart)=env
 	
 	if(mapReduce)
 		body(write,writePart)
@@ -767,7 +838,7 @@ selectDescriptors <- function(type,ids){
 	q=paste("SELECT compound_id, descriptor FROM descriptors JOIN descriptor_types USING(descriptor_type_id) WHERE ",
 				" descriptor_type='",type,"' AND compound_id IN (", paste(ids,collapse=","),") ORDER
 				BY compound_id",sep="")
-	#print(q)
+	if(debug) message("select descriptors: ",q)
 	q
 }
 getDescriptors <- function(conn,type,idList){
