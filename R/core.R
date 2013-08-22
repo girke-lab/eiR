@@ -103,7 +103,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK"))
+				cl=makeCluster(1,type="SOCK"),connSource=NULL)
 {
 	conn
 	workDir=NA
@@ -189,49 +189,54 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	#compute dist between refs and all compounds
 	if(!file.exists(ref2AllDistFile)){
 		IddbVsIddbDist(conn,readIddb(file.path(dir,Main)),
-							refIds,distance,descriptorType,file=ref2AllDistFileTemp)
+							refIds,distance,descriptorType,file=ref2AllDistFileTemp,
+							cl=if(is.null(connSource)) NULL else cl,
+							connSource=connSource)
 		file.rename(ref2AllDistFileTemp,ref2AllDistFile)
 	}
 	
 	#each job needs: R, D, coords, a chunk of distance data
 	solver <- getSolver(r,d,coords)	
-	distConn <- file(ref2AllDistFile,"r")
 
 
 	numJobs=length(cl)
 	jobSize = as.integer(cdbSize(dir) / numJobs + 1) #make last job short
 
+	distConn <- file(ref2AllDistFile,"r")
 	dataBlocks = Map(function(x)
 		strsplit(readLines(distConn,jobSize),"\\s+"),1:numJobs)
+	close(distConn)
 
+	#print(paste("numJobs:",numJobs))
+
+	currentDir=getwd()
 	clusterApply(cl,1:numJobs, 
 		function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
 			solver <- getSolver(r,d,coords)	
 			data = sapply(dataBlocks[[i]],function(x) 
 								embedCoord(solver,d,as.numeric(x)))
+			print(paste("current dir: ",currentDir))
 
 			write.table(t(data),
-				file=file.path(workDir,paste(r,d,i,sep="-")),
+				file=file.path(currentDir,workDir,paste(r,d,i,sep="-")),
 				row.names=F,col.names=F)
 
 			#list indexes for this job, see which of them are queries, 
 			#then shift indexes back to this jobs range before selecting 
 			#from data.
 			#print(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds)
-			selected = which( mainIds[((i-1)*jobSize+1):(i*jobSize)]  
-										%in% queryIds ) - ((i-1)*jobSize)
-			#selected = queryIds[queryIds %in% 
-									  #mainIds[((i-1)*jobSize+1):(i*jobSize)]] - 
-								#((i-1)*jobSize)
+			#print(which(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds))
+			selected = which( mainIds[((i-1)*jobSize+1):(i*jobSize)]  %in% queryIds ) 
+							- ((i-1)*jobSize)
+			#print("selected:")
 			#print(selected)
 			# R magically changes the data type depending on the size, yay!
 			qd = if(length(selected)==1) 
 						t(data[,selected]) else t(data)[selected, ]
 			write.table(qd ,
-				file=file.path(workDir,paste("q",r,d,i,sep="-")),
+				file=file.path(currentDir,workDir,paste("q",r,d,i,sep="-")),
 				row.names=F,col.names=F)
 		})
-	close(distConn)
 
 	unlink(c(embeddedFile,embeddedQueryFile))
 	for(x in 1:numJobs){
@@ -592,54 +597,112 @@ IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
 	}
 	output(file,length(iddb),length(descriptors),process)
 }
-IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA){
+IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,connSource=NULL){
 
 	#print(paste("iddb2:",paste(iddb2,collapse=",")))
 	preProcess = getTransform(descriptorType)$toObject
 	descriptors = preProcess(getDescriptors(conn,descriptorType,iddb2))
 	#print("descriptors")
 	#print(str(descriptors))
-	process = function(record){
-		batchByIndex(iddb1,function(ids){
-			outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
-			record(desc2descDist(outerDesc,descriptors,dist))
-		},batchSize=1000)
+
+	if(is.null(cl)){
+		process = function(record){
+			batchByIndex(iddb1,function(ids){
+				outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
+				record(desc2descDist(outerDesc,descriptors,dist))
+			},batchSize=1000)
+		}
+		output(file,length(iddb1),length(iddb2),process)
+	}else{
+		if(is.null(connSource))
+			stop("the connSource parameter is required when using a cluster")
+		process = function(record,recordPart){
+			parBatchByIndex(iddb1,cl=cl,batchSize=1000,
+				indexProcessor=function(ids,jobId){
+					print("in indexProcessor")
+					#print(ids)
+					# this must be done here to ensure connSource() is evaluated
+					# before getDescriptors starts to run
+					conn=connSource()
+
+					outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
+					recordPart(desc2descDist(outerDesc,descriptors,dist),jobId)
+				},
+				reduce = function(results){
+					print("evaluationg results")
+					results # force evaluation here
+					print("in reduce")
+					sapply(results,function(f) record(f()))
+				})
+		}
+		print(getwd())
+		print(file)
+		absPath=file.path(getwd(),file)
+		print(absPath)
+
+		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
 	}
-	output(file,length(iddb1),length(iddb2),process)
 }
 
 #choose whether to output a file or a matrix
-output <- function(filename,nrows,ncols,process)
-	if(!is.na(filename)){ #return result as matrix
-		toFile(filename,process)	
-	}else{ #write result to file
-		toMatrix(nrows,ncols,process)
+output <- function(filename,nrows,ncols,process,mapReduce=FALSE)
+	if(!is.na(filename)){ #write result to file
+		toFile(filename,process,mapReduce)	
+	}else{ #return result as matrix
+		toMatrix(nrows,ncols,process,mapReduce)
 	}
 
 #send data produced by body to a file
-toFile <- function(filename,body){
+toFile <- function(filename,body,mapReduce){
 	f = file(filename,"w")
-	body(function(data) write.table(data,file=f,quote=F,sep="\t",row.names=F,col.names=F))
+
+	write = function(data) 
+		write.table(data,file=f,quote=F,sep="\t",row.names=F,col.names=F)
+	writePart = function(data,jobId) {
+		partFilename = paste(filename,".part-",jobId,sep="")
+		print(paste("partFilename: ",partFilename))
+		write.table(data,file=partFilename, quote=F,sep="\t",row.names=F,col.names=F)
+		#function() scan(partFilename,quiet=TRUE)
+		function(){
+			print(paste("reading content for ",partFilename))
+			content=read.table(partFilename)
+			print(paste("done reading content for ",partFilename))
+		#	unlink(partFilename)
+			content
+		}
+	}
+	
+	if(mapReduce)
+		body(write,writePart)
+	else
+		body(write)
 	close(f)
 }
 
 #send data produced by body to a matrix
-toMatrix <- function(nrows,ncols,body){
+toMatrix <- function(nrows,ncols,body,mapReduce){
 
 	allDists = matrix(NA,nrows,ncols)
 	rowCount = 1
 
-	body(function(data){
-#		if(debug) print(paste("recording data. rowCount: ",rowCount,", dim:",paste(dim(data),collapse=",")))
-#		if(debug) print(dim(allDists))
+	write = function(data){
+		#if(debug) print(paste("recording data. rowCount: ",rowCount,", dim:",paste(dim(data),collapse=",")))
+		#if(debug) print(dim(allDists))
 		allDists[rowCount:(rowCount+dim(data)[1]-1),] <<- data
 		rowCount <<- rowCount + dim(data)[1]
-	})
+	}
+	writePart = function(data) function() data
+
+	if(mapReduce)
+		body(write,writePart)
+	else
+		body(write)
 
 	allDists
 }
 
 selectDescriptors <- function(type,ids){
+	# paste(formatC(c(1,4,10000000,123400000056),format="fg"),collapse=",")
 	q=paste("SELECT compound_id, descriptor FROM descriptors JOIN descriptor_types USING(descriptor_type_id) WHERE ",
 				" descriptor_type='",type,"' AND compound_id IN (", paste(ids,collapse=","),") ORDER
 				BY compound_id",sep="")
