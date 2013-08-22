@@ -8,7 +8,7 @@
    measure supports and creates a "data" directory.
 }
 \usage{
-	eiInit(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE)
+	eiInit(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE, conn=defaultConn(dir))
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -32,6 +32,9 @@
 		and the <data-dir>/Main.iddb file will be udpated with the new
 		compound id numbers. This should not normally be used directly, use
 		\code{\link{eiAdd}} instead to add new compounds to a database.
+	}
+	\item{conn}{
+		Database connection to use.
 	}
 
 }
