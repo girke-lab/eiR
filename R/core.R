@@ -159,8 +159,10 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 
 	selfDistFile <- paste(refIddb,"distmat",sep=".")
+	selfDistFileTemp <- paste(selfDistFile,"temp",sep=".")
 	coordFile <- paste(selfDistFile,"coord",sep=".")
 	ref2AllDistFile <- paste(refIddb,"distances",sep=".")
+	ref2AllDistFileTemp	 <- paste(ref2AllDistFile,"temp",sep=".")
 	embeddedFile <- file.path(workDir,sprintf("coord.%d-%d",r,d))
 	embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 
@@ -172,7 +174,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		#compute pairwise distances for all references
 		if(! file.exists(selfDistFile)){
 			message("generating selfDistFile")
-			IddbVsIddbDist(conn,refIds,refIds,distance,descriptorType,file=selfDistFile)
+			IddbVsIddbDist(conn,refIds,refIds,distance,descriptorType,file=selfDistFileTemp)
+			file.rename(selfDistFileTemp,selfDistFile)
 		}
 		selfDist<-read.table(selfDistFile)
 		#print(head(selfDist))
@@ -184,9 +187,11 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		coords
 	}
 	#compute dist between refs and all compounds
-	if(!file.exists(ref2AllDistFile))
+	if(!file.exists(ref2AllDistFile)){
 		IddbVsIddbDist(conn,readIddb(file.path(dir,Main)),
-							refIds,distance,descriptorType,file=ref2AllDistFile)
+							refIds,distance,descriptorType,file=ref2AllDistFileTemp)
+		file.rename(ref2AllDistFileTemp,ref2AllDistFile)
+	}
 	
 	#each job needs: R, D, coords, a chunk of distance data
 	solver <- getSolver(r,d,coords)	
@@ -398,7 +403,7 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
 				#print(refinedNeighbors[i,1:nrow(refined)])
 			})
-		 })
+		 },batchSize=1000)
 
 		
 
@@ -583,7 +588,7 @@ IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
 		batchByIndex(iddb,function(ids){
 			outerDesc=preProcess(getDescriptors(conn,descriptorType,ids))
 			record(desc2descDist(outerDesc,descriptors,dist))
-		})
+		},batchSize=1000)
 	}
 	output(file,length(iddb),length(descriptors),process)
 }
@@ -598,7 +603,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA){
 		batchByIndex(iddb1,function(ids){
 			outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
 			record(desc2descDist(outerDesc,descriptors,dist))
-		})
+		},batchSize=1000)
 	}
 	output(file,length(iddb1),length(iddb2),process)
 }
