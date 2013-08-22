@@ -8,7 +8,7 @@
 }
 \usage{
 	eiPerformanceTest(r,d,distance=getDefaultDist(descriptorType),descriptorType="ap",
-		dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
+		conn=defaultConn(dir),dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -29,6 +29,9 @@
 	\item{descriptorType}{
 		The format of the descriptor. Currently supported values are "ap" for atom pair, and 
 		"fp" for fingerprint.
+	}
+	\item{conn}{
+		Database connection to use.
 	}
  \item{dir}{
       The directory where the "data" directory lives. Defaults to the
