@@ -47,11 +47,16 @@ addTransform(descriptorType, compoundFormat = NULL, toString = NULL, toObject)
 		The format of the compound data the descriptor will be extracted from.
 }
   \item{toString}{
-		See description. If this parameter is NULL and compoundFormat is not NULL, then a default
+		A function with three arguments, the data, an SQL connection object, and a directory name.
+		The last two are optional and can be set to a default value of NULL if not used
+		in the body of the function. If this parameter is NULL and compoundFormat is not NULL, then a default
 		function will be used for this value.
 	}
   \item{toObject}{
-		See description. If compoundFormat is not NULL, then the return value of this function should
+		A function with three arguments, the data, an SQL connection object, and a directory name.
+		The last two are optional and can be set to a default value of NULL if not used
+		in the body of the function. 
+		If compoundFormat is not NULL, then the return value of this function should
 		be a list with the fields "names" and "descriptors", containing the compound names and 
 		descriptor objects, respectivly. If compoundFormat is NULL, then the return value should be
 		a collection of descriptor objects, in whatever format the distance function for this descrptor type	
@@ -73,9 +78,9 @@ addTransform(descriptorType, compoundFormat = NULL, toString = NULL, toObject)
 	# sdf formmatted data.
 
     #first component
-    addTransform("ap","sdf",
+    addTransform("ap-example","sdf-example",
         # Any sdf source -> APset
-        toObject = function(input,dir="."){
+        toObject = function(input,conn=NULL,dir="."){
             sdfset=if(is.character(input) && file.exists(input)){
                 read.SDFset(input)
             }else if(inherits(input,"SDFset")){
@@ -88,13 +93,13 @@ addTransform(descriptorType, compoundFormat = NULL, toString = NULL, toObject)
     )
 
     #second component
-    addTransform("ap",  
+    addTransform("ap-example",  
         # APset -> string,
-        toString = function(apset,dir="."){
+        toString = function(apset,conn=NULL,dir="."){
             unlist(lapply(ap(apset), function(x) paste(x,collapse=", ")))
         },
         # string or list -> AP set list
-        toObject= function(v,dir="."){ 
+        toObject= function(v,conn=NULL,dir="."){ 
             if(inherits(v,"list") || length(v)==0)
                 return(v)
 

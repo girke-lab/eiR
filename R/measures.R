@@ -20,15 +20,18 @@ getDefaultDist <- function(descriptorType){
 setDefaultDistance("ap", function(d1,d2) 1-cmp.similarity(d1,d2) )
 setDefaultDistance("fp", function(d1,d2) 1-fpSim(d1,d2) )
 
-defaultConn <- function(dir="."){
+defaultConn <- function(dir=".",create=FALSE){
 
 	conn=eiOptions$defaultConn
-	if(is.null(conn) && file.exists(file.path(dir,ChemDb))){
+	if(is.null(conn) && (create || file.exists(file.path(dir,ChemDb)))){
 		conn = initDb(file.path(dir,ChemDb))
 		# if we set this, the examples fail because the DBI packages are unloaded
 		# but not re-loaded because we won't re-call initDb if we already have a connection
 		#eiOptions$defaultConn=conn
 	}
+	if(is.null(conn))
+		stop("no default connection found, looked for SQLite db in ",file.path(dir,ChemDb))
+	
 	conn
 }
 setDefaultConn <- function(conn){
@@ -41,9 +44,10 @@ addTransform <- function(descriptorType,compoundFormat=NULL,toString=NULL,toObje
 	name = buildType(descriptorType,compoundFormat)
 
 	if(!is.null(compoundFormat) && is.null(toString))
-		toString = function(input,dir=".",conn=defaultConn()) 
+		toString = function(input,conn=defaultConn(),dir=".") 
 			getTransform(descriptorType)$toString(getTransform(
 																	descriptorType,compoundFormat)$toObject(input,conn,dir)$descriptors,
+															  conn=conn,
 															  dir=dir)
 	else if(is.null(toString))
 		stop("toString function must be specified if compoundFormat is NULL")		
@@ -123,7 +127,8 @@ addTransform("fp","sdf",
 )
 addTransform("ap",  
    # APset -> string,
-	toString = function(apset,conn=NULL,dir="."){
+	toString = function(apset,conn=8,dir="."){
+		conn
 		unlist(lapply(ap(apset), function(x) paste(x,collapse=", ")))
 	},
    # string or list -> AP set list
