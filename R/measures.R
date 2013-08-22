@@ -3,6 +3,8 @@
 eiOptions = new.env()
 eiOptions$defaultDistances=list()
 eiOptions$Translations=list()
+eiOptions$defaultConn=NULL
+
 
 
 setDefaultDistance <- function(descriptorType,distance)
@@ -18,6 +20,18 @@ getDefaultDist <- function(descriptorType){
 setDefaultDistance("ap", function(d1,d2) 1-cmp.similarity(d1,d2) )
 setDefaultDistance("fp", function(d1,d2) 1-fpSim(d1,d2) )
 
+defaultConn <- function(dir="."){
+
+	conn=eiOptions$defaultConn
+	if(is.null(conn) && file.exists(file.path(dir,ChemDb))){
+		conn = initDb(file.path(dir,ChemDb))
+		eiOptions$defaultConn=conn
+	}
+	conn
+}
+setDefaultConn <- function(conn){
+	eiOptions$defaultConn = conn
+}
 
 
 addTransform <- function(descriptorType,compoundFormat=NULL,toString=NULL,toObject){
