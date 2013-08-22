@@ -9,7 +9,7 @@
 }
 \usage{
 	eiMakeDb(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
-				dir=".",numSamples=cdbSize(dir)*0.1,
+				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK"))
 
 }
@@ -43,6 +43,9 @@
       The number of non-reference samples to be chosen now to be used
       later by the eiPerformanceTest function.
    }
+	\item{conn}{
+		Database connection to use.
+	}
   \item{cl}{
      A SNOW cluster can be given here to run this function in
      parrallel.

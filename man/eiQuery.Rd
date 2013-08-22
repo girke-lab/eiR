@@ -9,7 +9,6 @@
 \usage{
 	eiQuery(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
-		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
