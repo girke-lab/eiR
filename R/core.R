@@ -152,10 +152,13 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		stop(file.path(dir,Main)," not found. Did you run eiInit first?")
 	
 
-	queryIds=genTestQueryIds(numSamples,dir,refIds)
+	message("readding main.iddb")
 	mainIds <- readIddb(file.path(dir,Main))
+	message("generating test query ids")
+	queryIds=genTestQueryIds(numSamples,dir,refIds,mainIds)
 	#print("queryids")
 	#print(queryIds)
+	message("done generating test query ids")
 
 
 	selfDistFile <- paste(refIddb,"distmat",sep=".")
@@ -188,8 +191,9 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	}
 	#compute dist between refs and all compounds
 	if(!file.exists(ref2AllDistFile)){
-		IddbVsIddbDist(conn,readIddb(file.path(dir,Main)),
-							refIds,distance,descriptorType,file=ref2AllDistFileTemp,
+		message("generating distance file")
+		IddbVsIddbDist(conn,mainIds, refIds,distance,descriptorType,
+							file=ref2AllDistFileTemp,
 							cl=if(is.null(connSource)) NULL else cl,
 							connSource=connSource)
 		file.rename(ref2AllDistFileTemp,ref2AllDistFile)
@@ -490,17 +494,35 @@ getNames <- function(indexes,dir,conn=defaultConn(dir))
 
 writeIddb <- function(data, file,append=FALSE)
 		write.table(data,file,quote=FALSE,append=append,col.names=FALSE,row.names=FALSE)
-readIddb <- function(file) as.numeric(readLines(file))
+readIddb <- function(file){
+	binFile=paste(file,".Rdata",sep="")
+	if(file.exists(binFile) && file.info(file)$mtime < file.info(binFile)$mtime){
+		message("reading from binary iddb: ",binFile)
+		f=file(binFile,"r")
+		x=unserialize(f)
+		close(f)
+		x
+	}else{
+		message("no binary iddb found, ",binFile)
+		x=as.numeric(readLines(file))
+		if(length(x) > 1000000){
+			message("large iddb found (",length(x),"), generating binary version")
+			f=file(binFile,"w")
+			serialize(x,f)
+			close(f)
+		}
+		x
+	}
+}
 readNames <- function(file) as.numeric(readLines(file))
 
 
 # randomly select n reference compounds. Also sample and stash away
 # numSamples query compounds that are not references for later
 # testing
-genTestQueryIds <- function(numSamples,dir,refIds=c())
+genTestQueryIds <- function(numSamples,dir,refIds=c(),mainIds=readIddb(file.path(dir,Main)) )
 {
 	testQueryFile <-file.path(dir,TestQueries)
-	mainIds <- readIddb(file.path(dir,Main))
 	set=setdiff(mainIds,refIds)
 	if(numSamples < 0 || numSamples > length(set)) 
 		stop(paste("trying to take more samples than there are compounds available",numSamples,length(set)))
@@ -597,6 +619,16 @@ IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
 	}
 	output(file,length(iddb),length(descriptors),process)
 }
+
+ip <- function(ids,jobId){
+					cat("hi",file=paste("job-",jobId,".out",sep=""))
+					"nonexistant-filename"
+				}
+ipReduce <- function(results) {
+					message("results: ",results)
+				}
+
+
 IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,connSource=NULL){
 
 	#print(paste("iddb2:",paste(iddb2,collapse=",")))
@@ -616,31 +648,58 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 	}else{
 		if(is.null(connSource))
 			stop("the connSource parameter is required when using a cluster")
-		process = function(record,recordPart){
-			parBatchByIndex(iddb1,cl=cl,batchSize=1000,
-				indexProcessor=function(ids,jobId){
-					print("in indexProcessor")
-					#print(ids)
-					# this must be done here to ensure connSource() is evaluated
-					# before getDescriptors starts to run
-					conn=connSource()
+		parBatchByIndex(iddb1,cl=cl,batchSize=10000,
+				indexProcessor=ip, reduce = ipReduce )
 
-					outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
-					recordPart(desc2descDist(outerDesc,descriptors,dist),jobId)
-				},
-				reduce = function(results){
-					print("evaluationg results")
-					results # force evaluation here
-					print("in reduce")
-					sapply(results,function(f) record(f()))
-				})
-		}
-		print(getwd())
-		print(file)
-		absPath=file.path(getwd(),file)
-		print(absPath)
-
-		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
+#		process = function(record,recordPart){
+#			parBatchByIndex(iddb1,cl=cl,batchSize=10000,
+#				indexProcessor=function(ids,jobId){
+#					cat("hi",file=paste("job-",jobId,".out",sep=""))
+#					"nonexistant-filename"
+#				},
+#				function(ids,jobId){
+#					f = file(paste("job-",jobId,".out",sep=""),"a")
+#					message("in indexProcessor: ",jobId)
+#					cat("in indexProcessor: ",jobId,"\n",file=f); flush(f)
+#					#print(ids)
+#					#f=function(){
+#			#		recordPart({
+#			#			message("starting")
+#			#			cat("recording","\n",file=f); flush(f)
+#
+#			#			# this must be done here to ensure connSource() is evaluated
+#			#			# before getDescriptors starts to run
+#			#			conn=connSource()
+#
+#			#			outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
+#			#			dbDisconnect(conn)
+#			#			cat("got descriptors","\n",file=f); flush(f)
+#			#			d2d=desc2descDist(outerDesc,descriptors,dist)
+#			#			cat("got distances","\n",file=f); flush(f)
+#			#			d2d
+#			#		},jobId)
+#		#			ret = recordPart(8,jobId)
+#					cat("done with ",jobId,"\n",file=f); flush(f)
+#					close(f)
+#		#			ret
+#					"nonexistant-filename"
+#				},
+#				reduce = function(results){
+#					message("evaluationg results")
+#					results # force evaluation here
+#					message("in reduce")
+#					sapply(results,function(result) {
+#						if(is.character(result))
+#							record(read.table(result))
+#						else
+#							record(result)
+#						})
+#				})
+#		}
+#		absPath=file.path(getwd(),file)
+#		print(absPath)
+#
+#		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
 	}
 }
 
@@ -652,6 +711,7 @@ output <- function(filename,nrows,ncols,process,mapReduce=FALSE)
 		toMatrix(nrows,ncols,process,mapReduce)
 	}
 
+
 #send data produced by body to a file
 toFile <- function(filename,body,mapReduce){
 	f = file(filename,"w")
@@ -661,15 +721,16 @@ toFile <- function(filename,body,mapReduce){
 	writePart = function(data,jobId) {
 		partFilename = paste(filename,".part-",jobId,sep="")
 		print(paste("partFilename: ",partFilename))
-		write.table(data,file=partFilename, quote=F,sep="\t",row.names=F,col.names=F)
-		#function() scan(partFilename,quiet=TRUE)
-		function(){
-			print(paste("reading content for ",partFilename))
-			content=read.table(partFilename)
-			print(paste("done reading content for ",partFilename))
-		#	unlink(partFilename)
-			content
+
+		if(!file.exists(partFilename) || file.info(partFilename)$size == 0){
+			write.table(data,file=partFilename, quote=F,sep="\t",row.names=F,col.names=F)
+		}else{
+			message("skipping ",partFilename)
+			flush(stderr())
 		}
+
+		partFilename
+#			content=read.table(partFilename)
 	}
 	
 	if(mapReduce)
@@ -678,7 +739,7 @@ toFile <- function(filename,body,mapReduce){
 		body(write)
 	close(f)
 }
-
+testFun <- function() 8
 #send data produced by body to a matrix
 toMatrix <- function(nrows,ncols,body,mapReduce){
 
@@ -691,7 +752,7 @@ toMatrix <- function(nrows,ncols,body,mapReduce){
 		allDists[rowCount:(rowCount+dim(data)[1]-1),] <<- data
 		rowCount <<- rowCount + dim(data)[1]
 	}
-	writePart = function(data) function() data
+	writePart = function(data)  data
 
 	if(mapReduce)
 		body(write,writePart)
