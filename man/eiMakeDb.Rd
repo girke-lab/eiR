@@ -10,7 +10,7 @@
 \usage{
 	eiMakeDb(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK"))
+				cl=makeCluster(1,type="SOCK"),connSource=NULL)
 
 }
 %- maybe also 'usage' for other objects documented here.
@@ -50,6 +50,12 @@
      A SNOW cluster can be given here to run this function in
      parrallel.
    }
+	\item{connSource}{
+		A function returning a new database connection. This needed for cluster operations
+		that make use of the database as they will each need to craete a new connection.
+		If not given, certain parts of this function will not be parrallelized.
+
+	}
 }
 \details{
    This function will embedd compounds from the data
