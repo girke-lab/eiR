@@ -8,7 +8,8 @@
 }
 \usage{
 	eiAdd(r,d,refIddb,additions,dir=".",format="sdf",conn=defaultConn(dir),
-		descriptorType="ap",distance=getDefaultDist(descriptorType))
+		descriptorType="ap",distance=getDefaultDist(descriptorType),
+		updateByName = FALSE)
 
 }
 \arguments{
@@ -49,6 +50,17 @@
 		The distance function to be used to compute the distance between two descriptors. A default function is
 		provided for "ap" and "fp" descriptors.
 	}
+	\item{updateByName}{
+		If true we make the assumption that all compounds, both in the existing database and the
+		given dataset, have unique names. This function will then avoid re-adding existing,
+		identical compounds, and will update existing compounds with a new definition if a new
+		compound definition with an existing name is given. 
+
+		If false, we allow duplicate compound names to exist in the database, though not
+		duplicate definitions. So identical compounds will not be re-added, but if a new version of
+		an existing compound is added it will not update the existing one, it will add the modified one 
+		as a completely new compound with a new compound id. 
+	}
 
 }
 \details{
@@ -70,8 +82,8 @@
    eiInit(sdfsample[1:99],dir=dir)
 
    #create compound db
-   refIddb=eiMakeDb(r,d,numSamples=20,dir=dir,
-      cl=makeCluster(1,type="SOCK",outfile=""))
+   refIddb=eiMakeDb(r,d,numSamples=20,dir=dir)
+      
 
    #find compounds similar two each query
    eiAdd(r,d,refIddb,sdfsample[100],dir=dir)
