@@ -441,9 +441,9 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 #		neighbors[,,2]=-2.0
 		#print(neighbors)
 
-		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
+		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
-			similarities = array(NA,dim=c(length(mainIndex),K))
+			similarities = array(NA,dim=c(ml,K))
 	
 		#print("refining")
 		batchByIndex(mainIndex,function(indexSet){
@@ -490,7 +490,7 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
-							names=rownames(refinedNeighbors),
+							names=mainIndex,
 							similarities=similarities))
 
 		#print("clustering")

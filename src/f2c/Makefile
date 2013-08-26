@@ -183,8 +183,8 @@ xwsne.o:	lio.h
 xwsne.o:	fmt.h
 
 arith.h: arithchk.c
-	$(CC) $(CFLAGS) -DNO_FPINIT arithchk.c -lm ||\
-	 $(CC) -DNO_LONG_LONG $(CFLAGS) -DNO_FPINIT arithchk.c -lm
+	$(CC) -o a.out $(CFLAGS) -DNO_FPINIT arithchk.c -lm ||\
+	 $(CC) -o a.out -DNO_LONG_LONG $(CFLAGS) -DNO_FPINIT arithchk.c -lm
 	./a.out >arith.h
 	rm -f a.out arithchk.o
 
