@@ -288,7 +288,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			numCompounds=end-start+1
 			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
 			if(numCompounds * r != length(rawDists))
-				stop("tried to read ",numCompunds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
+				stop("tried to read ",numCompounds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
 			dim(rawDists) = c(r,numCompounds)
 			rawDists=t(rawDists)
 
@@ -464,9 +464,9 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 #		neighbors[,,2]=-2.0
 		#print(neighbors)
 
-		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
+		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
-			similarities = array(NA,dim=c(length(mainIndex),K))
+			similarities = array(NA,dim=c(ml,K))
 	
 		#print("refining")
 		batchByIndex(mainIndex,function(indexSet){
@@ -513,7 +513,7 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
-							names=rownames(refinedNeighbors),
+							names=mainIndex,
 							similarities=similarities))
 
 		#print("clustering")
@@ -722,7 +722,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 	#print(str(descriptors))
 
 	if(is.null(cl)){
-		process = function(record){
+		process = function(record,recordPart=NULL){
 			batchByIndex(iddb1,function(ids){
 				outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
 				record(desc2descDist(outerDesc,descriptors,dist))
@@ -734,7 +734,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 			stop("the connSource parameter is required when using a cluster")
 
 
-		process = function(record,recordPart){
+		process = function(record,recordPart=NULL){
 				ip=function(ids,jobId){
 					f = file(paste("job-",jobId,".out",sep=""),"a")
 					message("in indexProcessor: ",jobId)
