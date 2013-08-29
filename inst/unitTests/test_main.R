@@ -76,8 +76,9 @@ test_bb.eiMakeDb <- function() {
 	conn = connSource()
 	runDbChecks = function(rid){
 
-		parameters = dbGetQuery(conn,paste("SELECT dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
+		parameters = dbGetQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
 										WHERE r.run_id = ",rid))
+		print(parameters)
 		checkEquals(d,parameters$dimension)
 		checkEquals(r,parameters$num_references)
 
@@ -101,8 +102,24 @@ test_bb.eiMakeDb <- function() {
 										WHERE r.run_id = ",rid))[[1]]
 		checkEquals(N,numDescriptors)
 
-      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
-      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
+		#check that embedded descriptor values are stored in correct order
+		compoundId = eiR:::readIddb(conn,file.path(test_dir,eiR:::Main))[1]
+		descId = dbGetQuery(conn,paste("SELECT descriptor_id FROM descriptors where
+												 compound_id=",compoundId))[[1]]
+
+		desc = eiR:::getDescriptors(conn,descType,compoundId)[[1]]
+		embeddedDesc = eiR:::embedDescriptor(conn,r,d,parameters$name,desc,
+														 descriptorType=descType,dir=test_dir)
+		dbEmbeddedDesc = dbGetQuery(conn,paste("SELECT value FROM embedded_descriptors WHERE
+									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
+									 " ORDER BY ordering"))[[1]]
+		#print(desc)
+		#print(as.vector(embeddedDesc))
+		#print(dbEmbeddedDesc)
+		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
+
+      #checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
+      #checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
 
 
 	}

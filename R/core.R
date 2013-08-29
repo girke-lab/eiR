@@ -62,7 +62,6 @@ lshsearchAll <- function(matrixFile,
 }
 
 
-
 # functions needed for sql backend:
 # distance
 
@@ -103,7 +102,7 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
-				dir=".",numSamples=getGroupSize(conn,dir)*0.1,conn=defaultConn(dir),
+				dir=".",numSamples=getGroupSize(conn,name=dir)*0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
 {
 	conn
@@ -127,22 +126,17 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		refIds=readIddbFile(refs)
 		r=length(refIds)
 		createWorkDir(r)
-		#refIddb=file.path(workDir,basename(refs))
-		#file.copy(refs,workDir,overwrite=TRUE)
 	}else if(is.numeric(refs)){
 		if(length(refs)==0){ #assume its the number of refs to use
 			stop(paste("variable refs must be posative, found ",refs))
 		}else if(length(refs)==1){ #assume its the number of refs to use
 			r=refs
 			createWorkDir(r)
-			#refIddb=genRefName(workDir)
 			refIds=genRefs(r,mainIds)
 		}else{ #refs is a vector of compound indexes to use a referances
 			refIds=refs
 			r=length(refIds)
 			createWorkDir(r)
-			#refIddb=genRefName(workDir)
-			#writeIddb(conn,refIds,refIddb)
 		}
 	}else{
 		stop(paste("don't know how to handle refs:",str(refs)))
@@ -267,7 +261,7 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],descriptorType,t(data))
 			dbDisconnect(conn)
 
-			#write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
+			write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
 
 			##list indexes for this job, see which of them are queries, 
 			##then shift indexes back to this jobs range before selecting 
@@ -294,23 +288,30 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 	if(debug) message("done with clusterApply. concatening parts")
 
 
-#	unlink(c(embeddedFile,embeddedQueryFile))
-#	for(x in 1:numJobs){
-#		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
-#			 sep="\n",file=embeddedFile, append=TRUE)
+	unlink(c(embeddedFile,embeddedQueryFile))
+	for(x in 1:numJobs){
+		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
+			 sep="\n",file=embeddedFile, append=TRUE)
 #		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
 #			 sep="\n",file=embeddedQueryFile, append=TRUE)
-#	}
+	}
 
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
 	binaryCoord(embeddedFile,matrixFile,d)
-	binaryCoord(embeddedQueryFile,
-		file.path(workDir,sprintf("matrix.query.%d-%d",r,d)),d)
+#	binaryCoord(embeddedQueryFile,
+#		file.path(workDir,sprintf("matrix.query.%d-%d",r,d)),d)
+
+	message("not creating normal matrix file")
+	d = read.table(embeddedFile)
+	message("here again")
+	writeMatrixFile(file.path(workDir,"matrix.test"),d)
+	message("after here again")
 
 	runId
 }
+
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
@@ -840,4 +841,13 @@ getDescriptors <- function(conn,type,idList){
 	ordered=n[as.character(idList)]
 	#write.table(n,file="descriptors.out")
 	ordered
+}
+
+#this is just a utility function used in the unit tests
+embedDescriptor <- function(conn,r,d,refName,descriptor,descriptorType="ap",
+									 distance=getDefaultDist(descriptorType), dir="."){
+	refIddb = file.path(dir,paste("run",r,d,sep="-"),refName)
+	refIds = readIddb(conn,refName)
+	embedFromRefs(r,d,refIddb,
+			t(IddbVsGivenDist(conn,refIds,descriptor,distance,descriptorType)))
 }

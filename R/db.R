@@ -36,6 +36,10 @@ getEmbeddingId <- function(conn,name,r,d,descriptorType,refGroupId,create=TRUE){
 									  errorTag=paste("embedding",name) )
 	embeddingId
 }
+getEmbedding <-function(conn,embeddingId){
+	dbGetQuery(conn,paste("SELECT embedding_id,name,dimension,num_references,descriptor_type_id,references_group_id ",
+								 "FROM embeddings WHERE embedding_id = ",embeddingId))
+}
 getRunId <- function(conn,name,embeddingId,mainGroupId,queryGroupId) {
 	runId = getOrCreate(conn,
 							  paste("SELECT run_id FROM runs WHERE embedding_id
@@ -45,6 +49,16 @@ getRunId <- function(conn,name,embeddingId,mainGroupId,queryGroupId) {
 									  "VALUES('",name,"',",embeddingId,",",mainGroupId,",",queryGroupId,")",sep=""),
 							  errorTag = paste("run "+name))
 	runId
+}
+getRun <- function(conn,runId){
+	dbGetQuery(conn,paste("SELECT run_id,name, embedding_id,compound_group_id,sample_group_id ",
+								 "FROM runs WHERE run_id = ",runId))
+}
+getExtendedRunInfo <-function(conn,runId){
+	dbGetQuery(conn,paste("SELECT r.run_id,r.name, r.embedding_id,r.compound_group_id,r.sample_group_id, ",
+								 "		e.name as embedding_name,e.dimension,e.num_references,e.descriptor_type_id,e.references_group_id ",			
+								 "FROM runs as r JOIN embeddings as e USING(embdding_id)  ",
+								 "WHERE run_id = ",runId))
 }
 	
 
@@ -74,18 +88,25 @@ readIddb <- function(conn,name) {
 	dbGetQuery(conn,paste("SELECT compound_id FROM compound_group_members WHERE compound_group_id=
 								 ",groupId))[[1]]
 }
-getGroupSize <- function(conn,name) {
-	groupId = getCompoundGroupId(conn,name,create=FALSE)
-	if(length(groupId) == 0)
-		stop("could not find compound group ",name," while trying to find size")
+getGroupSize <- function(conn,groupId=NULL,name=NULL) {
+	handle = groupId
+
+	if(is.null(groupId) && !is.null(name)){
+		groupId = getCompoundGroupId(conn,name,create=FALSE)
+		handle=name
+		if(length(groupId) == 0)
+			stop("could not find compound group ",handle," in 'getGroupSize'")
+	}else if(is.null(groupId) && is.null(name))
+		stop("either 'groupId' or 'name' must be specified to 'getGroupSize'")
+
 	size = dbGetQuery(conn,paste("SELECT count(*) FROM compound_group_members
 										  WHERE compound_group_id = ",groupId,sep=""))
 	if(length(size) == 0)
-		stop("could not find size of compound group ",name)
-	message("size of ",name," is: ",size)
+		stop("could not find size of compound group ",handle)
+	message("size of ",handle," is: ",size)
 	size
 }
-getCompoundGroupId<- function(conn,name,create=TRUE) {
+getCompoundGroupId<- function(conn,name,create=TRUE) { #TODO: change create to default to FALSE
 	message("name: ",name)
 	getOrCreate(conn, 
 					paste("SELECT compound_group_id FROM compound_groups WHERE name = '",name,"'",sep=""), 
@@ -133,9 +154,43 @@ getDescriptorIds <- function(conn,compoundIds,descriptorType){
 	descriptorIds
 }
 
-writeMatrixFile<- function(conn,runId){
+writeMatrixFile<- function(conn,runId,dir="."){
+#writeMatrixFile <- function(matrixFile,data,append=FALSE){
 
+	print("writing matrix file")
+
+	runInfo = getExtendedRunInfo(conn,runId)
+	matrixFile = file.path(dir,paste("run",runInfo$dimension,runInfo$num_references,sep="-"),
+								  paste("matrix",runInfo$dimension,runInfo$num_references,sep="."))
+
+	f = file(matrixFile,"wb")
+	floatSize = 4
+	numRows= getGroupSize(conn,groupId=runInfo$compound_group_id)
+	numCols = runInfo$dimension
+
+	writeBin(as.integer(floatSize),f,floatSize)
+	writeBin(numRows,f,floatSize)
+	writeBin(numCols,f,floatSize)
+
+
+
+
+	rs=dbSendQuery(conn,paste("SELECT * FROM run_embedded_descriptors WHERE run_id=",runId))
+	bufferResultSet(rs,function(df){
+			writeBin(as.vector(df$value),f,floatSize)
+   },batchSize = 10000,closeRS=TRUE)
+	
+
+	#for(i in seq(1,numRows,length.out=numRows)){
+		#for(j in seq(1,numCols,length.out=numCols)){
+			#writeBin(data[i,j],f,floatSize)
+		#}
+	#}
+	close(f)
 }
+
+
+
 
 getOrCreate <- function(conn,getQuery,createQuery,create=TRUE,errorTag=getQuery){
 

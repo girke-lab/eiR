@@ -1,6 +1,6 @@
 
 
--- meant to be added to the schema defined by ChmmineR
+-- meant to be added to the schema defined by ChemmineR
 CREATE TABLE compound_groups (
 	compound_group_id INTEGER PRIMARY KEY,
 	name TEXT  UNIQUE 
@@ -56,8 +56,13 @@ CREATE  VIEW unembedded_descriptors AS
 			ed.descriptor_id IS NULL
 ;			 
 
---CREATE OR REPLACE VIEW run_embedded_descriptors AS
-	--SELECT r.run_id, ed.descriptor_id,ed.ordering,ed.value
-	--FROM	runs AS r
-			--JOIN 	
+CREATE VIEW run_embedded_descriptors AS
+	SELECT r.run_id, ed.descriptor_id,ed.value
+	FROM	 runs AS r
+			 JOIN compound_groups AS cg USING(compound_group_id)
+			 JOIN compound_group_members AS cgm USING(compound_group_id)
+			 JOIN descriptors AS d USING(compound_id)
+			 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = r.descriptor_type_id)
+			 JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
+	ORDER BY ed.descriptor_id,ed.ordering
 
