@@ -57,7 +57,7 @@ getRun <- function(conn,runId){
 getExtendedRunInfo <-function(conn,runId){
 	dbGetQuery(conn,paste("SELECT r.run_id,r.name, r.embedding_id,r.compound_group_id,r.sample_group_id, ",
 								 "		e.name as embedding_name,e.dimension,e.num_references,e.descriptor_type_id,e.references_group_id ",			
-								 "FROM runs as r JOIN embeddings as e USING(embdding_id)  ",
+								 "FROM runs as r JOIN embeddings as e USING(embedding_id)  ",
 								 "WHERE run_id = ",runId))
 }
 	
@@ -100,7 +100,7 @@ getGroupSize <- function(conn,groupId=NULL,name=NULL) {
 		stop("either 'groupId' or 'name' must be specified to 'getGroupSize'")
 
 	size = dbGetQuery(conn,paste("SELECT count(*) FROM compound_group_members
-										  WHERE compound_group_id = ",groupId,sep=""))
+										  WHERE compound_group_id = ",groupId,sep=""))$count
 	if(length(size) == 0)
 		stop("could not find size of compound group ",handle)
 	message("size of ",handle," is: ",size)
@@ -154,18 +154,18 @@ getDescriptorIds <- function(conn,compoundIds,descriptorType){
 	descriptorIds
 }
 
-writeMatrixFile<- function(conn,runId,dir="."){
-#writeMatrixFile <- function(matrixFile,data,append=FALSE){
+writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 
-	print("writing matrix file")
+	if(debug) print("writing matrix file")
 
 	runInfo = getExtendedRunInfo(conn,runId)
-	matrixFile = file.path(dir,paste("run",runInfo$dimension,runInfo$num_references,sep="-"),
-								  paste("matrix",runInfo$dimension,runInfo$num_references,sep="."))
+	matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
+								  paste(if(samples) "matrix.query" else "matrix",".",runInfo$num_references,"-",runInfo$dimension,sep=""))
+	if(debug) message("filename: ",matrixFile)
 
 	f = file(matrixFile,"wb")
 	floatSize = 4
-	numRows= getGroupSize(conn,groupId=runInfo$compound_group_id)
+	numRows= getGroupSize(conn,groupId= if(samples) runInfo$sample_group_id else runInfo$compound_group_id)
 	numCols = runInfo$dimension
 
 	writeBin(as.integer(floatSize),f,floatSize)
@@ -173,19 +173,14 @@ writeMatrixFile<- function(conn,runId,dir="."){
 	writeBin(numCols,f,floatSize)
 
 
+	viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
+	rs=dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId))
 
-
-	rs=dbSendQuery(conn,paste("SELECT * FROM run_embedded_descriptors WHERE run_id=",runId))
 	bufferResultSet(rs,function(df){
 			writeBin(as.vector(df$value),f,floatSize)
    },batchSize = 10000,closeRS=TRUE)
 	
 
-	#for(i in seq(1,numRows,length.out=numRows)){
-		#for(j in seq(1,numCols,length.out=numCols)){
-			#writeBin(data[i,j],f,floatSize)
-		#}
-	#}
 	close(f)
 }
 

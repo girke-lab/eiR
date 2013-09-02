@@ -234,15 +234,11 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 			cat(paste("inner environment: ",paste(ls(),collapse=" "),"\n",paste(ls(parent.env(environment())),collapse=" "),"\n"),file=paste("job2-",i,".out",sep=""))
 
 			solver <- getSolver(r,d,coords)	
-			dataPartFilename = file.path(workDir,paste(r,d,i,sep="-"))
-			queryPartFilename = file.path(workDir,paste("q",r,d,i,sep="-"))
-			if(file.exists(dataPartFilename) && file.exists(queryPartFilename))
-				return()
+			#TODO: check to see if this block is already done
 
 			start = (i-1)*jobSize+1 			 #inclusive
 			end = min(i*jobSize,numCompounds) #inclusive
 			numCompounds=end-start+1
-
 
 
 			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
@@ -253,29 +249,12 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 
 			data = sapply( 1:numCompounds,function(x) embedCoord(solver,d, rawDists[x,]))
 
-			#data = sapply( ((i-1)*jobSize):min(i*jobSize-1,numCompounds-1),
-			#					function(x) embedCoord(solver,d,scan(ref2AllDistFile,skip=x,nlines=1)))
 			if(debug) message("embedded ",length(data)," compounds")
 
 			conn=connSource()
 			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],descriptorType,t(data))
 			dbDisconnect(conn)
 
-			write.table(t(data), file=dataPartFilename, row.names=F,col.names=F)
-
-			##list indexes for this job, see which of them are queries, 
-			##then shift indexes back to this jobs range before selecting 
-			##from data.
-			##print(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds)
-			##print(which(mainIds[((i-1)*jobSize+1):(i*jobSize)] %in% queryIds))
-			#selected = which( mainIds[((i-1)*jobSize+1):(i*jobSize)]  %in% queryIds ) 
-			#				- ((i-1)*jobSize)
-			##print("selected:")
-			##print(selected)
-			## R magically changes the data type depending on the size, yay!
-			#qd = if(length(selected)==1) 
-			#			t(data[,selected]) else t(data)[selected, ]
-			#write.table(qd, file=queryPartFilename, row.names=F,col.names=F)
 	}
 	
 	#copy large items to nodes once, then remove them from the closures scope
@@ -288,26 +267,11 @@ embeddedQueryFile <- file.path(workDir,sprintf("coord.query.%d-%d",r,d))
 	if(debug) message("done with clusterApply. concatening parts")
 
 
-	unlink(c(embeddedFile,embeddedQueryFile))
-	for(x in 1:numJobs){
-		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=embeddedFile, append=TRUE)
-#		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
-#			 sep="\n",file=embeddedQueryFile, append=TRUE)
-	}
-
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
-	binaryCoord(embeddedFile,matrixFile,d)
-#	binaryCoord(embeddedQueryFile,
-#		file.path(workDir,sprintf("matrix.query.%d-%d",r,d)),d)
-
-	message("not creating normal matrix file")
-	d = read.table(embeddedFile)
-	message("here again")
-	writeMatrixFile(file.path(workDir,"matrix.test"),d)
-	message("after here again")
+	writeMatrixFile(conn,runId,dir=dir)
+	writeMatrixFile(conn,runId,dir=dir,samples=TRUE)
 
 	runId
 }
@@ -748,6 +712,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 							record(read.table(result))
 						else
 							record(result)
+						unlink(result)
 						})
 				})
 		}

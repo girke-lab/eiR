@@ -13,6 +13,13 @@ runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
 descType="ap"
 
+connSource=function(){
+	require(eiR)
+	require(RSQLite)
+	initDb(file.path(test_dir,"data","chem.db"))
+}
+
+
 debug=TRUE
 
 
@@ -53,25 +60,6 @@ testRefs <- function(){
 test_bb.eiMakeDb <- function() {
 
 	#DEACTIVATED("slow")
-#   runChecks = function(){
-#      checkMatrix(".cdb$",r,1)
-#      checkMatrix(".cdb.distmat$",r,r)
-#      checkMatrix(".cdb.distmat.coord$",r,d)
-#      checkMatrix(".cdb.distances$",N,r)
-#      checkMatrix(sprintf("coord.%d-%d",r,d),N,d)
-#      checkMatrix(sprintf("coord.query.%d-%d",r,d),20,d)
-#      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
-#      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
-#      Map(function(x)
-#         checkTrue(!file.exists(file.path(runDir,paste(r,d,x,sep="-")))),1:j)
-#      Map(function(x)
-#         checkTrue(!file.exists(file.path(runDir,paste("q",r,d,x,sep="-")))),1:j)
-#   }
-	connSource=function(){
-					require(eiR)
-					require(RSQLite)
-					initDb(file.path(test_dir,"data","chem.db"))
-				}
 
 	conn = connSource()
 	runDbChecks = function(rid){
@@ -118,8 +106,8 @@ test_bb.eiMakeDb <- function() {
 		#print(dbEmbeddedDesc)
 		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
 
-      #checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
-      #checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
+      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
+      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
 
 
 	}
