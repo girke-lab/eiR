@@ -19,6 +19,7 @@ connSource=function(){
 	initDb(file.path(test_dir,"data","chem.db"))
 }
 
+lastRunId=0
 
 debug=TRUE
 
@@ -37,6 +38,8 @@ test_aa.eiInit <- function() {
 		sdfFromDb = getCompounds(initDb(file.path(dir,"data","chem.db")),cids)
 		checkEquals(length(sdfFromDb),N)
 	}
+
+	message("eiInit tests")
 
 	setDefaultDistance("dummy",function(x,y) x-y)
 	checkTrue(!is.null(eiR:::getDefaultDist("dummy")))
@@ -134,17 +137,18 @@ test_bb.eiMakeDb <- function() {
 	stopCluster(cl)
    runDbChecks(rid)
 
+	lastRunId<<-rid
 	
 }
 test_ba.parDist <- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 	conn = initDb(file.path(test_dir,"data","chem.db"))
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
-	cl = makeSOCKcluster(3,outfile="snow.out")
+	cl = makeSOCKcluster(3,outfile="")
 
-	set1=eiR:::readIddb(file.path(test_dir,"data","main.iddb"))
+	set1=eiR:::readIddb(conn,file.path(test_dir,"data","main.iddb"))
 	set2 = testRefs()
 
 	print("set1")
@@ -154,10 +158,7 @@ test_ba.parDist <- function(){
 	print(set2)
    
 	eiR:::IddbVsIddbDist(conn,set1,set2, distance,"ap",file=file.path(test_dir,"parDist.final"),
-								cl=cl,
-								connSource= function(){
-									print("making new connection")
-									require(eiR); require(RSQLite);  initDb(file.path(test_dir,"data","chem.db"))} )
+								cl=cl, connSource= connSource )
 	stopCluster(cl)
 
 	checkTrue(file.exists(file.path(test_dir,"parDist.final")))
@@ -166,22 +167,27 @@ test_ba.parDist <- function(){
 }
 test_ca.eiQuery <- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 	message("eiQuery")
+	conn=connSource()
    data(sdfsample)
-   refIddb = findRefIddb(runDir)
+
+	runId = lastRunId
+	message("using runId ",runId)
+
+
 	message("eiQuery test 1")
-	results = eiQuery(r,d,refIddb,sdfsample[1:2],K=15,asSimilarity=TRUE,descriptorType=descType,dir=test_dir)
+	results = eiQuery(runId,sdfsample[1:2],K=15,asSimilarity=TRUE,dir=test_dir)
    checkTrue(length(results$similarity) != 0)
    checkTrue(all(results$similarity>= 0))
    checkEquals(results$similarity[16],1)
 
 	message("eiQuery test 2")
-	results=eiQuery(r,d,refIddb,203:204,format="compound_id",K=15,asSimilarity=TRUE,descriptorType=descType,dir=test_dir)
+	results=eiQuery(runId,203:204,format="compound_id",K=15,asSimilarity=TRUE,dir=test_dir)
    checkEquals(results$similarity[1],1)
 
 	message("eiQuery test 3")
-	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,descriptorType=descType,dir=test_dir)
+	results=eiQuery(runId,c("650002","650003"), format="name",K=15,dir=test_dir)
    
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
@@ -189,8 +195,9 @@ test_ca.eiQuery <- function(){
 }
 
 test_da.eiPerformanceTest <- function() {
-	DEACTIVATED("slow")
-   eiPerformanceTest(r,d,K=22,descriptorType=descType,dir=test_dir)
+	#DEACTIVATED("slow")
+	runId = lastRunId
+   eiPerformanceTest(runId,K=22,dir=test_dir)
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
    checkMatrix(sprintf("eucsearch.%d-%d",r,d),20,N)
    #checkMatrix("^indexed$",20,22)
@@ -198,52 +205,64 @@ test_da.eiPerformanceTest <- function() {
 }
 test_ea.eiAdd<- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
    data(example_compounds)
-   cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),file=file.path(test_dir,"example_compounds.sdf"))
+   cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),
+		 file=file.path(test_dir,"example_compounds.sdf"))
    options(warn=-1)
    examples=read.SDFset(file.path(test_dir,"example_compounds.sdf"))
    options(warn=2)
-   eiAdd(r,d,findRefIddb(runDir),examples[1:2],descriptorType=descType,dir=test_dir)
 
-   results = eiQuery(r,d,findRefIddb(runDir),examples[1:2],descriptorType=descType,dir=test_dir)
+	runId = lastRunId
+	message("using runId ",runId)
+
+	message("eiAdd test1")
+   eiAdd(runId,examples[1:2],dir=test_dir)
+   results = eiQuery(runId,examples[1:2],dir=test_dir)
    print(results)
    checkEquals(results$distance[1],0)
 
-   eiAdd(r,d,findRefIddb(runDir),examples[4:8],descriptorType=descType,dir=test_dir)
-   results = eiQuery(r,d,findRefIddb(runDir),examples[4],descriptorType=descType,dir=test_dir)
+	message("eiAdd test2")
+   eiAdd(runId,examples[4:8],dir=test_dir)
+   results = eiQuery(runId,examples[4],dir=test_dir)
    checkEquals(results$distance[1],0)
    print(results)
 }
 test_fa.eiCluster <- function(){
-	DEACTIVATED("off")
+	#DEACTIVATED("off")
 	numNbrs=5
 	minNbrs=2
 	cutoff=0.5
 
+	runId = lastRunId
 
-	clustering=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,descriptorType=descType,dir=test_dir)
+	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
 
-	conn = initDb(file.path(test_dir,"data","chem.db"))
+	#conn = initDb(file.path(test_dir,"data","chem.db"))
+	conn=connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
-	print(sizes)
+	#print(sizes)
 	checkTrue(nrow(sizes) %in% c(8,9,10)) # 10 if eiAdd has run
 	checkTrue(all(sizes[,2]==2))
 
 
-	nnm=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,type="matrix",cutoff=1-cutoff,descriptorType=descType,dir=test_dir)
-   clustering = jarvisPatrick(nnm,k=numNbrs)
-	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
+	nnm=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,type="matrix",cutoff=1-cutoff,dir=test_dir)
 
-	#print(sort(clustering))
+   clustering = jarvisPatrick(nnm,k=minNbrs,mode="a1b")
+	sizes= clusterSizes(clustering)
+
+	#print(clusterSizes(clustering))
+	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
+	checkTrue(nrow(sizes) %in% c(8,9,10)) # 10 if eiAdd has run
+	checkTrue(all(sizes[,2]==2))
 }
 test_fn.cluster_comparison <- function(){
 
-	DEACTIVATED("off")
+	DEACTIVATED("off, out of date")
 	numNbrs=10
 	minNbrs=2
 	fast=TRUE
@@ -306,7 +325,7 @@ test_fn.cluster_comparison <- function(){
 }
 
 test_fo.nnm_test  <- function(){
-	DEACTIVATED("off, local only")
+	DEACTIVATED("off, local only,  out of date")
 	numNbrs=10
 	minNbrs=2
 	fast=TRUE

@@ -4,7 +4,8 @@ ensureSchema <- function(conn) {
 
 	tableList=dbListTables(conn)
 
-	if( ! all(c("compound_groups","compound_group_members","embedding","runs","embedded_descriptors") 
+#	print(tableList)
+	if( ! all(c("compound_groups","compound_group_members","embeddings","runs","embedded_descriptors") 
 				 %in% tableList)) {
 		print("ammending db")
 
@@ -23,7 +24,7 @@ ensureSchema <- function(conn) {
 
 }
 
-getEmbeddingId <- function(conn,name,r,d,descriptorType,refGroupId,create=TRUE){
+getEmbeddingId <- function(conn,name,r,d,descriptorType,refGroupId,create=FALSE){
 
 	embeddingId = getOrCreate(conn,
 									  paste("SELECT embedding_id FROM embeddings WHERE name='", name,"'",sep=""),
@@ -33,21 +34,21 @@ getEmbeddingId <- function(conn,name,r,d,descriptorType,refGroupId,create=TRUE){
 													",(SELECT descriptor_type_id FROM descriptor_types WHERE
 															  descriptor_type='",descriptorType,"'),",
 													refGroupId,")",sep=""),
-									  errorTag=paste("embedding",name) )
+									  errorTag=paste("embedding",name),create=create )
 	embeddingId
 }
 getEmbedding <-function(conn,embeddingId){
 	dbGetQuery(conn,paste("SELECT embedding_id,name,dimension,num_references,descriptor_type_id,references_group_id ",
 								 "FROM embeddings WHERE embedding_id = ",embeddingId))
 }
-getRunId <- function(conn,name,embeddingId,mainGroupId,queryGroupId) {
+getRunId <- function(conn,name,embeddingId,mainGroupId,queryGroupId,create=FALSE) {
 	runId = getOrCreate(conn,
 							  paste("SELECT run_id FROM runs WHERE embedding_id
 									  =",embeddingId," AND compound_group_id =
 									  ",mainGroupId,sep=""),
 							  paste("INSERT INTO runs(name,embedding_id,compound_group_id,sample_group_id)", 
 									  "VALUES('",name,"',",embeddingId,",",mainGroupId,",",queryGroupId,")",sep=""),
-							  errorTag = paste("run "+name))
+							  errorTag = paste("run "+name),create=create)
 	runId
 }
 getRun <- function(conn,runId){
@@ -55,10 +56,27 @@ getRun <- function(conn,runId){
 								 "FROM runs WHERE run_id = ",runId))
 }
 getExtendedRunInfo <-function(conn,runId){
-	dbGetQuery(conn,paste("SELECT r.run_id,r.name, r.embedding_id,r.compound_group_id,r.sample_group_id, ",
-								 "		e.name as embedding_name,e.dimension,e.num_references,e.descriptor_type_id,e.references_group_id ",			
+	if( is.null(runId) || length(runId)==0) stop("no runId given in getExtendedRunInfo")
+	dbGetQuery(conn,paste("SELECT r.run_id,r.name, r.embedding_id,r.compound_group_id, ccg.name as compound_group_name,",
+								 "		r.sample_group_id, rcg.name as sample_group_name, ",
+								 "		e.name as embedding_name,e.dimension,e.num_references,e.descriptor_type_id,e.references_group_id,rcg.name as references_group_name ",			
 								 "FROM runs as r JOIN embeddings as e USING(embedding_id)  ",
+								 "		JOIN compound_groups as ccg USING(compound_group_id) ",
+								 "		JOIN compound_groups as rcg ON(rcg.compound_group_id = e.references_group_id) ",
+								 "		JOIN compound_groups as scg ON(scg.compound_group_id = r.sample_group_id) ",
 								 "WHERE run_id = ",runId))
+}
+getDescriptorType <- function(conn,runId=NULL,embeddingId=NULL,info = if(!is.null(runId)) getExtendedRunInfo(conn,runId) else NULL ){
+	result = if(!is.null(info))
+		 dbGetQuery(conn,paste("SELECT descriptor_type FROM descriptor_types WHERE descriptor_type_id = ",info$descriptor_type_id))[[1]]
+	else if(!is.null(embeddingId))
+		 dbGetQuery(conn,paste("SELECT descriptor_type FROM embeddings JOIN descriptor_types USING(descriptor_type_id) WHERE embedding_id = ",embeddingId))[[1]]
+	else
+		stop("either runId, embeddingId, or info  must be specified")
+
+	if(length(result) ==0)
+		stop("could not find the descriptor type for descriptor_type_id ",info$descriptor_type_id)
+	result
 }
 	
 
@@ -68,31 +86,33 @@ writeIddb <- function(conn,ids,name,append=FALSE) {
 	print(conn)
 	dbTransaction(conn,{
 		message("writeiddb name: ",name)
-		groupId = getCompoundGroupId(conn,name)
+		groupId = getCompoundGroupId(conn,name,create=TRUE)
 		if(!append) # delete existing group
 			dbGetQuery(conn,paste("DELETE FROM compound_group_members WHERE compound_group_id = ",groupId))
 
 		message("groupid: ",groupId)
 		message("inserting members")
 		#insert ids
-		insertGroupMembers(conn,data.frame(compound_group_id=groupId,compound_id=ids))
+		if(length(ids) !=0)
+			insertGroupMembers(conn,data.frame(compound_group_id=groupId,compound_id=ids))
 		groupId
    })
 
 }
-readIddb <- function(conn,name) {
-	message("readiddb name: ",name)
-	groupId = getCompoundGroupId(conn,name)
+readIddb <- function(conn,name=NULL,groupId=getCompoundGroupId(conn,name)) {
+	handle = if(is.null(name)) groupId else name
+	message("readiddb name: ",handle)
+	#groupId = getCompoundGroupId(conn,name)
 	if(is.na(groupId))
-		stop("compound group ",name," was not found in the database")
+		stop("compound group ",handle," was not found in the database")
 	dbGetQuery(conn,paste("SELECT compound_id FROM compound_group_members WHERE compound_group_id=
 								 ",groupId))[[1]]
 }
-getGroupSize <- function(conn,groupId=NULL,name=NULL) {
+getGroupSize <- function(conn,name=NULL,groupId=NULL) {
 	handle = groupId
 
 	if(is.null(groupId) && !is.null(name)){
-		groupId = getCompoundGroupId(conn,name,create=FALSE)
+		groupId = getCompoundGroupId(conn,name)
 		handle=name
 		if(length(groupId) == 0)
 			stop("could not find compound group ",handle," in 'getGroupSize'")
@@ -106,22 +126,48 @@ getGroupSize <- function(conn,groupId=NULL,name=NULL) {
 	message("size of ",handle," is: ",size)
 	size
 }
-getCompoundGroupId<- function(conn,name,create=TRUE) { #TODO: change create to default to FALSE
+getCompoundGroupId<- function(conn,name,create=FALSE) {
 	message("name: ",name)
 	getOrCreate(conn, 
 					paste("SELECT compound_group_id FROM compound_groups WHERE name = '",name,"'",sep=""), 
 					paste("INSERT INTO compound_groups(name) VALUES('",name,"')",sep=""),
-					errorTag=paste("compound group",name))
+					errorTag=paste("compound group",name),create=create)
 
 }
 
-insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,descriptorType,data){
+getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds){
 
+
+	data = selectInBatches(conn,compoundIds,function(ids) 
+								  paste("SELECT compound_id,value FROM descriptors as d
+												JOIN embedded_descriptors ed USING(descriptor_id)
+												JOIN embeddings as em USING(embedding_id)
+											WHERE d.descriptor_type_id = em.descriptor_type_id AND  em.embedding_id = ",embeddingId,"  AND compound_id IN (",paste(ids,collapse=","),")
+											ORDER BY compound_id,ordering",sep=""))
+
+
+	embeddedDescriptors = aggregate(data$value,list(compound_id=data$compound_id),identity)$x
+	if(!is.matrix(embeddedDescriptors))
+		stop("Could not create a matrix from emebdded descriptors. Perhaps they are not all the correct (same) length? ")
+
+
+	n=data$descriptor
+	if(nrow(embeddedDescriptors) != length(compoundIds)){
+		if(debug) print(compoundIds)
+		stop(paste("missing some embedded descriptors! Found only",
+					  nrow(embeddedDescriptors),"out of",length(compoundIds),"given ids"))
+	}
+
+	embeddedDescriptors
+}
+
+insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,data){
+
+	descriptorType = getDescriptorType(conn,embeddingId=embeddingId)
 	descriptorIds = getDescriptorIds(conn,compoundIds,descriptorType)
 	numDescriptors = nrow(data)
 	descriptorLength = ncol(data)
 	assert(numDescriptors == length(descriptorIds))
-	#save(embeddingId,descriptorIds,descriptorLength,numDescriptors,data,file="debug.RData")
 	data=as.vector(data)
 	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
 				  #ordering = rep(1:descriptorLength,numDescriptors),
@@ -144,6 +190,30 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,descriptorType
 
 
 }
+
+selectDescriptors <- function(type,ids){
+	# paste(formatC(c(1,4,10000000,123400000056),format="fg"),collapse=",")
+	q=paste("SELECT compound_id, descriptor FROM descriptors JOIN descriptor_types USING(descriptor_type_id) WHERE ",
+				" descriptor_type='",type,"' AND compound_id IN (", paste(ids,collapse=","),") ORDER
+				BY compound_id",sep="")
+	#print(q)
+	q
+}
+getDescriptors <- function(conn,type,idList){
+	data = selectInBatches(conn,idList,function(ids) selectDescriptors(type,ids))
+	n=data$descriptor
+	if(length(n) != length(idList)){
+		if(debug) print(idList)
+		stop(paste("missing some descriptors! Found only",
+					  length(n),"out of",length(idList),"given ids"))
+	}
+	names(n)=data$compound_id
+	ordered=n[as.character(idList)]
+	#write.table(n,file="descriptors.out")
+	ordered
+}
+
+
 getDescriptorIds <- function(conn,compoundIds,descriptorType){
 	data = dbGetQuery(conn,
 										paste("SELECT descriptor_id FROM descriptors
@@ -187,13 +257,15 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 
 
 
-getOrCreate <- function(conn,getQuery,createQuery,create=TRUE,errorTag=getQuery){
+getOrCreate <- function(conn,getQuery,createQuery,create=FALSE,errorTag=getQuery){
 
 	print(getQuery)
 	print(createQuery)
 
 	id = dbGetQuery(conn,getQuery)[[1]]
 	if(length(id)==0 || is.na(id)){
+		if(!create)
+			stop("could not find an entry for ",errorTag)
 		dbGetQuery(conn,createQuery)
 		id = getOrCreate(conn,getQuery,createQuery,create=FALSE)
 		if(length(id)==0 || is.na(id))
@@ -205,7 +277,8 @@ getOrCreate <- function(conn,getQuery,createQuery,create=TRUE,errorTag=getQuery)
 }
 
 insertGroupMembers <- function(conn,data){
-	#message("member data: ",data)
+	#print("member data: ")
+	#print(data)
 
 	if(inherits(conn,"SQLiteConnection")){
 		dbGetPreparedQuery(conn, paste("INSERT INTO compound_group_members(compound_group_id,compound_id) ",
