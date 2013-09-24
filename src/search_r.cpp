@@ -33,9 +33,7 @@ extern "C" {
       SEXP Rin
    );
 
-//	SEXP query(SEXP queries, IndexedData *id,unsigned K,unsigned T,float R  );
 	SEXP query(SEXP queries, SEXP sid,SEXP Kin,SEXP Tin,SEXP Rin);
-//	SEXP freeIndexedData(IndexedData *id) ;
 	SEXP freeIndexedData(SEXP sid) ;
 	SEXP getIndexedData(SEXP matrixFile, SEXP indexFile, SEXP Win, SEXP Hin, SEXP Min, SEXP Lin );
 }
@@ -192,35 +190,13 @@ SEXP lshsearch(SEXP queries, SEXP matrixFile, SEXP indexFile,
       SEXP Rin
    )
 {
-	/*
-   float W = check(Win,1.0);
-   unsigned H = check(Hin, 1017881 );
-   unsigned M = check(Min,1);
-   unsigned L = check(Lin,1);
-   unsigned K = check(Kin,600);
-   unsigned T = check(Tin,1);
-   float R = ISNA(REAL(Rin)[0])? std::numeric_limits<float>::max() : 
-                                 (float)(REAL(Rin)[0]*REAL(Rin)[0]);
-   Rprintf("W: %f H:%d M:%d L:%d K:%d T:%d R:%f\n",W,H,M,L,K,T,R);
-	*/
-
-
 
 	SEXP id = getIndexedData(matrixFile,indexFile,Win,Hin,Min,Lin);
-
-/*
-	IndexedData *id=new IndexedData();
-//	Rprintf("loading matrix data\n");
-   //FloatMatrix data(CHAR(STRING_ELT(matrixFile,0)));
-   id->data = new FloatMatrix(CHAR(STRING_ELT(matrixFile,0)));
-//	Rprintf("done loading matrix data\n");
-   id->index =  new Index();
-*/
-
 
 	SEXP r = query(queries,id,Kin,Tin,Rin);
 
 	freeIndexedData(id);
+
 	return r;
 }
 
@@ -244,21 +220,6 @@ SEXP getIndexedData(SEXP matrixFile, SEXP indexFile, SEXP Win, SEXP Hin, SEXP Mi
 	return idPtr;
 
 }
-//SEXP getIndexedData_R(SEXP matrixFile, SEXP indexFile, SEXP Win, SEXP Hin, SEXP Min, SEXP Lin )
-//{
-	//SEXP idPtr = R_MakeExternalPtr(getIndexedData(matrixFile,indexFile,Win,Hin,Min,Lin),
-											 //R_NilValue,R_NilValue);
-	//return idPtr;
-//}
-
-//SEXP freeIndexedData(SEXP sid) 
-//{
-//	void *p = R_ExternalPtrAddr(sid);
-//	IndexedData *id = reinterpret_cast<IndexedData*>(p);
-//	freeIndexedData(id);
-//	return R_NilValue;
-//}
-//SEXP freeIndexedData(IndexedData *id) 
 SEXP freeIndexedData(SEXP sid) 
 {
 	//Rprintf("releasing IndexedData\n");
@@ -275,13 +236,6 @@ SEXP freeIndexedData(SEXP sid)
 	return R_NilValue;
 }
 
-//SEXP query(SEXP queries, SEXP *sid,SEXP Kin,SEXP Tin,SEXP Rin)
-//{
-//	void *p = R_ExternalPtrAddr(sid);
-//	IndexedData *id = reinterpret_cast<IndexedData*>(p);
-//	return query(queries,id,K,T,R);
-//}
-//SEXP query(SEXP queries, IndexedData *id,SEXP Kin,SEXP Tin,SEXP Rin)
 SEXP query(SEXP queries, SEXP sid,SEXP Kin,SEXP Tin,SEXP Rin)
 {
    unsigned K = check(Kin,600);
