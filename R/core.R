@@ -349,7 +349,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL)
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,mainIds =readIddb(file.path(dir,Main)))
 {
 		conn
 		tmpDir=tempdir()
@@ -375,7 +375,7 @@ eiQuery <- function(r,d,refIddb,queries,format="sdf",
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 		hits = search(embeddedQueries,matrixFile,
 							queryDescriptors,distance,dir,conn=conn,descriptorType=descriptorType,
-							lshData=lshData,
+							lshData=lshData,mainIds=mainIds,
 							K=K,W=W,M=M,L=L,T=T)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
@@ -525,10 +525,10 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 
 #expects one query per column
 search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,
-						 conn=defaultConn(dir),lshData=NULL,...)
+						 conn=defaultConn(dir),lshData=NULL,mainIds =readIddb(file.path(dir,Main)),...)
 {
 		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,lshData=lshData,...)
-		mainIds <- readIddb(file.path(dir,Main))
+		
 		#print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
 		#print("neighbors:")
 		#print(neighbors)
@@ -553,6 +553,7 @@ embedFromRefs <- function(r,d,refIddb,query2RefDists)
 {
 		coordFile=paste(refIddb,"distmat","coord",sep=".")
 		coords = as.matrix(read.table(coordFile))
+
 		embed(r,d,coords,query2RefDists)
 }
 #take referenace coords, and distance matrix
