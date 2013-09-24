@@ -207,7 +207,7 @@ SEXP getIndexedData(SEXP matrixFile, SEXP indexFile, SEXP Win, SEXP Hin, SEXP Mi
    unsigned M = check(Min,1);
    unsigned L = check(Lin,1);
 
-   Rprintf("W: %f H:%d M:%d L:%d\n",W,H,M,L);
+   //Rprintf("W: %f H:%d M:%d L:%d\n",W,H,M,L);
 
 	IndexedData *id=new IndexedData();
    id->data = new FloatMatrix(CHAR(STRING_ELT(matrixFile,0)));
@@ -243,7 +243,7 @@ SEXP query(SEXP queries, SEXP sid,SEXP Kin,SEXP Tin,SEXP Rin)
    float R = ISNA(REAL(Rin)[0])? std::numeric_limits<float>::max() : 
                                  (float)(REAL(Rin)[0]*REAL(Rin)[0]);
 
-   Rprintf("queyr K: %d T:%d R:%d\n",K,T,R);
+   //Rprintf("queyr K: %d T:%d R:%d\n",K,T,R);
 
 	void *p = R_ExternalPtrAddr(sid);
 	IndexedData *id = reinterpret_cast<IndexedData*>(p);

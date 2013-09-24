@@ -42,16 +42,16 @@ lshPrep <- function(matrixFile,
 }
 
 
-loadLSHData <- function(r,d, W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,dir=".",matrixFile=NULL) {
+loadLSHData <- function(r,d, W=NA,M=NA,L=NA,K=NA,T=NA,dir=".",matrixFile=NULL) {
 
 	if(is.null(matrixFile)){
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 	}
 
-	indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
+	indexFile = lshPrep(matrixFile,W,NA,M,L,K,T,NA)
 	.Call("getIndexedData",as.character(matrixFile),indexFile,
-		as.double(W),as.integer(H),as.integer(M),as.integer(L))
+		as.double(W),NA,as.integer(M),as.integer(L))
 }
 
 freeLSHData <- function(lshData){

@@ -9,7 +9,7 @@
 \usage{
 	eiQuery(r,d,refIddb,queries,format="sdf",
 		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),conn=defaultConn(dir),
-		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30)
+		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -75,6 +75,15 @@
   \item{T}{
      Number of probes
    }
+	\item{lshData}{
+		A pointer returned by \code{\link{loadLSHData}}. The LSH data is generally the largest
+		chunk of data that must be held in memory while performing a query. Since it
+		remains the same across queries it makes sense to pre-load the is data once when
+		doing multiple queries. 
+
+		If this value is \code{NULL} the LSH data will be loaded internally and then released before
+		\code{eiQuery} returns.
+	}
 }
 \details{
 	This function identifies the database by the \code{r}, \code{d}, and 
