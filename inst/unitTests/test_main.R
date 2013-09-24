@@ -148,6 +148,12 @@ test_ca.eiQuery <- function(){
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
 
+	message("eiQuery test 4")
+	lshData = loadLSHData(r,d,dir=test_dir)
+	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,lshData=lshData,descriptorType=descType,dir=test_dir)
+	freeLSHData(lshData)
+
+
 }
 
 test_da.eiPerformanceTest <- function() {
