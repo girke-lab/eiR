@@ -464,7 +464,7 @@ eiCluster <- function(r,d,K,minNbrs, dir=".",cutoff=NULL,
 #		neighbors[,,2]=-2.0
 		#print(neighbors)
 
-		refinedNeighbors=array(NA,dim=c(ml,K))
+		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
 		if(type=="matrix")
 			similarities = array(NA,dim=c(ml,K))
 	
