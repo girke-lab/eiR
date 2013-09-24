@@ -1,15 +1,21 @@
 \documentclass{article}
-\usepackage[margin=0.75in]{geometry}
+
+<<style, eval=TRUE, echo=FALSE, results=tex>>=
+BiocStyle::latex()
+@
+
+
+%\usepackage[margin=0.75in]{geometry}
 \usepackage[authoryear,round]{natbib}
 \usepackage{hyperref}
-\hypersetup{
-       colorlinks,
-       citecolor=black,
-       filecolor=black,
-       linkcolor=red,
-       urlcolor=black
-}
-\usepackage[OT1]{fontenc}
+%\hypersetup{
+%       colorlinks,
+%       citecolor=black,
+%       filecolor=black,
+%       linkcolor=red,
+%       urlcolor=black
+%}
+%\usepackage[OT1]{fontenc}
 
 
 %\usepackage{a4wide}
