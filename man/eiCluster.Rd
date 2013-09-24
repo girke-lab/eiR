@@ -109,11 +109,14 @@
 		If \code{type} is "cluster", returns a clustering.
 		This will be a vector in which the names are the compound names, and the values are the cluster
 		labels.
-		Otherwise, if \code{type} is "matrix", returns a nearest neighbor matrix.
-		This will be a matrix with a row for each compound. Each row will contain the index value of
-		the neibhboring compounds. If there are not \code{K} neibhbors for a 
-		compound, that row will be padded with NAs.
+		Otherwise, if \code{type} is "matrix", returns a list with the following components:
+      \item{indexes}{index values of nearest neighbors, for each item. }
+      \item{names}{The database compound id of each item in the set.}
+      \item{similarities}{The similarity values of each neighbor to the item for that row. 
+          Each similarity values corresponds to the id number in the 
+         same position in the indexes entry}
 
+		If there are not \code{K} neibhbors for a compound, that row will be padded with NAs.
 }
 \author{
 	Kevin Horan
