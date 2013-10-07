@@ -247,7 +247,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 			data = sapply( 1:numCompounds,function(x) embedCoord(solver,d, rawDists[x,]))
 
-			if(debug) message("embedded ",length(data)," compounds")
+			if(debug) message("embedded ",ncol(data)," compounds")
 
 			conn=connSource()
 			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],t(data))
@@ -283,10 +283,12 @@ eiQuery <- function(runId,queries,format="sdf",
 		if(debug) print("eiQuery")
 
 
-		print("getting run info")
+		if(debug) print("getting run info")
 		runInfo = getExtendedRunInfo(conn,runId) 
-		print(runInfo)
-		print("got run info")
+		if(debug) print(runInfo)
+		if(nrow(runInfo)==0)
+			stop("no information found for ",runId)
+		if(debug) print("got run info")
 		r=runInfo$num_references
 		d=runInfo$dimension
 		refGroupName = runInfo$references_group_name
@@ -359,6 +361,8 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		conn
 
 		runInfo = getExtendedRunInfo(conn,runId) 
+		if(nrow(runInfo)==0)
+			stop("no information found for ",runId)
 		print(runInfo)
 		print("got run info")
 		r=runInfo$num_references
@@ -402,6 +406,8 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 
 		conn
 		runInfo = getExtendedRunInfo(conn,runId) 
+		if(nrow(runInfo)==0)
+			stop("no information found for ",runId)
 		print(runInfo)
 		print("got run info")
 		r=runInfo$num_references
@@ -617,6 +623,8 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 	conn
 
 	runInfo = getExtendedRunInfo(conn,runId) 
+	if(nrow(runInfo)==0)
+		stop("no information found for ",runId)
 	r=runInfo$num_references
 	d=runInfo$dimension
 	descriptorType=getDescriptorType(conn,info=runInfo)
@@ -645,7 +653,10 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 						testQueryDescriptors,distance,descriptorType=descriptorType,dir=dir,conn=conn,K=K,W=W,M=M,L=L,T=T)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
-	#if(debug) print(hits)
+	print(class(hits))
+	print(dim(hits))
+	if(debug) print(hits)
+	stop(" after hits")
 	for(x in hits)
 		cat(paste(x[,1],x[,2],sep=":",collapse=" "),"\n",file=out)
 	close(out)
@@ -713,12 +724,13 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 
 						# this must be done here to ensure connSource() is evaluated
 						# before getDescriptors starts to run
+						conn=NULL
 						tryCatch({
 								conn=connSource()
 								outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
 							},
 							error=function(e) stop(e),
-							finally= dbDisconnect(conn)
+							finally= if(!is.null(conn)) dbDisconnect(conn)
 						)
 						cat("got descriptors","\n",file=f); flush(f)
 						d2d=desc2descDist(outerDesc,descriptors,dist)

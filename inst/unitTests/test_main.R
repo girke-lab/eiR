@@ -1,6 +1,7 @@
 
 library(eiR)
 library(snow)
+library(DBI)
 
 options(warn=2)
 options(error=dump.frames)
@@ -13,11 +14,37 @@ runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
 descType="ap"
 
-connSource=function(){
+sqliteSource=function(){
 	require(eiR)
 	require(RSQLite)
-	initDb(file.path(test_dir,"data","chem.db"))
+	path = file.path(test_dir,"data")
+	if(!file.exists(path))
+		dir.create(path,recursive=TRUE)
+	conn=initDb(file.path(path,"chem.db"))
+	#checkTrue(file.exists(file.path(test_dir,"data","chem.db")))
+	conn
 }
+
+resetDb <- function(conn){
+   tables = dbListTables(conn)
+   print(tables)
+   for(table in tables)
+      dbGetQuery(conn, paste("DROP TABLE ",table," CASCADE"))
+   initDb(conn)
+}
+
+pgSource=function(){
+	require(eiR)
+	require(RPostgreSQL)
+	conn=dbConnect(dbDriver("PostgreSQL"),user="chemminer_tests",password="40ersfdv90erijgfk",
+				 dbname="chemminer_tests",host="girke-db-1.bioinfo.ucr.edu")
+	initDb(conn)
+	eiR:::setDefaultConn(conn)
+	conn
+}
+
+#connSource = sqliteSource
+connSource = pgSource
 
 lastRunId=0
 
@@ -28,14 +55,14 @@ test_aa.eiInit <- function() {
 #	DEACTIVATED("slow")
 
    cleanup()
+	connSource() #sets default connection
 
 	checkData <- function(cids,dir=test_dir){
-		checkTrue(file.exists(file.path(dir,"data","chem.db")))
 		checkTrue(file.exists(file.path(dir,"data","main.iddb")))
 		i <- readLines(file.path(dir,"data","main.iddb"))
 		checkEquals(length(i),N)
 		checkEquals(length(cids),N)
-		sdfFromDb = getCompounds(initDb(file.path(dir,"data","chem.db")),cids)
+		sdfFromDb = getCompounds(connSource(),cids)
 		checkEquals(length(sdfFromDb),N)
 	}
 
@@ -48,10 +75,12 @@ test_aa.eiInit <- function() {
 	checkTrue(!is.null(eiR:::getTransform("dummy","d2")))
 
 
+	message("default descriptor")
    data(sdfsample)
    compoundIds = eiInit(sdfsample,descriptorType=descType,dir=test_dir)
 	#checkData(compoundIds)
 
+	message("fp descriptor")
 	dir.create(fpDir)
 	fpCids = eiInit(sdfsample,dir=fpDir,descriptorType="fp")
 	#checkData(fpCids,fpDir)
@@ -60,90 +89,11 @@ test_aa.eiInit <- function() {
 testRefs <- function(){
 	200+c(1,2,5,8,9,10,11,17,18,19,20,23,24,25,26,29,31,33,34,36,38,43,45,46,47,48,49,51,53,66,67,70,71,72,73,74,75,77,78,79,80,81,82,83,87,88,89,91,99,100)
 }
-test_bb.eiMakeDb <- function() {
 
-	#DEACTIVATED("slow")
-
-	conn = connSource()
-	runDbChecks = function(rid){
-
-		parameters = dbGetQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
-										WHERE r.run_id = ",rid))
-		print(parameters)
-		checkEquals(d,parameters$dimension)
-		checkEquals(r,parameters$num_references)
-
-		numRefs = dbGetQuery(conn,paste("SELECT count(*) FROM runs as r JOIN embeddings as e USING(embedding_id) 
-											JOIN compound_group_members as refs ON(e.references_group_id=refs.compound_group_id)
-										WHERE r.run_id = ",rid))[[1]]
-		message("found ",numRefs," refs")
-		checkEquals(r,numRefs)
-		numCompounds = dbGetQuery(conn,paste("SELECT count(*) FROM runs as r  
-											JOIN compound_group_members as cgm ON(r.compound_group_id=cgm.compound_group_id)
-										WHERE r.run_id = ",rid))[[1]]
-
-		checkEquals(N,numCompounds)
-		numSamples = dbGetQuery(conn,paste("SELECT count(*) FROM runs as r  
-											JOIN compound_group_members as cgm ON(r.sample_group_id=cgm.compound_group_id)
-										WHERE r.run_id = ",rid))[[1]]
-		checkEquals(20,numSamples)
-
-
-		numDescriptors = dbGetQuery(conn,paste("SELECT count(distinct descriptor_id) FROM runs as r JOIN embedded_descriptors as ed USING(embedding_id) 
-										WHERE r.run_id = ",rid))[[1]]
-		checkEquals(N,numDescriptors)
-
-		#check that embedded descriptor values are stored in correct order
-		compoundId = eiR:::readIddb(conn,file.path(test_dir,eiR:::Main))[1]
-		descId = dbGetQuery(conn,paste("SELECT descriptor_id FROM descriptors where
-												 compound_id=",compoundId))[[1]]
-
-		desc = eiR:::getDescriptors(conn,descType,compoundId)[[1]]
-		embeddedDesc = eiR:::embedDescriptor(conn,r,d,parameters$name,desc,
-														 descriptorType=descType,dir=test_dir)
-		dbEmbeddedDesc = dbGetQuery(conn,paste("SELECT value FROM embedded_descriptors WHERE
-									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
-									 " ORDER BY ordering"))[[1]]
-		#print(desc)
-		#print(as.vector(embeddedDesc))
-		#print(dbEmbeddedDesc)
-		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
-
-      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
-      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
-
-
-	}
-
-	cl=makeCluster(j,type="SOCK",outfile="")
-
-	print("by file name")
-   refFile = file.path(test_dir,"reference_file.cdb")
-	eiR:::writeIddbFile((1:r)+200,refFile)
-   rid=eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
-		connSource=connSource	)
-   runDbChecks(rid)
-	unlink(runDir,recursive=TRUE)
-
-	print("by number")
-   rid=eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
-		connSource=connSource	)
-   runDbChecks(rid)
-	unlink(runDir,recursive=TRUE)
-
-	print("by vector")
-   rid=eiMakeDb(testRefs(),d,numSamples=20,cl=cl,descriptorType=descType, dir=test_dir,
-		connSource=connSource	)
-	stopCluster(cl)
-   runDbChecks(rid)
-
-	lastRunId<<-rid
-	
-}
 test_ba.parDist <- function(){
 
-	#DEACTIVATED("slow")
-	conn = initDb(file.path(test_dir,"data","chem.db"))
+	DEACTIVATED("slow")
+	conn = connSource()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
 	cl = makeSOCKcluster(3,outfile="")
@@ -165,6 +115,90 @@ test_ba.parDist <- function(){
 
 
 }
+test_bb.eiMakeDb <- function() {
+
+	#DEACTIVATED("slow")
+
+	message("  eiMakeDb   ")
+
+	conn = connSource()
+	runDbChecks = function(rid){
+
+		parameters = eiR:::runQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
+										WHERE r.run_id = ",rid))
+		print(parameters)
+		checkEquals(d,parameters$dimension)
+		checkEquals(r,parameters$num_references)
+
+		numRefs = eiR:::runQuery(conn,paste("SELECT count(*) FROM runs as r JOIN embeddings as e USING(embedding_id) 
+											JOIN compound_group_members as refs ON(e.references_group_id=refs.compound_group_id)
+										WHERE r.run_id = ",rid))[[1]]
+		message("found ",numRefs," refs")
+		checkEquals(r,numRefs)
+		numCompounds = eiR:::runQuery(conn,paste("SELECT count(*) FROM runs as r  
+											JOIN compound_group_members as cgm ON(r.compound_group_id=cgm.compound_group_id)
+										WHERE r.run_id = ",rid))[[1]]
+
+		checkEquals(N,numCompounds)
+		numSamples = eiR:::runQuery(conn,paste("SELECT count(*) FROM runs as r  
+											JOIN compound_group_members as cgm ON(r.sample_group_id=cgm.compound_group_id)
+										WHERE r.run_id = ",rid))[[1]]
+		checkEquals(20,numSamples)
+
+
+		numDescriptors = eiR:::runQuery(conn,paste("SELECT count(distinct descriptor_id) FROM runs as r JOIN embedded_descriptors as ed USING(embedding_id) 
+										WHERE r.run_id = ",rid))[[1]]
+		checkEquals(N,numDescriptors)
+
+		#check that embedded descriptor values are stored in correct order
+		compoundId = eiR:::readIddb(conn,file.path(test_dir,eiR:::Main))[1]
+		message("checking descriptor of compound id ",compoundId)
+		descId = eiR:::runQuery(conn,paste("SELECT descriptor_id FROM descriptors where
+												 compound_id=",compoundId))[[1]]
+
+		desc = eiR:::getDescriptors(conn,descType,compoundId)[[1]]
+		embeddedDesc = eiR:::embedDescriptor(conn,r,d,parameters$name,desc,
+														 descriptorType=descType,dir=test_dir)
+		dbEmbeddedDesc = eiR:::runQuery(conn,paste("SELECT value FROM embedded_descriptors WHERE
+									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
+									 " ORDER BY ordering"))[[1]]
+		#print(desc)
+		#print(as.vector(embeddedDesc))
+		#print(dbEmbeddedDesc)
+		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
+
+      checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
+      checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
+
+
+	}
+
+	cl=makeCluster(j,type="SOCK",outfile="")
+#
+#	print("by file name")
+#   refFile = file.path(test_dir,"reference_file.cdb")
+#	eiR:::writeIddbFile((1:r)+200,refFile)
+#   rid=eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
+#		connSource=connSource	)
+#   runDbChecks(rid)
+#	unlink(runDir,recursive=TRUE)
+#
+#	print("by number")
+#   rid=eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
+#		connSource=connSource	)
+#   runDbChecks(rid)
+#	unlink(runDir,recursive=TRUE)
+
+	print("by vector")
+   rid=eiMakeDb(testRefs(),d,numSamples=20,cl=cl,descriptorType=descType, dir=test_dir,
+		connSource=connSource	)
+	stopCluster(cl)
+   runDbChecks(rid)
+
+	lastRunId<<-rid
+	
+}
+
 test_ca.eiQuery <- function(){
 
 	#DEACTIVATED("slow")
@@ -239,7 +273,6 @@ test_fa.eiCluster <- function(){
 	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
 
-	#conn = initDb(file.path(test_dir,"data","chem.db"))
 	conn=connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
@@ -277,7 +310,7 @@ test_fn.cluster_comparison <- function(){
 	clustering=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,dir=dir,cutoff=1-cutoff,descriptorType=descType)
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
 
-	conn = initDb(file.path(dir,"data","chem.db"))
+	conn = connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
@@ -398,7 +431,7 @@ queriedNnm <- function(compoundIds,r,d,numNbrs,dir){
 }
 trueNnm <- function(compoundIds,numNbrs,minNbrs,dir,cutoff=NA){
 
-	conn = initDb(file.path(test_dir,"data","chem.db"))
+	conn = connSource()
 	preProcess = eiR:::getTransform(descType)$toObject
 	aps=as(preProcess(eiR:::getDescriptors(conn,descType,compoundIds)),"APset")
 	#cid(aps)=compoundNames
@@ -424,6 +457,10 @@ clusterSizes <- function(clustering) {
 
 
 cleanup<- function(){
+	conn=connSource()
+	if(inherits(conn,"PostgreSQLConnection"))
+		resetDb(conn)
+
    unlink(test_dir,recursive=T)
    dir.create(test_dir)
 #   setwd(test_dir) # this breaks check
