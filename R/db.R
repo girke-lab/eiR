@@ -165,7 +165,7 @@ getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds){
 insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,data){
 
 	descriptorType = getDescriptorType(conn,embeddingId=embeddingId)
-	descriptorIds = getDescriptorIds(conn,compoundIds,descriptorType)
+	descriptorIds = getDescriptorIds(conn,compoundIds,descriptorType,keepOrder=TRUE)
 	numDescriptors = nrow(data)
 	descriptorLength = ncol(data)
 	assert(numDescriptors == length(descriptorIds))
@@ -181,7 +181,8 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,data){
 				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
 	}else if(inherits(conn,"PostgreSQLConnection")){
 		fields = c("embedding_id","descriptor_id","ordering","value")
-		apply(toInsert,1,function(row) 
+##		print(toInsert[1:500,fields])
+		apply(toInsert[,fields],1,function(row) 
 			runQuery(conn,
 				paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
 					"VALUES( $1,$2,$3,$4)"),row))
@@ -215,14 +216,17 @@ getDescriptors <- function(conn,type,idList){
 }
 
 
-getDescriptorIds <- function(conn,compoundIds,descriptorType){
-	data = runQuery(conn,
-										paste("SELECT descriptor_id FROM descriptors
+getDescriptorIds <- function(conn,compoundIds,descriptorType,keepOrder=FALSE){
+	data = runQuery(conn, paste("SELECT descriptor_id,compound_id FROM descriptors
 													  JOIN descriptor_types USING(descriptor_type_id) 
 													  WHERE descriptor_type = '",descriptorType,"'
 													  AND compound_id IN (",paste(compoundIds,collapse=","),")",sep=""))
-	descriptorIds =data[[1]]
-	descriptorIds
+	descriptorIds =data$descriptor_id
+	if(keepOrder){
+		names(descriptorIds) = data$compound_id
+		as.vector(descriptorIds[as.character(compoundIds)])
+	}else
+		descriptorIds
 }
 
 writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
@@ -261,8 +265,8 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 
 getOrCreate <- function(conn,getQuery,createQuery,create=FALSE,errorTag=getQuery){
 
-	print(getQuery)
-	print(createQuery)
+	#print(getQuery)
+	#print(createQuery)
 
 	id = runQuery(conn,getQuery)[[1]]
 	if(length(id)==0 || is.na(id)){

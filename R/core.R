@@ -250,6 +250,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			if(debug) message("embedded ",ncol(data)," compounds")
 
 			conn=connSource()
+##			print(t(data[1:15,1:10]))
 			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],t(data))
 			dbDisconnect(conn)
 
@@ -395,6 +396,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		insertEmbeddedDescriptors(conn,embeddingId,compoundIds,t(embeddedAdditions))
 
 		writeMatrixFile(conn,runId,dir=dir)
+		compoundIds
 }
 
 eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
@@ -424,7 +426,7 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 #		neighbors = array(matrix(1:ml,nrow=ml,
 #								 ncol=ml,byrow=TRUE),dim=c(ml,ml,2))
 #		neighbors[,,2]=-2.0
-		#print(neighbors)
+		print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
 		if(type=="matrix")
@@ -452,26 +454,26 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 				names(reverseIndex)=mainIndex[n[,1]]
 			   n[,1] = mainIndex[n[,1]]
 				#print(reverseIndex)
-				#print(n)
+				print(n)
 				#print(paste("refining",i))
 				refined = refine(n,descriptors[i],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
 				dim(refined)=c(min(sum(nonNegs),K) ,2)
-				#print("refined: ")
-				#print(refined)
+				print("refined: ")
+				print(refined)
 				#print(paste(mainIndex[i],paste(refined[,1],collapse=",")))
 				refinedNeighbors[i,1:nrow(refined)]<<-
 							reverseIndex[as.character(refined[,1])]
 				if(type=="matrix")
 					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
-				#print(refinedNeighbors[i,1:nrow(refined)])
+				print(refinedNeighbors[i,1:nrow(refined)])
 			})
 		 },batchSize=1000)
 
 		
 
 		rownames(refinedNeighbors)=1:ml  ##
-		#print("refined:")
-		#print((refinedNeighbors))
+		print("refined:")
+		print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
@@ -540,7 +542,8 @@ refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorTy
 
 	limit = min(limit,length(lshNeighbors[,2]))
 	#print(paste("num dists:",length(lshNeighbors[,2]), "limit:",limit,"cutoff: ",cutoff))
-	lshNeighbors[order(lshNeighbors[,2])[1:limit],]
+	# make sure it stays a matrix, R likes to change things just for the heck of it
+	lshNeighbors[order(lshNeighbors[,2])[1:limit],,drop=FALSE]
 }
 getNames <- function(indexes,dir,conn=defaultConn(dir))
 	getCompoundNames(conn,indexes,keepOrder=TRUE,allowMissing=TRUE)
@@ -653,10 +656,7 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 						testQueryDescriptors,distance,descriptorType=descriptorType,dir=dir,conn=conn,K=K,W=W,M=M,L=L,T=T)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
-	print(class(hits))
-	print(dim(hits))
-	if(debug) print(hits)
-	stop(" after hits")
+	#if(debug) print(hits)
 	for(x in hits)
 		cat(paste(x[,1],x[,2],sep=":",collapse=" "),"\n",file=out)
 	close(out)

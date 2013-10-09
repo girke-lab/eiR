@@ -81,9 +81,9 @@ test_aa.eiInit <- function() {
 	#checkData(compoundIds)
 
 	message("fp descriptor")
-	dir.create(fpDir)
-	fpCids = eiInit(sdfsample,dir=fpDir,descriptorType="fp")
-	#checkData(fpCids,fpDir)
+	#dir.create(fpDir)
+	#fpCids = eiInit(sdfsample,dir=fpDir,descriptorType="fp")
+	##checkData(fpCids,fpDir)
 }
 
 testRefs <- function(){
@@ -122,7 +122,7 @@ test_bb.eiMakeDb <- function() {
 	message("  eiMakeDb   ")
 
 	conn = connSource()
-	runDbChecks = function(rid){
+		runDbChecks = function(rid){
 
 		parameters = eiR:::runQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
 										WHERE r.run_id = ",rid))
@@ -150,22 +150,8 @@ test_bb.eiMakeDb <- function() {
 										WHERE r.run_id = ",rid))[[1]]
 		checkEquals(N,numDescriptors)
 
-		#check that embedded descriptor values are stored in correct order
-		compoundId = eiR:::readIddb(conn,file.path(test_dir,eiR:::Main))[1]
-		message("checking descriptor of compound id ",compoundId)
-		descId = eiR:::runQuery(conn,paste("SELECT descriptor_id FROM descriptors where
-												 compound_id=",compoundId))[[1]]
-
-		desc = eiR:::getDescriptors(conn,descType,compoundId)[[1]]
-		embeddedDesc = eiR:::embedDescriptor(conn,r,d,parameters$name,desc,
-														 descriptorType=descType,dir=test_dir)
-		dbEmbeddedDesc = eiR:::runQuery(conn,paste("SELECT value FROM embedded_descriptors WHERE
-									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
-									 " ORDER BY ordering"))[[1]]
-		#print(desc)
-		#print(as.vector(embeddedDesc))
-		#print(dbEmbeddedDesc)
-		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
+		for(i in 1:numDescriptors)
+			checkDescriptor(conn,parameters,descriptorIndex=i)
 
       checkTrue(file.info(file.path(runDir,sprintf("matrix.%d-%d",r,d)))$size>0)
       checkTrue(file.info(file.path(runDir,sprintf("matrix.query.%d-%d",r,d)))$size>0)
@@ -201,7 +187,7 @@ test_bb.eiMakeDb <- function() {
 
 test_ca.eiQuery <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	message("eiQuery")
 	conn=connSource()
    data(sdfsample)
@@ -229,7 +215,7 @@ test_ca.eiQuery <- function(){
 }
 
 test_da.eiPerformanceTest <- function() {
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
@@ -239,7 +225,7 @@ test_da.eiPerformanceTest <- function() {
 }
 test_ea.eiAdd<- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
    data(example_compounds)
    cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),
 		 file=file.path(test_dir,"example_compounds.sdf"))
@@ -251,16 +237,25 @@ test_ea.eiAdd<- function(){
 	message("using runId ",runId)
 
 	message("eiAdd test1")
-   eiAdd(runId,examples[1:2],dir=test_dir)
+   newCompoundIds = eiAdd(runId,examples[1:2],dir=test_dir)
    results = eiQuery(runId,examples[1:2],dir=test_dir)
    print(results)
    checkEquals(results$distance[1],0)
 
+	for(i in newCompoundIds)
+		checkDescriptor(conn,parameters,compoundId=i)
+
 	message("eiAdd test2")
-   eiAdd(runId,examples[4:8],dir=test_dir)
+   newCompoundIds2 = eiAdd(runId,examples[4:8],dir=test_dir)
    results = eiQuery(runId,examples[4],dir=test_dir)
    checkEquals(results$distance[1],0)
    print(results)
+
+	for(i in newCompoundIds2)
+		checkDescriptor(conn,parameters,compoundId=i)
+
+
+
 }
 test_fa.eiCluster <- function(){
 	#DEACTIVATED("off")
@@ -270,15 +265,18 @@ test_fa.eiCluster <- function(){
 
 	runId = lastRunId
 
+	parameters = eiR:::runQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
+										WHERE r.run_id = ",runId))
 	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
+	print(byCluster(clustering))
 
 	conn=connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
-	#print(sizes)
+	print(sizes)
 	checkTrue(nrow(sizes) %in% c(8,9,10)) # 10 if eiAdd has run
 	checkTrue(all(sizes[,2]==2))
 
@@ -484,4 +482,35 @@ checkMatrix <- function(pattern,x,y,dir=runDir){
 	if(debug) print(paste("found dims: ",d))
    checkEquals(d,c(x,y))
 }
+
+checkDescriptor = function(conn,parameters,descriptorIndex=NULL,
+									compoundId = eiR:::readIddb(conn,
+																		 file.path(test_dir,eiR:::Main))[descriptorIndex]) {
+
+		#check that embedded descriptor values are stored in correct order
+		message("checking descriptor of compound id ",compoundId)
+
+
+		descId = eiR:::runQuery(conn,paste("SELECT descriptor_id FROM descriptors where
+												 compound_id=",compoundId))[[1]]
+
+		desc = eiR:::getDescriptors(conn,descType,compoundId)[[1]]
+		embeddedDesc = eiR:::embedDescriptor(conn,r,d,parameters$name,desc,
+														 descriptorType=descType,dir=test_dir)
+
+
+
+		dbEmbeddedDesc = eiR:::runQuery(conn,paste("SELECT value FROM embedded_descriptors WHERE
+									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
+									 " ORDER BY ordering"))[[1]]
+
+		if(!all(as.vector(embeddedDesc) == dbEmbeddedDesc)){
+			#print(desc)
+			#print(as.vector(embeddedDesc))
+			#print(dbEmbeddedDesc)
+		}
+		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
+
+
+	}
 
