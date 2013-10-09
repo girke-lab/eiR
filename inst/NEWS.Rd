@@ -1,6 +1,16 @@
 
 \name{NEWS}
 \title{EiR News}
+\section{CHANGES IN VERSION 1.2.0 2013-9-10}{
+   \subsection{NEW FEATURES}{
+      \itemize{
+			\item speed improvements
+			\item  ieInit now accepts a SNOW cluster for parallel inserts
+			\item allow compounds to be updated in-place by name
+			\item eiQuery can now return similarity values instead of distances
+      }
+   }
+}
 \section{CHANGES IN VERSION 1.0.0 2013-5-26}{
    \subsection{NEW FEATURES}{
       \itemize{
