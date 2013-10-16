@@ -97,6 +97,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
 						 cl=NULL,connSource=NULL)
 {
+	givenConn = ! missing(conn)  # true if we were handed an existing connection, so don't disconnect it
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
 			stop("failed to create data directory ",file.path(dir,DataDir))
@@ -132,7 +133,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 				message("loaded ",length(ids)," compounds")
 			ids
 		  },error = function(e) stop(e),
-		  finally = dbDisconnect(conn)
+		  finally = if(FALSE && !givenConn) dbDisconnect(conn)
 		)
 	}
 
@@ -331,7 +332,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 eiQuery <- function(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,mainIds =readIddb(file.path(dir,Main)))
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,
+		mainIds =readIddb(conn,file.path(dir,Main),sorted=TRUE))
 {
 		conn
 		if(debug) print("eiQuery")
@@ -549,7 +551,7 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 
 #expects one query per column
 search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,
-						 conn=defaultConn(dir),lshData=NULL,mainIds=readIddb(file.path(dir,Main),sorted=TRUE),...)
+						 conn=defaultConn(dir),lshData=NULL,mainIds=readIddb(conn,file.path(dir,Main),sorted=TRUE),...)
 {
 		mainIds=sort(mainIds)
 		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,lshData=lshData,...)

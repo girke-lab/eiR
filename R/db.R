@@ -198,7 +198,7 @@ selectDescriptors <- function(type,ids){
 	q=paste("SELECT compound_id, descriptor FROM descriptors JOIN descriptor_types USING(descriptor_type_id) WHERE ",
 				" descriptor_type='",type,"' AND compound_id IN (", paste(ids,collapse=","),") ORDER
 				BY compound_id",sep="")
-	if(debug) message("select descriptors: ",q)
+#	if(debug) message("select descriptors: ",q)
 	q
 }
 getDescriptors <- function(conn,type,idList){
@@ -302,6 +302,10 @@ insertGroupMembers <- function(conn,data){
 
 runQuery <- function(conn,query,...){
 #	if(debug) message(query)
+	if(is.character(conn)){
+		print(class(conn))
+		print(sys.calls())
+	}
 	df = dbGetQuery(conn,query,...)
 	if(is.null(df))
 		return(NULL)

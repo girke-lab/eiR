@@ -88,9 +88,9 @@ test_aa.eiInit <- function() {
 	# we just test with one node as SQLite does not support parallel writes
 	cl=makeCluster(1,type="SOCK",outfile=file.path(test_dir,"eiInit.snow"))
 	fpCids = eiInit(file.path(fpDir,c("f1","f2","f3")),dir=fpDir,descriptorType="fp",cl=cl,
-						 connSource=function(){require(eiR); eiR:::defaultConn(fpDir) } )
+						 connSource=connSource )
 	stopCluster(cl)
-	checkData(fpCids,fpDir)
+	#checkData(fpCids)
 }
 
 testRefs <- function(){
@@ -223,7 +223,7 @@ test_ca.eiQuery <- function(){
 
 	message("eiQuery test 4")
 	lshData = loadLSHData(r,d,dir=test_dir)
-	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,lshData=lshData,descriptorType=descType,dir=test_dir)
+	results=eiQuery(runId,c("650002","650003"), format="name",K=15,lshData=lshData,dir=test_dir)
 	freeLSHData(lshData)
 
 
