@@ -65,7 +65,7 @@ CREATE VIEW run_embedded_descriptors AS
 			 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
 			 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
 			 JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
-	ORDER BY ed.descriptor_id,ed.ordering
+	ORDER BY d.compound_id,ed.descriptor_id,ed.ordering
 ;
 
 CREATE VIEW run_sample_embedded_descriptors AS
@@ -77,5 +77,5 @@ CREATE VIEW run_sample_embedded_descriptors AS
 			 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
 			 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
 			 JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
-	ORDER BY ed.descriptor_id,ed.ordering
+	ORDER BY d.compound_id,ed.descriptor_id,ed.ordering
 ;

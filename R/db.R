@@ -100,14 +100,14 @@ writeIddb <- function(conn,ids,name,append=FALSE) {
    })
 
 }
-readIddb <- function(conn,name=NULL,groupId=getCompoundGroupId(conn,name)) {
+readIddb <- function(conn,name=NULL,groupId=getCompoundGroupId(conn,name),sorted=FALSE) {
 	handle = if(is.null(name)) groupId else name
 	message("readiddb name: ",handle)
 	#groupId = getCompoundGroupId(conn,name)
 	if(is.na(groupId))
 		stop("compound group ",handle," was not found in the database")
 	runQuery(conn,paste("SELECT compound_id FROM compound_group_members WHERE compound_group_id=
-								 ",groupId))[[1]]
+								 ",groupId, (if(sorted) " ORDER BY compound_id " else "")     ))[[1]]
 }
 getGroupSize <- function(conn,name=NULL,groupId=NULL) {
 	handle = groupId

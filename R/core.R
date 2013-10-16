@@ -383,6 +383,8 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		print("new compound ids: "); print(compoundIds)
 		message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 		additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
+		print("additionDescriptors")
+		print(additionDescriptors)
 		numAdditions = length(compoundIds)
 		refIds = readIddb(conn,groupId=runInfo$references_group_id)
 
@@ -390,7 +392,8 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		embeddedAdditions= embedFromRefs(r,d,file.path(workDir,refGroupName), 
 									t(IddbVsGivenDist(conn,refIds,additionDescriptors,distance,descriptorType)))
 		#if(debug) print(dim(embeddedAdditions))
-		#if(debug) print(embeddedAdditions)
+		print("embeddedAdditions")
+		if(debug) print(embeddedAdditions)
 
 
 		insertEmbeddedDescriptors(conn,embeddingId,compoundIds,t(embeddedAdditions))
@@ -418,15 +421,17 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 	
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-		mainIndex = readIddb(conn,file.path(dir,Main))
+		#sort these to ensure it lines up with the matrix file
+		mainIndex = readIddb(conn,file.path(dir,Main),sorted=TRUE)
 		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T)
 
+		save(neighbors,file="neighbors.RData")
 
 		ml=length(mainIndex)
 #		neighbors = array(matrix(1:ml,nrow=ml,
 #								 ncol=ml,byrow=TRUE),dim=c(ml,ml,2))
 #		neighbors[,,2]=-2.0
-		print(neighbors)
+		#print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
 		if(type=="matrix")
@@ -439,10 +444,10 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 			descriptors = getDescriptors(conn,descriptorType,indexSet)
 
 			lapply(1:length(indexSet),function(i){
-			#	print(neighbors[i,,])
+				#print(neighbors[i,,])
 				#nonNegs=neighbors[i,,1]!=-1
 				nonNegs=!is.na(neighbors[i,,1])
-			#	print(nonNegs)
+				#print(nonNegs)
 			   n=neighbors[i,nonNegs,]
 			#	print(dim(n))
 				#must set this manually because if only one row is
@@ -454,26 +459,26 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 				names(reverseIndex)=mainIndex[n[,1]]
 			   n[,1] = mainIndex[n[,1]]
 				#print(reverseIndex)
-				print(n)
+				#print(n)
 				#print(paste("refining",i))
 				refined = refine(n,descriptors[i],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
 				dim(refined)=c(min(sum(nonNegs),K) ,2)
-				print("refined: ")
-				print(refined)
+				#print("refined: ")
+				#print(refined)
 				#print(paste(mainIndex[i],paste(refined[,1],collapse=",")))
 				refinedNeighbors[i,1:nrow(refined)]<<-
 							reverseIndex[as.character(refined[,1])]
 				if(type=="matrix")
 					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
-				print(refinedNeighbors[i,1:nrow(refined)])
+				#print(refinedNeighbors[i,1:nrow(refined)])
 			})
 		 },batchSize=1000)
 
 		
 
 		rownames(refinedNeighbors)=1:ml  ##
-		print("refined:")
-		print((refinedNeighbors))
+		#print("refined:")
+		#print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
@@ -491,7 +496,7 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,conn=defaultConn(dir),...)
 {
 		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,...)
-		mainIds <- readIddb(conn,file.path(dir,Main))
+		mainIds <- readIddb(conn,file.path(dir,Main),sorted=TRUE)
 		#print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
 		#print("neighbors:")
 		#print(neighbors)
