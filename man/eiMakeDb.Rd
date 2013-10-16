@@ -51,10 +51,14 @@
      parrallel.
    }
 	\item{connSource}{
-		A function returning a new database connection. This needed for cluster operations
+		A function returning a new database connection. Note that it is not suffient to return a
+		reference to an existing connection, it must be a distinct, new connection.  
+		This is needed for cluster operations
 		that make use of the database as they will each need to craete a new connection.
 		If not given, certain parts of this function will not be parrallelized.
 
+		This function can also be used to setup the envrionment on the cluster worker nodes. For
+		example, you might need to re-load libraries like RSQLite and such.
 	}
 }
 \details{

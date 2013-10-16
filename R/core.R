@@ -41,14 +41,35 @@ lshPrep <- function(matrixFile,
 	indexName
 }
 
+
+loadLSHData <- function(r,d, W=NA,M=NA,L=NA,K=NA,T=NA,dir=".",matrixFile=NULL) {
+
+	if(is.null(matrixFile)){
+		workDir=file.path(dir,paste("run",r,d,sep="-"))
+		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
+	}
+
+	indexFile = lshPrep(matrixFile,W,NA,M,L,K,T,NA)
+	.Call("getIndexedData",as.character(matrixFile),indexFile,
+		as.double(W),NA,as.integer(M),as.integer(L))
+}
+
+freeLSHData <- function(lshData){
+	.Call("freeIndexedData",lshData)
+}
+
 # requires one query per column, not per row
 lshsearch <- function(queries,matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA) 
+	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,lshData=NULL) 
 {
-	indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
-	.Call("lshsearch",queries,as.character(matrixFile),indexFile,
-		as.double(W),as.integer(H),as.integer(M),as.integer(L),
-		as.integer(K),as.integer(T), as.double(R))
+	if(is.null(lshData)){
+		indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
+		.Call("lshsearch",queries,as.character(matrixFile),indexFile,
+			as.double(W),as.integer(H),as.integer(M),as.integer(L),
+			as.integer(K),as.integer(T), as.double(R))
+	}else{
+		.Call("query",queries,lshData, as.integer(K),as.integer(T), as.double(R))
+	}
 }
 lshsearchAll <- function(matrixFile,
 	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA) 
@@ -72,8 +93,9 @@ lshsearchAll <- function(matrixFile,
 # and compound format, ei, "SDF", "SMILE", etc.
 # X optionally: compound -> string and string -> compound
 
-eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FALSE,
-						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE)
+eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
+						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
+						 cl=NULL,connSource=NULL)
 {
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
@@ -83,19 +105,54 @@ eiInit <- function(compoundDb,dir=".",format="sdf",descriptorType="ap",append=FA
 		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set,conn,dir),
 					  descriptor_type=descriptorType)
 	
+	message("input type: ",class(inputs))
+
 	if(is.null(conn))
 		stop("no database connection found")
 
+<<<<<<< HEAD
 	ensureSchema(conn)
+=======
+>>>>>>> dev
 	
 	if(tolower(format) == "sdf"){
-		compoundIds = loadSdf(conn,compoundDb, descriptors=descriptorFunction,updateByName=updateByName)
+		loadFormat=loadSdf
 	}else if(tolower(format) == "smiles" || tolower(format)=="smi"){
-		stop("smiles are not yet supported")
-		compoundIds = loadSmiles(conn,compoundDb,descriptors=descriptorFunction,updateByName=updateByName)
+		loadFormat=loadSmiles
 	}else{
 		stop(paste("unknown input format:",format," supported formats: SDF, SMILE"))
 	}
+
+	connSource
+	loadInput = function(input){
+		conn=connSource()
+		tryCatch({
+			if(is.character(input)) message("loading ",input)
+			ids = loadFormat(conn,input, descriptors=descriptorFunction,updateByName=updateByName)
+			if(is.character(input))
+				message("loaded ",length(ids)," compounds from ",input)
+			else
+				message("loaded ",length(ids)," compounds")
+			ids
+		  },error = function(e) stop(e),
+		  finally = dbDisconnect(conn)
+		)
+	}
+
+		
+
+	if(!is.null(cl) && is.character(inputs)){ #if its a list of filenames, use the cluster
+		if(is.null(connSource))
+			stop("a connSource must be provided when using a cluster")
+		message("using cluster")
+		compoundIds = unlist(clusterApplyLB(cl,inputs, loadInput))
+	}else{
+		message("loading locally")
+		connSource=function() conn
+		compoundIds=loadInput(inputs)
+	}
+
+
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
@@ -241,7 +298,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
 			if(numCompounds * r != length(rawDists))
-				stop("tried to read ",numCompunds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
+				stop("tried to read ",numCompounds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
 			dim(rawDists) = c(r,numCompounds)
 			rawDists=t(rawDists)
 
@@ -266,6 +323,21 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	if(debug) message("done with clusterApply. concatening parts")
 
 
+<<<<<<< HEAD
+=======
+	#unlink(c(embeddedFile,embeddedQueryFile))
+	f1 = file(embeddedFile,"w")
+	f2 = file(embeddedQueryFile,"w")
+	for(x in 1:numJobs){
+		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
+			 sep="\n",file=f1)
+		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
+			 sep="\n",file=f2)
+	}
+	close(f2)
+	close(f1)
+
+>>>>>>> dev
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
@@ -278,7 +350,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 eiQuery <- function(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30)
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,mainIds =readIddb(file.path(dir,Main)))
 {
 		conn
 		if(debug) print("eiQuery")
@@ -317,7 +389,9 @@ eiQuery <- function(runId,queries,format="sdf",
 		#if(debug) print(embeddedQueries)
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 		hits = search(embeddedQueries,matrixFile,
-							queryDescriptors,distance,dir,conn=conn,descriptorType=descriptorType,K=K,W=W,M=M,L=L,T=T)
+							queryDescriptors,distance,dir,conn=conn,descriptorType=descriptorType,
+							lshData=lshData,mainIds=mainIds,
+							K=K,W=W,M=M,L=L,T=T)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
 
@@ -435,7 +509,7 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 
 		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
 		if(type=="matrix")
-			similarities = array(NA,dim=c(length(mainIndex),K))
+			similarities = array(NA,dim=c(ml,K))
 	
 		#print("refining")
 		batchByIndex(mainIndex,function(indexSet){
@@ -482,7 +556,7 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
-							names=rownames(refinedNeighbors),
+							names=mainIndex,
 							similarities=similarities))
 
 		#print("clustering")
@@ -493,10 +567,12 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 }
 
 #expects one query per column
-search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,conn=defaultConn(dir),...)
+search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,
+						 conn=defaultConn(dir),lshData=NULL,mainIds=readIddb(file.path(dir,Main),sorted=TRUE),...)
 {
-		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,...)
-		mainIds <- readIddb(conn,file.path(dir,Main),sorted=TRUE)
+		mainIds=sort(mainIds)
+		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,lshData=lshData,...)
+		
 		#print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
 		#print("neighbors:")
 		#print(neighbors)
@@ -521,6 +597,7 @@ embedFromRefs <- function(r,d,refIddb,query2RefDists)
 {
 		coordFile=paste(refIddb,"distmat","coord",sep=".")
 		coords = as.matrix(read.table(coordFile))
+
 		embed(r,d,coords,query2RefDists)
 }
 #take referenace coords, and distance matrix
@@ -705,7 +782,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 	#print(str(descriptors))
 
 	if(is.null(cl)){
-		process = function(record){
+		process = function(record,recordPart=NULL){
 			batchByIndex(iddb1,function(ids){
 				outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
 				record(desc2descDist(outerDesc,descriptors,dist))
@@ -717,7 +794,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 			stop("the connSource parameter is required when using a cluster")
 
 
-		process = function(record,recordPart){
+		process = function(record,recordPart=NULL){
 				ip=function(ids,jobId){
 					f = file(paste("job-",jobId,".out",sep=""),"a")
 					message("in indexProcessor: ",jobId)

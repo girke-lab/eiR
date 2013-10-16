@@ -81,9 +81,16 @@ test_aa.eiInit <- function() {
 	#checkData(compoundIds)
 
 	message("fp descriptor")
-	#dir.create(fpDir)
-	#fpCids = eiInit(sdfsample,dir=fpDir,descriptorType="fp")
-	##checkData(fpCids,fpDir)
+	dir.create(fpDir)
+	write.SDF(sdfsample[1:30],file.path(fpDir,"f1"))
+	write.SDF(sdfsample[31:60],file.path(fpDir,"f2"))
+	write.SDF(sdfsample[61:100],file.path(fpDir,"f3"))
+	# we just test with one node as SQLite does not support parallel writes
+	cl=makeCluster(1,type="SOCK",outfile=file.path(test_dir,"eiInit.snow"))
+	fpCids = eiInit(file.path(fpDir,c("f1","f2","f3")),dir=fpDir,descriptorType="fp",cl=cl,
+						 connSource=function(){require(eiR); eiR:::defaultConn(fpDir) } )
+	stopCluster(cl)
+	checkData(fpCids,fpDir)
 }
 
 testRefs <- function(){
@@ -213,6 +220,12 @@ test_ca.eiQuery <- function(){
    
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
+
+	message("eiQuery test 4")
+	lshData = loadLSHData(r,d,dir=test_dir)
+	results=eiQuery(r,d,refIddb,c("650002","650003"), format="name",K=15,lshData=lshData,descriptorType=descType,dir=test_dir)
+	freeLSHData(lshData)
+
 
 }
 

@@ -198,7 +198,7 @@ selectDescriptors <- function(type,ids){
 	q=paste("SELECT compound_id, descriptor FROM descriptors JOIN descriptor_types USING(descriptor_type_id) WHERE ",
 				" descriptor_type='",type,"' AND compound_id IN (", paste(ids,collapse=","),") ORDER
 				BY compound_id",sep="")
-	#print(q)
+	if(debug) message("select descriptors: ",q)
 	q
 }
 getDescriptors <- function(conn,type,idList){
