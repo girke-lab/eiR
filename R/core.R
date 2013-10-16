@@ -110,10 +110,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	if(is.null(conn))
 		stop("no database connection found")
 
-<<<<<<< HEAD
 	ensureSchema(conn)
-=======
->>>>>>> dev
 	
 	if(tolower(format) == "sdf"){
 		loadFormat=loadSdf
@@ -322,22 +319,6 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 	if(debug) message("done with clusterApply. concatening parts")
 
-
-<<<<<<< HEAD
-=======
-	#unlink(c(embeddedFile,embeddedQueryFile))
-	f1 = file(embeddedFile,"w")
-	f2 = file(embeddedQueryFile,"w")
-	for(x in 1:numJobs){
-		cat(scan(file.path(workDir,paste(r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=f1)
-		cat(scan(file.path(workDir,paste("q",r,d,x,sep="-")),what="raw",sep="\n"),
-			 sep="\n",file=f2)
-	}
-	close(f2)
-	close(f1)
-
->>>>>>> dev
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
 	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
