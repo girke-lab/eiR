@@ -6,7 +6,6 @@ BiocStyle::latex()
 
 
 %\usepackage[margin=0.75in]{geometry}
-\usepackage[authoryear,round]{natbib}
 \usepackage{hyperref}
 %\hypersetup{
 %       colorlinks,
