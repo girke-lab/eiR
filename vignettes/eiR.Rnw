@@ -1,7 +1,7 @@
 \documentclass{article}
 
 <<style, eval=TRUE, echo=FALSE, results=tex>>=
-BiocStyle::latex()
+BiocStyle::latex(bibstyle="plainnat")
 @
 
 
@@ -22,7 +22,6 @@ BiocStyle::latex()
 \title{eiR}
 \author{Kevin Horan, Yiqun Cao, Thomas Girke}
 
-\bibliographystyle{plainnat}
 
 %\VignetteIndexEntry{eiR}
 
@@ -30,6 +29,7 @@ BiocStyle::latex()
 \maketitle
 \tableofcontents
 \clearpage
+\usepackage[authoryear,round]{natbib}
 
 <<echo=false,term=false>>=
    unlink("data",recursive=TRUE)
