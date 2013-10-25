@@ -6,6 +6,7 @@ BiocStyle::latex(bibstyle="plainnat")
 
 
 %\usepackage[margin=0.75in]{geometry}
+\usepackage[authoryear,round]{natbib}
 \usepackage{hyperref}
 %\hypersetup{
 %       colorlinks,
@@ -29,7 +30,6 @@ BiocStyle::latex(bibstyle="plainnat")
 \maketitle
 \tableofcontents
 \clearpage
-\usepackage[authoryear,round]{natbib}
 
 <<echo=false,term=false>>=
    unlink("data",recursive=TRUE)
