@@ -1,7 +1,7 @@
 \documentclass{article}
 
 <<style, eval=TRUE, echo=FALSE, results=tex>>=
-BiocStyle::latex(bibstyle="plainnat")
+BiocStyle::latex(use.unsrturl=FALSE)
 @
 
 
@@ -23,6 +23,7 @@ BiocStyle::latex(bibstyle="plainnat")
 \title{eiR}
 \author{Kevin Horan, Yiqun Cao, Thomas Girke}
 
+\bibliographystyle{plainnat}
 
 %\VignetteIndexEntry{eiR}
 
