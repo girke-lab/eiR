@@ -143,6 +143,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 		if(is.null(connSource))
 			stop("a connSource must be provided when using a cluster")
 		message("using cluster")
+		addDescriptorType(connSource(),descriptorType)
 		compoundIds = unlist(clusterApplyLB(cl,inputs, loadInput))
 	}else{
 		message("loading locally")
