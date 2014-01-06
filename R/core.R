@@ -253,76 +253,79 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		write.table(coords,file=coordFile,row.names=F,col.names=F)
 		coords
 	}
-	#compute dist between refs and all compounds
-	if(!file.exists(ref2AllDistFile)){
-		message("generating distance file")
-		IddbVsIddbDist(conn,mainIds, refIds,distance,descriptorType,
-							file=ref2AllDistFileTemp,
-							cl=if(is.null(connSource)) NULL else cl,
-							connSource=connSource)
-		file.rename(ref2AllDistFileTemp,ref2AllDistFile)
-	}
-	
-	#each job needs: R, D, coords, a chunk of distance data
-	if(debug) message("getting solver")
-	solver <- getSolver(r,d,coords)	
-
-
-	numCompounds = length(mainIds)
-
-	#ensure we have at least as many jobs as cluster nodes, but if
-	# we have a large number of compounds, batch them by no more than 10,000
-	numJobs = max(length(cl), as.integer(numCompounds / 10000))
-	jobSize = as.integer(numCompounds / numJobs + 1) #make last job short
-
-	if(debug) message("numJobs: ",numJobs," jobSize: ",jobSize)
-
-	currentDir=getwd()
-	if(debug) message("starting clusterApply")
-
-
-	message("outer envir: ",ls(environment()))
-
-	embedJob <-	function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
-
-			cat(paste("inner environment: ",paste(ls(),collapse=" "),"\n",paste(ls(parent.env(environment())),collapse=" "),"\n"),file=paste("job2-",i,".out",sep=""))
-
-			solver <- getSolver(r,d,coords)	
-			#TODO: check to see if this block is already done
-
-			start = (i-1)*jobSize+1 			 #inclusive
-			end = min(i*jobSize,numCompounds) #inclusive
-			numCompounds=end-start+1
-
-
-			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
-			if(numCompounds * r != length(rawDists))
-				stop("tried to read ",numCompounds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
-			dim(rawDists) = c(r,numCompounds)
-			rawDists=t(rawDists)
-
-			data = sapply( 1:numCompounds,function(x) embedCoord(solver,d, rawDists[x,]))
-
-			if(debug) message("embedded ",ncol(data)," compounds")
-
-			conn=connSource()
-##			print(t(data[1:15,1:10]))
-			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],t(data))
-			dbDisconnect(conn)
-
-	}
-	
-	#copy large items to nodes once, then remove them from the closures scope
-	# so that they don't get copied to ndoes each time
-	clusterExport(cl,c("coords","mainIds","queryIds"),envir=environment())
-	rm(coords,mainIds,queryIds,distance,envir=environment(embedJob))
-
-	clusterApplyLB(cl,1:numJobs,embedJob )
-
-	if(debug) message("done with clusterApply. concatening parts")
-
-	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
-	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
+	embedAll(conn,runId,refIds=refIds,
+				coords=coords,distance=distance,
+				cl=cl,connSource=connSource)
+#	#compute dist between refs and all compounds
+#	if(!file.exists(ref2AllDistFile)){
+#		message("generating distance file")
+#		IddbVsIddbDist(conn,mainIds, refIds,distance,descriptorType,
+#							file=ref2AllDistFileTemp,
+#							cl=if(is.null(connSource)) NULL else cl,
+#							connSource=connSource)
+#		file.rename(ref2AllDistFileTemp,ref2AllDistFile)
+#	}
+#	
+#	#each job needs: R, D, coords, a chunk of distance data
+#	if(debug) message("getting solver")
+#	solver <- getSolver(r,d,coords)	
+#
+#
+#	numCompounds = length(mainIds)
+#
+#	#ensure we have at least as many jobs as cluster nodes, but if
+#	# we have a large number of compounds, batch them by no more than 10,000
+#	numJobs = max(length(cl), as.integer(numCompounds / 10000))
+#	jobSize = as.integer(numCompounds / numJobs + 1) #make last job short
+#
+#	if(debug) message("numJobs: ",numJobs," jobSize: ",jobSize)
+#
+#	currentDir=getwd()
+#	if(debug) message("starting clusterApply")
+#
+#
+#	message("outer envir: ",ls(environment()))
+#
+#	embedJob <-	function(i) { # job i has indicies [(i-1)*jobSize+1, i*jobSize]
+#
+#			cat(paste("inner environment: ",paste(ls(),collapse=" "),"\n",paste(ls(parent.env(environment())),collapse=" "),"\n"),file=paste("job2-",i,".out",sep=""))
+#
+#			solver <- getSolver(r,d,coords)	
+#			#TODO: check to see if this block is already done
+#
+#			start = (i-1)*jobSize+1 			 #inclusive
+#			end = min(i*jobSize,numCompounds) #inclusive
+#			numCompounds=end-start+1
+#
+#
+#			rawDists = scan(ref2AllDistFile,skip=start-1,nlines=numCompounds)           
+#			if(numCompounds * r != length(rawDists))
+#				stop("tried to read ",numCompounds," * ",r," = ",numCompounds * r," values, but found only ",length(rawDists))
+#			dim(rawDists) = c(r,numCompounds)
+#			rawDists=t(rawDists)
+#
+#			data = sapply( 1:numCompounds,function(x) embedCoord(solver,d, rawDists[x,]))
+#
+#			if(debug) message("embedded ",ncol(data)," compounds")
+#
+#			conn=connSource()
+###			print(t(data[1:15,1:10]))
+#			insertEmbeddedDescriptors(conn,embeddingId,mainIds[start:end],t(data))
+#			dbDisconnect(conn)
+#
+#	}
+#	
+#	#copy large items to nodes once, then remove them from the closures scope
+#	# so that they don't get copied to ndoes each time
+#	clusterExport(cl,c("coords","mainIds","queryIds"),envir=environment())
+#	rm(coords,mainIds,queryIds,distance,envir=environment(embedJob))
+#
+#	clusterApplyLB(cl,1:numJobs,embedJob )
+#
+#	if(debug) message("done with clusterApply. concatening parts")
+#
+#	if(!debug) Map(function(x) unlink(file.path(workDir,paste(r,d,x,sep="-"))),1:numJobs)
+#	if(!debug) Map(function(x) unlink(file.path(workDir,paste("q",r,d,x,sep="-"))),1:numJobs)
 
 	writeMatrixFile(conn,runId,dir=dir)
 	writeMatrixFile(conn,runId,dir=dir,samples=TRUE)
@@ -440,21 +443,25 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName)
 		print("new compound ids: "); print(compoundIds)
 		message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
-		additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
-		print("additionDescriptors")
-		print(additionDescriptors)
-		numAdditions = length(compoundIds)
-		refIds = readIddb(conn,groupId=runInfo$references_group_id)
+		#additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
+		#print("additionDescriptors")
+		#print(additionDescriptors)
+		#numAdditions = length(compoundIds)
+		#refIds = readIddb(conn,groupId=runInfo$references_group_id)
 
-		#embed queries in search space
-		embeddedAdditions= embedFromRefs(r,d,file.path(workDir,refGroupName), 
-									t(IddbVsGivenDist(conn,refIds,additionDescriptors,distance,descriptorType)))
-		#if(debug) print(dim(embeddedAdditions))
-		print("embeddedAdditions")
-		if(debug) print(embeddedAdditions)
+#		#embed queries in search space
+#		embeddedAdditions= embedFromRefs(r,d,file.path(workDir,refGroupName), 
+#									t(IddbVsGivenDist(conn,refIds,additionDescriptors,distance,descriptorType)))
+#		#if(debug) print(dim(embeddedAdditions))
+#		print("embeddedAdditions")
+#		if(debug) print(embeddedAdditions)
 
 
-		insertEmbeddedDescriptors(conn,embeddingId,compoundIds,t(embeddedAdditions))
+		#cl=makeCluster(1,type="SOCK",outfile="")
+		#connSource= function() conn
+		#embedAll(conn,runId,refIds,coords,distance,cl,connSource)
+		embedAll(conn,runId,distance,dir=dir)
+		#insertEmbeddedDescriptors(conn,embeddingId,compoundIds,t(embeddedAdditions))
 
 		writeMatrixFile(conn,runId,dir=dir)
 		compoundIds
@@ -909,4 +916,60 @@ embedDescriptor <- function(conn,r,d,refName,descriptor,descriptorType="ap",
 	refIds = readIddb(conn,refName)
 	embedFromRefs(r,d,refIddb,
 			t(IddbVsGivenDist(conn,refIds,descriptor,distance,descriptorType)))
+}
+
+getCoords <- function(conn,runId, dir="."){ # looks for coord file in current directory
+	runInfo = getExtendedRunInfo(conn,runId) 
+	refGroupName = runInfo$references_group_name
+	r=runInfo$num_references
+	d=runInfo$dimension
+	workDir = file.path(dir,paste("run",r,d,sep="-"))
+	selfDistFile <- paste(file.path(workDir,refGroupName),"distmat",sep=".")
+	coordFile <- paste(selfDistFile,"coord",sep=".")
+	as.matrix(read.table(coordFile))
+}
+
+embedAll <- function(conn,runId, distance,dir=".", 
+							refIds=readIddb(conn,groupId=runInfo$references_group_id),
+							coords = getCoords(conn,runId,dir),
+							cl=NULL,
+							connSource=NULL){
+	runInfo = getExtendedRunInfo(conn,runId) 
+	r=runInfo$num_references
+	d=runInfo$dimension
+	embeddingId = runInfo$embedding_id
+	descriptorType=getDescriptorType(conn,info =runInfo)
+	unembeddedDescriptorIds = getUnEmbeddedDescriptorIds(conn,runId)
+
+	embedJob = function(ids,jobId){
+		solver <- getSolver(r,d,coords)	
+		conn=connSource()
+
+		descriptors = getDescriptorsByDescriptorId(conn,ids)
+		rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
+		embeddedDescriptors = apply(rawDists,c(1),
+			function(x) embedCoord(solver,d,x))
+
+		insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
+	}
+	
+	if(is.null(cl)){ #don't use cluster
+		connSource = function() conn
+		batchByIndex(unembeddedDescriptorIds,embedJob)
+	}else{
+		#ensure we have at least as many jobs as cluster nodes, but if
+		# we have a large number of compounds, batch them by no more than 10,000
+		num = length(unembeddedDescriptorIds)
+		numJobs = max(length(cl), as.integer(num/ 10000))
+		jobSize = as.integer(num/ numJobs + 1) #make last job short
+
+		#copy large items to nodes once, then remove them from the closures scope
+		# so that they don't get copied to ndoes each time
+		clusterExport(cl,c("coords","distance"),envir=environment())
+		#rm(coords,unembeddedDescriptorIds,distance,envir=environment(embedJob))
+		rm(coords,distance,envir=environment(embedJob))
+
+		parBatchByIndex(unembeddedDescriptorIds,embedJob,
+							 reduce=identity,cl=cl,batchSize=jobSize)
+	}
 }

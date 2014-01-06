@@ -49,7 +49,8 @@ CREATE  VIEW unembedded_descriptors AS
 	FROM	 runs AS r 
 			 JOIN compound_groups AS cg USING(compound_group_id)
 			 JOIN compound_group_members AS cgm USING(compound_group_id)
-			 JOIN descriptors AS d USING(compound_id)
+			 JOIN compound_descriptors USING(compound_id)
+			 JOIN descriptors AS d USING(descriptor_id)
 			 JOIN descriptor_types AS dt USING(descriptor_type_id)
 			 LEFT JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
 	WHERE
@@ -61,7 +62,8 @@ CREATE VIEW run_embedded_descriptors AS
 	FROM	 runs AS r
 			 JOIN compound_groups AS cg USING(compound_group_id)
 			 JOIN compound_group_members AS cgm USING(compound_group_id)
-			 JOIN descriptors AS d USING(compound_id)
+			 JOIN compound_descriptors USING(compound_id)
+			 JOIN descriptors AS d USING(descriptor_id)
 			 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
 			 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
 			 JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
@@ -73,7 +75,8 @@ CREATE VIEW run_sample_embedded_descriptors AS
 	FROM	 runs AS r
 			 JOIN compound_groups AS cg USING(compound_group_id)
 			 JOIN compound_group_members AS cgm ON(cgm.compound_group_id = r.sample_group_id)
-			 JOIN descriptors AS d USING(compound_id)
+			 JOIN compound_descriptors USING(compound_id)
+			 JOIN descriptors AS d USING(descriptor_id)
 			 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
 			 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
 			 JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)

@@ -43,8 +43,8 @@ pgSource=function(){
 	conn
 }
 
-#connSource = sqliteSource
-connSource = pgSource
+connSource = sqliteSource
+#connSource = pgSource
 
 lastRunId=0
 
@@ -157,7 +157,10 @@ test_bb.eiMakeDb <- function() {
 
 		numDescriptors = eiR:::runQuery(conn,paste("SELECT count(distinct descriptor_id) FROM runs as r JOIN embedded_descriptors as ed USING(embedding_id) 
 										WHERE r.run_id = ",rid))[[1]]
-		checkEquals(N,numDescriptors)
+		#checkEquals(N,numDescriptors)
+		#this should be 96 now because some descriptors are identical
+		# and we now only store a unique set
+		checkEquals(96,numDescriptors)
 
 		for(i in 1:numDescriptors)
 			checkDescriptor(conn,rid,descriptorIndex=i)
@@ -509,7 +512,7 @@ checkDescriptor = function(conn,rid,descriptorIndex=NULL,
 		message("checking descriptor of compound id ",compoundId)
 
 
-		descId = eiR:::runQuery(conn,paste("SELECT descriptor_id FROM descriptors where
+		descId = eiR:::runQuery(conn,paste("SELECT descriptor_id FROM compound_descriptors where
 												 compound_id=",compoundId))[[1]]
 
 		desc = eiR:::getDescriptors(conn,descType,compoundId)[[1]]

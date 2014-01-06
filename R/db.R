@@ -140,11 +140,13 @@ getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds){
 
 
 	data = selectInBatches(conn,compoundIds,function(ids) 
-								  paste("SELECT compound_id,value FROM descriptors as d
+								  paste("SELECT cd.compound_id,value FROM descriptors as d
 												JOIN embedded_descriptors ed USING(descriptor_id)
 												JOIN embeddings as em USING(embedding_id)
-											WHERE d.descriptor_type_id = em.descriptor_type_id AND  em.embedding_id = ",embeddingId,"  AND compound_id IN (",paste(ids,collapse=","),")
-											ORDER BY compound_id,ordering",sep=""))
+												JOIN compound_descriptors as cd USING(descriptor_id)
+											WHERE d.descriptor_type_id = em.descriptor_type_id AND  em.embedding_id = ",embeddingId,
+											"  AND cd.compound_id IN (",paste(ids,collapse=","),")
+											ORDER BY cd.compound_id,ordering",sep=""))
 
 
 	embeddedDescriptors = aggregate(data$value,list(compound_id=data$compound_id),identity)$x
@@ -161,8 +163,44 @@ getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds){
 
 	embeddedDescriptors
 }
+getUnEmbeddedDescriptorIds <- function(conn,runId){
+	descriptorIds=runQuery(conn,paste("SELECT descriptor_id FROM unembedded_descriptors 
+							  WHERE run_id = ",runId,sep=""))
+	message("found ",length(descriptorIds)," un-embedded descriptors for runId ",runId)
+	descriptorIds$descriptor_id
+}
 
-insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,data){
+insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
+
+	numDescriptors = nrow(data)
+	descriptorLength = ncol(data)
+	assert(numDescriptors == length(descriptorIds))
+	data=as.vector(data)
+	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
+				  #ordering = rep(1:descriptorLength,numDescriptors),
+				  ordering = as.vector(sapply(1:descriptorLength,function(i) rep(i,numDescriptors))),
+				  value = data)
+
+	if(inherits(conn,"SQLiteConnection")){
+		dbGetPreparedQuery(conn, 
+			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
+				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
+	}else if(inherits(conn,"PostgreSQLConnection")){
+		fields = c("embedding_id","descriptor_id","ordering","value")
+##		print(toInsert[1:500,fields])
+		apply(toInsert[,fields],1,function(row) 
+			runQuery(conn,
+				paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
+					"VALUES( $1,$2,$3,$4)"),row))
+	}else{
+		stop("database ",class(conn)," unsupported")
+	}
+
+
+}
+
+
+insertEmbeddedDescriptorsByCompoundId <-function(conn,embeddingId,compoundIds,data){
 
 	descriptorType = getDescriptorType(conn,embeddingId=embeddingId)
 	descriptorIds = getDescriptorIds(conn,compoundIds,descriptorType,keepOrder=TRUE)
@@ -195,7 +233,9 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,compoundIds,data){
 
 selectDescriptors <- function(type,ids){
 	# paste(formatC(c(1,4,10000000,123400000056),format="fg"),collapse=",")
-	q=paste("SELECT compound_id, descriptor FROM descriptors JOIN descriptor_types USING(descriptor_type_id) WHERE ",
+	q=paste("SELECT compound_id, descriptor FROM compound_descriptors 
+					JOIN descriptors USING(descriptor_id)
+					JOIN descriptor_types USING(descriptor_type_id) WHERE ",
 				" descriptor_type='",type,"' AND compound_id IN (", paste(ids,collapse=","),") ORDER
 				BY compound_id",sep="")
 #	if(debug) message("select descriptors: ",q)
@@ -214,13 +254,27 @@ getDescriptors <- function(conn,type,idList){
 	#write.table(n,file="descriptors.out")
 	ordered
 }
+getDescriptorsByDescriptorId <- function(conn,descriptorIds){
 
+	data = selectInBatches(conn,descriptorIds, function(ids) 
+								  paste("SELECT descriptor_id,descriptor FROM descriptors WHERE descriptor_id IN ("
+										  ,paste(ids,collapse=","),")",sep=""))
+	if(nrow(data) != length(descriptorIds)){
+		if(debug) print(descriptorIds)
+		stop(paste("missing some descriptors. Found only ",nrow(data)," out of ",length(descriptorIds), "given descriptor ids"))
+	}
+
+	temp=data$descriptor
+	names(temp) = data$descriptor_id
+	temp[as.character(descriptorIds)]
+}
 
 getDescriptorIds <- function(conn,compoundIds,descriptorType,keepOrder=FALSE){
-	data = runQuery(conn, paste("SELECT descriptor_id,compound_id FROM descriptors
+	data = runQuery(conn, paste("SELECT descriptor_id,compound_id FROM compound_descriptors as cd
+													  JOIN descriptors USING(descriptor_id)
 													  JOIN descriptor_types USING(descriptor_type_id) 
 													  WHERE descriptor_type = '",descriptorType,"'
-													  AND compound_id IN (",paste(compoundIds,collapse=","),")",sep=""))
+													  AND cd.compound_id IN (",paste(compoundIds,collapse=","),")",sep=""))
 	descriptorIds =data$descriptor_id
 	if(keepOrder){
 		names(descriptorIds) = data$compound_id
