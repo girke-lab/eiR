@@ -490,13 +490,13 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		mainIndex = readIddb(conn,file.path(dir,Main),sorted=TRUE)
 		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T)
 
-		save(neighbors,file="neighbors.RData")
+		#save(neighbors,file="neighbors.RData")
 
 		ml=length(mainIndex)
 #		neighbors = array(matrix(1:ml,nrow=ml,
 #								 ncol=ml,byrow=TRUE),dim=c(ml,ml,2))
 #		neighbors[,,2]=-2.0
-		#print(neighbors)
+		print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(length(mainIndex),K))
 		if(type=="matrix")
@@ -505,8 +505,9 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		#print("refining")
 		batchByIndex(mainIndex,function(indexSet){
 
-			#print("indexset:"); print(indexSet)
+			print("indexset:"); print(indexSet)
 			descriptors = getDescriptors(conn,descriptorType,indexSet)
+			message("got ",length(descriptors))
 
 			lapply(1:length(indexSet),function(i){
 				#print(neighbors[i,,])
@@ -542,8 +543,8 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		
 
 		rownames(refinedNeighbors)=1:ml  ##
-		#print("refined:")
-		#print((refinedNeighbors))
+		print("refined:")
+		print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
@@ -562,24 +563,39 @@ search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,de
 						 conn=defaultConn(dir),lshData=NULL,mainIds=readIddb(conn,file.path(dir,Main),sorted=TRUE),...)
 {
 		mainIds=sort(mainIds)
+		
+		matrixIndex = read.table(paste(matrixFile,"index",sep="."))[[1]]
+
+		#TODO: make this faster
+		compIds = descriptorsToCompounds(conn,matrixIndex,all=FALSE)
 		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,lshData=lshData,...)
 		
-		#print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
-		#print("neighbors:")
-		#print(neighbors)
+		print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
+		print(class(neighbors))
+#		print("neighbors:")
+#		print(neighbors)
+
+#		neighbors[,,1] = apply(neighbors[,,1],c(1,2),function(position){
+#									  message(position)
+#									  message(matrixIndex[position])
+#									  message(compIds[as.character(matrixIndex[position])])
+#									  compIds[as.character(matrixIndex[position])]})
+#
+#		print("comp id neighbors:")
+#		print(neighbors)
 
 		#compute distance between each query and its candidates	
-		Map(function(i) {
-			 #nonNegs=neighbors[i,,1]!=-1
-			 nonNegs = ! is.na(neighbors[i,,1])
-			 #print(nonNegs)
-			 n=neighbors[i,nonNegs,]
-			 dim(n)=c(sum(nonNegs) ,2)
-			 #print(sum(nonNegs))
-			 #print(n)
-			 n[,1] = mainIds[n[,1]]
-		#	 print("neighbors:")
-		#	 print(n)
+		Map(function(i) { # for each query 
+			 nonNAs = ! is.na(neighbors[i,,1])
+			 #print(nonNAs)
+			 n=neighbors[i,nonNAs,]
+			 dim(n)=c(sum(nonNAs) ,2)
+			 #print(sum(nonNAs))
+			 print(n)
+			 #n[,1] = mainIds[n[,1]] # now already compound ids
+			 n[,1] = compIds[as.character(matrixIndex[n[,1]])]
+			 print("comp id neighbors:")
+			 print(n)
 			 refine(n,queryDescriptors[i],K,distance,dir,descriptorType=descriptorType,conn=conn)
 		  }, 1:(dim(embeddedQueries)[2]))
 }

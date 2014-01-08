@@ -58,7 +58,7 @@ CREATE  VIEW unembedded_descriptors AS
 ;			 
 
 CREATE VIEW run_embedded_descriptors AS
-	SELECT r.run_id, ed.descriptor_id,ed.value
+	SELECT DISTINCT ON(ed.descriptor_id) r.run_id, ed.descriptor_id,ed.value
 	FROM	 runs AS r
 			 JOIN compound_groups AS cg USING(compound_group_id)
 			 JOIN compound_group_members AS cgm USING(compound_group_id)
@@ -71,7 +71,7 @@ CREATE VIEW run_embedded_descriptors AS
 ;
 
 CREATE VIEW run_sample_embedded_descriptors AS
-	SELECT r.run_id, ed.descriptor_id,ed.value
+	SELECT DISTINCT ON(ed.descriptor_id) r.run_id, ed.descriptor_id,ed.value
 	FROM	 runs AS r
 			 JOIN compound_groups AS cg USING(compound_group_id)
 			 JOIN compound_group_members AS cgm ON(cgm.compound_group_id = r.sample_group_id)

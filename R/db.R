@@ -166,7 +166,7 @@ getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds){
 getUnEmbeddedDescriptorIds <- function(conn,runId){
 	descriptorIds=runQuery(conn,paste("SELECT descriptor_id FROM unembedded_descriptors 
 							  WHERE run_id = ",runId,sep=""))
-	message("found ",length(descriptorIds)," un-embedded descriptors for runId ",runId)
+	message("found ",length(descriptorIds$descriptor_id)," un-embedded descriptors for runId ",runId)
 	descriptorIds$descriptor_id
 }
 
@@ -290,13 +290,16 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 	runInfo = getExtendedRunInfo(conn,runId)
 	matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
 								  paste(if(samples) "matrix.query" else "matrix",".",runInfo$num_references,"-",runInfo$dimension,sep=""))
+	matrixFileTemp = paste(matrixFile,".temp",sep="")
+	matrixFileIndex = paste(matrixFile,".index",sep="")
 	if(debug) message("filename: ",matrixFile)
 
-	f = file(matrixFile,"wb")
+	f = file(matrixFileTemp,"wb")
 	floatSize = 4
 	numRows= getGroupSize(conn,groupId= if(samples) runInfo$sample_group_id else runInfo$compound_group_id)
 	numCols = runInfo$dimension
-	if(debug) message("numRows: ",numRows," numCols: ",numCols)
+	#if(debug) message("numRows: ",numRows," numCols: ",numCols)
+	message("numRows: ",numRows," numCols: ",numCols)
 
 	writeBin(as.integer(floatSize),f,floatSize)
 	writeBin(as.integer(numRows),f,floatSize)
@@ -306,14 +309,41 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 	viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
 	rs=dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId))
 
+	indexF = file(matrixFileIndex,"w")
+	count=0
 	bufferResultSet(rs,function(df){
+			for( i in 1:nrow(df)){
+				if(count %% numCols == 0)
+					cat(paste(df$descriptor_id[i]),file=indexF,sep="\n")
+				count <<- count + 1
+			}
 			writeBin(as.vector(df$value),f,floatSize)
-   },batchSize = 10000,closeRS=TRUE)
+   },batchSize = 50,closeRS=TRUE)
+   #},batchSize = 10000,closeRS=TRUE)
 	
-
 	close(f)
+	close(indexF)
+	file.rename(matrixFileTemp,matrixFile)
+
 }
 
+descriptorsToCompounds <- function(conn,descriptorIds, all=FALSE){
+	#condition =paste( " WHERE descriptor_id IN (",paste(descriptorIds,collapse=","),")")
+	#allCompounds = paste("SELECT compound_id, descriptor_id FROM compound_descriptors ",condition)
+	#oneCompoundEach = paste("SELECT compound_id, descriptor_id FROM compound_descriptors ",condition)
+	message("ids: ",descriptorIds)
+	message("query:" , paste("SELECT compound_id, descriptor_id FROM compound_descriptors",
+							  " WHERE descriptor_id IN (",paste(descriptorIds,collapse=","),")",sep=""))
+
+	df = runQuery(conn,paste("SELECT compound_id, descriptor_id FROM compound_descriptors",
+							  " WHERE descriptor_id IN (",paste(descriptorIds,collapse=","),")",sep=""))
+	compIds = df$compound_id
+	names(compIds) = df$descriptor_id
+	#if(all)
+		#compIds = #do something
+
+	compIds[as.character(descriptorIds)]
+}
 
 
 

@@ -57,27 +57,33 @@ CREATE  VIEW unembedded_descriptors AS
 ;			 
 
 CREATE VIEW run_embedded_descriptors AS
-	SELECT r.run_id, ed.descriptor_id,ed.value
-	FROM	 runs AS r
-			 JOIN compound_groups AS cg USING(compound_group_id)
-			 JOIN compound_group_members AS cgm USING(compound_group_id)
-			 JOIN compound_descriptors USING(compound_id)
-			 JOIN descriptors AS d USING(descriptor_id)
-			 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
-			 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
-			 JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
+	SELECT a.run_id, ed.descriptor_id,ed.value
+	FROM	 embedded_descriptors AS ed 
+			 JOIN (
+				 SELECT DISTINCT r.run_id, d.descriptor_id, e.embedding_id
+				 FROM  runs AS r
+						 JOIN compound_groups AS cg USING(compound_group_id)
+						 JOIN compound_group_members AS cgm USING(compound_group_id)
+						 JOIN compound_descriptors USING(compound_id)
+						 JOIN descriptors AS d USING(descriptor_id)
+						 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
+						 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
+				 ) as a ON(ed.embedding_id=a.embedding_id AND ed.descriptor_id = a.descriptor_id)
 	ORDER BY ed.descriptor_id,ed.ordering
 ;
 
 CREATE VIEW run_sample_embedded_descriptors AS
-	SELECT r.run_id, ed.descriptor_id,ed.value
-	FROM	 runs AS r
-			 JOIN compound_groups AS cg USING(compound_group_id)
-			 JOIN compound_group_members AS cgm ON(cgm.compound_group_id = r.sample_group_id)
-			 JOIN compound_descriptors USING(compound_id)
-			 JOIN descriptors AS d USING(descriptor_id)
-			 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
-			 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
-			 JOIN embedded_descriptors AS ed ON(r.embedding_id=ed.embedding_id AND d.descriptor_id = ed.descriptor_id)
+	SELECT a.run_id, ed.descriptor_id,ed.value
+	FROM	 embedded_descriptors AS ed 
+			 JOIN (
+				 SELECT DISTINCT r.run_id, d.descriptor_id, e.embedding_id
+				 FROM  runs AS r
+						 JOIN compound_groups AS cg USING(compound_group_id)
+						 JOIN compound_group_members AS cgm ON(cgm.compound_group_id = r.sample_group_id)
+						 JOIN compound_descriptors USING(compound_id)
+						 JOIN descriptors AS d USING(descriptor_id)
+						 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
+						 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
+				 ) as a ON(ed.embedding_id=a.embedding_id AND ed.descriptor_id = a.descriptor_id)
 	ORDER BY ed.descriptor_id,ed.ordering
 ;

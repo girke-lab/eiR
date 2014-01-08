@@ -134,7 +134,7 @@ SEXP lshsearchAll( SEXP matrixFile, SEXP indexFile,
    //SEXP queryDim = getAttrib(queries,R_DimSymbol);
    int numQueries = data.getSize();
    int querySize = data.getDim();
-   //Rprintf("numQueries: %d, querySize: %d\n",numQueries,querySize);
+   Rprintf("numQueries: %d, querySize: %d\n",numQueries,querySize);
    SEXP result;
    PROTECT(result = alloc3DArray(REALSXP,numQueries,K,2));
    

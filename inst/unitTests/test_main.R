@@ -477,7 +477,8 @@ cleanup<- function(){
 	if(inherits(conn,"PostgreSQLConnection"))
 		resetDb(conn)
 
-   unlink(test_dir,recursive=T)
+   #unlink(test_dir,recursive=T) #doesn't work
+	system(paste("rm -rf ",test_dir))
    dir.create(test_dir)
 #   setwd(test_dir) # this breaks check
    #junk <- c("data","example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"),fpDir)
