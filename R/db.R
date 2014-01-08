@@ -200,6 +200,7 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 }
 
 
+#deprecated
 insertEmbeddedDescriptorsByCompoundId <-function(conn,embeddingId,compoundIds,data){
 
 	descriptorType = getDescriptorType(conn,embeddingId=embeddingId)
@@ -281,6 +282,33 @@ getDescriptorIds <- function(conn,compoundIds,descriptorType,keepOrder=FALSE){
 		as.vector(descriptorIds[as.character(compoundIds)])
 	}else
 		descriptorIds
+}
+getRunDescriptorIds <- function(conn,runId){
+
+	message(paste("SELECT DISTINCT d.descriptor_id
+										 FROM  runs AS r
+												 JOIN compound_groups AS cg USING(compound_group_id)
+												 JOIN compound_group_members AS cgm USING(compound_group_id)
+												 JOIN compound_descriptors USING(compound_id)
+												 JOIN descriptors AS d USING(descriptor_id)
+												 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
+												 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
+										WHERE r.run_id = ",runId,
+										"ORDER BY d.descriptor_id ")
+	)
+	data = runQuery(conn,paste("SELECT DISTINCT d.descriptor_id
+										 FROM  runs AS r
+												 JOIN compound_groups AS cg USING(compound_group_id)
+												 JOIN compound_group_members AS cgm USING(compound_group_id)
+												 JOIN compound_descriptors USING(compound_id)
+												 JOIN descriptors AS d USING(descriptor_id)
+												 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
+												 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
+										WHERE r.run_id = ",runId,
+										"ORDER BY d.descriptor_id "))
+
+	print(data)
+	data$descriptor_id
 }
 
 writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){

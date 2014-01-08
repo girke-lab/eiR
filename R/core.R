@@ -375,9 +375,9 @@ eiQuery <- function(runId,queries,format="sdf",
 		#search for nearby compounds
 		#if(debug) print(embeddedQueries)
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-		hits = search(embeddedQueries,matrixFile,
-							queryDescriptors,distance,dir,conn=conn,descriptorType=descriptorType,
-							lshData=lshData,mainIds=mainIds,
+		hits = search(embeddedQueries,runId,
+							queryDescriptors,distance,dir,conn=conn,
+							lshData=lshData,
 							K=K,W=W,M=M,L=L,T=T)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
@@ -558,22 +558,42 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		clustering
 }
 
+runDescriptors = NULL
 #expects one query per column
-search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,descriptorType,
-						 conn=defaultConn(dir),lshData=NULL,mainIds=readIddb(conn,file.path(dir,Main),sorted=TRUE),...)
+search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
+						 conn=defaultConn(dir),lshData=NULL,...)
 {
-		mainIds=sort(mainIds)
-		
-		matrixIndex = read.table(paste(matrixFile,"index",sep="."))[[1]]
+		runInfo = getExtendedRunInfo(conn,runId) 
+		if(nrow(runInfo)==0)
+			stop("no information found for ",runId)
+		r=runInfo$num_references
+		d=runInfo$dimension
+		descriptorType=getDescriptorType(conn,info=runInfo)
+	
+		workDir=file.path(dir,paste("run",r,d,sep="-"))
+		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 
-		#TODO: make this faster
-		compIds = descriptorsToCompounds(conn,matrixIndex,all=FALSE)
+		if(is.null(runDescriptors$descriptorIds) || 
+			(!is.null(runDescriptors$runId) && runDescriptors$runId != runId)){
+			runDescriptors$runId=runId
+			runDescriptors$descriptorIds = getRunDescriptorIds(conn,runId)
+		}
+		
+		#mainIds=sort(mainIds)
+		
+		#matrixIndex = read.table(paste(matrixFile,"index",sep="."))[[1]]
+
+		##TODO: make this faster
+		#compIds = descriptorsToCompounds(conn,matrixIndex,all=FALSE)
 		neighbors = lshsearch(embeddedQueries,matrixFile,K=2*K,lshData=lshData,...)
 		
 		print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
-		print(class(neighbors))
 #		print("neighbors:")
 #		print(neighbors)
+		neighborDescIds  = runDescriptors$descriptorIds[as.vector(neighbors[,,1])]
+		neighborDescIds = neighborDescIds[!is.na(neighborDescIds)]
+		compIds = descriptorsToCompounds(conn,neighborDescIds,all=FALSE)
+
 
 #		neighbors[,,1] = apply(neighbors[,,1],c(1,2),function(position){
 #									  message(position)
@@ -593,7 +613,7 @@ search <- function(embeddedQueries,matrixFile,queryDescriptors,distance,K,dir,de
 			 #print(sum(nonNAs))
 			 print(n)
 			 #n[,1] = mainIds[n[,1]] # now already compound ids
-			 n[,1] = compIds[as.character(matrixIndex[n[,1]])]
+			 n[,1] = compIds[as.character(runDescriptors$descriptorIds[n[,1]])]
 			 print("comp id neighbors:")
 			 print(n)
 			 refine(n,queryDescriptors[i],K,distance,dir,descriptorType=descriptorType,conn=conn)
@@ -741,8 +761,8 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 
 	embeddedTestQueries = t(getEmbeddedDescriptors(conn,embeddingId,sampleCompoundIds))
 
-	hits = search(embeddedTestQueries,matrixFile,
-						testQueryDescriptors,distance,descriptorType=descriptorType,dir=dir,conn=conn,K=K,W=W,M=M,L=L,T=T)
+	hits = search(embeddedTestQueries,runId,
+						testQueryDescriptors,distance,dir=dir,conn=conn,K=K,W=W,M=M,L=L,T=T)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
 	#if(debug) print(hits)
