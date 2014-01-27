@@ -285,17 +285,6 @@ getDescriptorIds <- function(conn,compoundIds,descriptorType,keepOrder=FALSE){
 }
 getRunDescriptorIds <- function(conn,runId){
 
-	message(paste("SELECT DISTINCT d.descriptor_id
-										 FROM  runs AS r
-												 JOIN compound_groups AS cg USING(compound_group_id)
-												 JOIN compound_group_members AS cgm USING(compound_group_id)
-												 JOIN compound_descriptors USING(compound_id)
-												 JOIN descriptors AS d USING(descriptor_id)
-												 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
-												 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
-										WHERE r.run_id = ",runId,
-										"ORDER BY d.descriptor_id ")
-	)
 	data = runQuery(conn,paste("SELECT DISTINCT d.descriptor_id
 										 FROM  runs AS r
 												 JOIN compound_groups AS cg USING(compound_group_id)
@@ -307,7 +296,6 @@ getRunDescriptorIds <- function(conn,runId){
 										WHERE r.run_id = ",runId,
 										"ORDER BY d.descriptor_id "))
 
-	print(data)
 	data$descriptor_id
 }
 
@@ -356,21 +344,24 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 }
 
 descriptorsToCompounds <- function(conn,descriptorIds, all=FALSE){
-	#condition =paste( " WHERE descriptor_id IN (",paste(descriptorIds,collapse=","),")")
-	#allCompounds = paste("SELECT compound_id, descriptor_id FROM compound_descriptors ",condition)
-	#oneCompoundEach = paste("SELECT compound_id, descriptor_id FROM compound_descriptors ",condition)
-	message("ids: ",descriptorIds)
-	message("query:" , paste("SELECT compound_id, descriptor_id FROM compound_descriptors",
-							  " WHERE descriptor_id IN (",paste(descriptorIds,collapse=","),")",sep=""))
 
-	df = runQuery(conn,paste("SELECT compound_id, descriptor_id FROM compound_descriptors",
-							  " WHERE descriptor_id IN (",paste(descriptorIds,collapse=","),")",sep=""))
-	compIds = df$compound_id
-	names(compIds) = df$descriptor_id
-	#if(all)
-		#compIds = #do something
-
-	compIds[as.character(descriptorIds)]
+	df = selectInBatches(conn,descriptorIds, function(ids)
+									paste("SELECT compound_id, descriptor_id FROM compound_descriptors",
+										  " WHERE descriptor_id IN (",paste(ids,collapse=","),")",sep=""))
+	if(all) {
+		df$compound_id
+		compIds = list()
+		for(i in seq(along=df$compound_id)){
+			key = as.character(df$descriptor_id[i])
+			value = df$compound_id[i]
+			compIds[[key]] = if(is.na(compIds[key])) value else  c(compIds[key],value)
+		}
+		compIds
+	}else{
+		compIds = df$compound_id
+		names(compIds) = df$descriptor_id
+		compIds[as.character(descriptorIds)]
+	}
 }
 
 
