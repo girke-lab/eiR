@@ -43,8 +43,8 @@ pgSource=function(){
 	conn
 }
 
-#connSource = sqliteSource
-connSource = pgSource
+connSource = sqliteSource
+#connSource = pgSource
 
 lastRunId=0
 

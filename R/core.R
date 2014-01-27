@@ -496,12 +496,13 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 			similarities = array(NA,dim=c(ml,K))
 	
 		#print("refining")
+		i=1
 		batchByIndex(mainIndex,function(indexSet){
 
 			#print("indexset:"); print(indexSet)
 			descriptors = getDescriptors(conn,descriptorType,indexSet)
 
-			lapply(1:length(indexSet),function(i){
+			lapply(1:length(indexSet),function(x){
 				#print(neighbors[i,,])
 				#nonNegs=neighbors[i,,1]!=-1
 				nonNegs=!is.na(neighbors[i,,1])
@@ -519,7 +520,7 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 				#print(reverseIndex)
 				#print(n)
 				#print(paste("refining",i))
-				refined = refine(n,descriptors[i],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
+				refined = refine(n,descriptors[x],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
 				dim(refined)=c(min(sum(nonNegs),K) ,2)
 				#print("refined: ")
 				#print(refined)
@@ -529,6 +530,7 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 				if(type=="matrix")
 					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
 				#print(refinedNeighbors[i,1:nrow(refined)])
+				i<<-i+1
 			})
 		 },batchSize=1000)
 
