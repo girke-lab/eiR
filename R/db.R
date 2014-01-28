@@ -312,7 +312,10 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 
 	f = file(matrixFileTemp,"wb")
 	floatSize = 4
-	numRows= getGroupSize(conn,groupId= if(samples) runInfo$sample_group_id else runInfo$compound_group_id)
+	viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
+
+	#numRows= getGroupSize(conn,groupId= if(samples) runInfo$sample_group_id else runInfo$compound_group_id)
+	numRows = length(getRunDescriptorIds(conn,runId))
 	numCols = runInfo$dimension
 	#if(debug) message("numRows: ",numRows," numCols: ",numCols)
 	message("numRows: ",numRows," numCols: ",numCols)
@@ -322,7 +325,6 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 	writeBin(as.integer(numCols),f,floatSize)
 
 
-	viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
 	rs=dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId))
 
 	indexF = file(matrixFileIndex,"w")

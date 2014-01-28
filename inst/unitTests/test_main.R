@@ -9,6 +9,7 @@ test_dir="test_workspace"
 r<- 50
 d<- 40
 N<- 100
+numUniqueDescriptors=96
 j=1  #can only use 1 when using sqlite
 runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
@@ -99,7 +100,7 @@ testRefs <- function(){
 
 test_ba.parDist <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	conn = connSource()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
@@ -199,7 +200,7 @@ test_bb.eiMakeDb <- function() {
 
 test_ca.eiQuery <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	message("eiQuery")
 	conn=connSource()
    data(sdfsample)
@@ -233,7 +234,7 @@ test_ca.eiQuery <- function(){
 }
 
 test_da.eiPerformanceTest <- function() {
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
@@ -286,8 +287,8 @@ test_fa.eiCluster <- function(){
 	runId = lastRunId
 
 	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
-	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
 	print(byCluster(clustering))
+	checkTrue(length(clustering) >= numUniqueDescriptors) #eiAdd will add some stuff
 
 	conn=connSource()
 	compoundIds=names(clustering)
@@ -295,7 +296,7 @@ test_fa.eiCluster <- function(){
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
 	print(sizes)
-	checkTrue(nrow(sizes) %in% c(8,9,10)) # 10 if eiAdd has run
+	checkTrue(nrow(sizes) %in% c(6))
 	checkTrue(all(sizes[,2]==2))
 
 
@@ -304,9 +305,9 @@ test_fa.eiCluster <- function(){
    clustering = jarvisPatrick(nnm,k=minNbrs,mode="a1b")
 	sizes= clusterSizes(clustering)
 
-	#print(clusterSizes(clustering))
+	print(clusterSizes(clustering))
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
-	checkTrue(nrow(sizes) %in% c(8,9,10)) # 10 if eiAdd has run
+	checkTrue(nrow(sizes) %in% c(6)) 
 	checkTrue(all(sizes[,2]==2))
 }
 test_fn.cluster_comparison <- function(){
