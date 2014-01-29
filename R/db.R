@@ -186,13 +186,8 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 
 		fields = c("embedding_id","descriptor_id","ordering","value")
 
-		#postgresqlWriteTable(conn,"compounds",data[,fields],append=TRUE,row.names=FALSE)
 		postgresqlWriteTable(conn,"embedded_descriptors",toInsert[,fields],append=TRUE,row.names=FALSE)
 
-	#	apply(toInsert[,fields],1,function(row) 
-	#		runQuery(conn,
-	#			paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
-	#				"VALUES( $1,$2,$3,$4)"),row))
 	}else{
 		stop("database ",class(conn)," unsupported")
 	}
@@ -223,10 +218,6 @@ insertEmbeddedDescriptorsByCompoundId <-function(conn,embeddingId,compoundIds,da
 		fields = c("embedding_id","descriptor_id","ordering","value")
 		postgresqlWriteTable(conn,"embedded_descriptors",toInsert[,fields],append=TRUE,row.names=FALSE)
 
-		#apply(toInsert[,fields],1,function(row) 
-			#runQuery(conn,
-				#paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
-					#"VALUES( $1,$2,$3,$4)"),row))
 	}else{
 		stop("database ",class(conn)," unsupported")
 	}
