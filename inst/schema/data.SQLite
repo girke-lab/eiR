@@ -87,4 +87,3 @@ CREATE VIEW run_sample_embedded_descriptors AS
 				 ) as a ON(ed.embedding_id=a.embedding_id AND ed.descriptor_id = a.descriptor_id)
 	ORDER BY ed.descriptor_id,ed.ordering
 ;
-

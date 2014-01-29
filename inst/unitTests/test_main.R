@@ -15,7 +15,7 @@ runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
 descType="ap"
 
-sqliteSource=function(){
+sqliteSource=function(reset=FALSE){
 	require(eiR)
 	require(RSQLite)
 	path = file.path(test_dir,"data")
@@ -28,17 +28,19 @@ sqliteSource=function(){
 
 resetDb <- function(conn){
    tables = dbListTables(conn)
-   #print(tables)
+   print(tables)
    for(table in tables)
       dbGetQuery(conn, paste("DROP TABLE ",table," CASCADE"))
    initDb(conn)
 }
 
-pgSource=function(){
+pgSource=function(reset=FALSE){
 	require(eiR)
 	require(RPostgreSQL)
 	conn=dbConnect(dbDriver("PostgreSQL"),user="chemminer_tests",password="40ersfdv90erijgfk",
 				 dbname="chemminer_tests",host="girke-db-1.bioinfo.ucr.edu")
+	if(reset)
+		resetDb(conn)
 	initDb(conn)
 	eiR:::setDefaultConn(conn)
 	conn
@@ -46,10 +48,12 @@ pgSource=function(){
 
 connSource = sqliteSource
 #connSource = pgSource
+connSource(TRUE) # reset postgres
 
 lastRunId=0
 
-debug=TRUE
+#debug=TRUE
+debug=FALSE
 
 
 test_aa.eiInit <- function() {
@@ -100,7 +104,7 @@ testRefs <- function(){
 
 test_ba.parDist <- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 	conn = connSource()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
@@ -163,6 +167,7 @@ test_bb.eiMakeDb <- function() {
 		# and we now only store a unique set
 		checkEquals(96,numDescriptors)
 
+		message("checking descriptors")
 		for(i in 1:numDescriptors)
 			checkDescriptor(conn,rid,descriptorIndex=i)
 
@@ -200,7 +205,7 @@ test_bb.eiMakeDb <- function() {
 
 test_ca.eiQuery <- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 	message("eiQuery")
 	conn=connSource()
    data(sdfsample)
@@ -234,12 +239,12 @@ test_ca.eiQuery <- function(){
 }
 
 test_da.eiPerformanceTest <- function() {
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
-   checkMatrix(sprintf("eucsearch.%d-%d",r,d),20,N)
-   #checkMatrix("^indexed$",20,22)
+	#only 19 queries where since some have dup descriptors
+   checkMatrix(sprintf("eucsearch.%d-%d",r,d),15:20,numUniqueDescriptors)
    checkMatrix("indexed.performance",20,1)
 }
 test_ea.eiAdd<- function(){
@@ -263,6 +268,7 @@ test_ea.eiAdd<- function(){
    print(results)
    checkEquals(results$distance[1],0)
 
+	message("checking descriptors")
 	for(i in newCompoundIds)
 		checkDescriptor(conn,runId,compoundId=i,printAll=F)
 
@@ -271,7 +277,8 @@ test_ea.eiAdd<- function(){
    results = eiQuery(runId,examples[4],dir=test_dir)
    checkEquals(results$distance[1],0)
    print(results)
-
+		
+	message("checking descriptors")
 	for(i in newCompoundIds2)
 		checkDescriptor(conn,runId,compoundId=i,printAll=F)
 
@@ -475,8 +482,12 @@ clusterSizes <- function(clustering) {
 
 cleanup<- function(){
 	conn=connSource()
-	if(inherits(conn,"PostgreSQLConnection"))
-		resetDb(conn)
+#	if(inherits(conn,"PostgreSQLConnection"))
+#	{
+#		message("resetting postgres")
+#		resetDb(conn)
+#	}else
+#		message("not resetting postgres")
 
    #unlink(test_dir,recursive=T) #doesn't work
 	system(paste("rm -rf ",test_dir))
@@ -500,7 +511,9 @@ checkMatrix <- function(pattern,x,y,dir=runDir){
    checkTrue(file.info(file)$size>0)
 	d = dim(read.table(file))
 	if(debug) print(paste("found dims: ",d))
-   checkEquals(d,c(x,y))
+   #checkEquals(d,c(x,y))
+	checkTrue(d[1] %in% x)
+	checkTrue(d[2] %in% y)
 }
 
 checkDescriptor = function(conn,rid,descriptorIndex=NULL,
@@ -511,7 +524,7 @@ checkDescriptor = function(conn,rid,descriptorIndex=NULL,
 		parameters = eiR:::runQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
 										WHERE r.run_id = ",rid))
 		#check that embedded descriptor values are stored in correct order
-		message("checking descriptor of compound id ",compoundId)
+		#message("checking descriptor of compound id ",compoundId)
 
 
 		descId = eiR:::runQuery(conn,paste("SELECT descriptor_id FROM compound_descriptors where

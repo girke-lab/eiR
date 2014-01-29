@@ -10,8 +10,8 @@ ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
 
-debug=TRUE
-#debug=FALSE
+#debug=TRUE
+debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
@@ -358,7 +358,7 @@ eiQuery <- function(runId,queries,format="sdf",
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		refIds = readIddb(conn,groupId=runInfo$references_group_id)
 
-		print("refids: "); print(refIds)
+		#print("refids: "); print(refIds)
 
 		descriptorInfo = getTransform(descriptorType,format)$toObject(queries,conn,dir)
 		queryDescriptors = descriptorInfo$descriptors
@@ -374,7 +374,6 @@ eiQuery <- function(runId,queries,format="sdf",
 
 		#search for nearby compounds
 		#if(debug) print(embeddedQueries)
-		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 		hits = search(embeddedQueries,runId,
 							queryDescriptors,distance,dir,conn=conn,
 							lshData=lshData,
@@ -425,8 +424,8 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		runInfo = getExtendedRunInfo(conn,runId) 
 		if(nrow(runInfo)==0)
 			stop("no information found for ",runId)
-		print(runInfo)
-		print("got run info")
+		if(debug) print(runInfo)
+		if(debug) print("got run info")
 		r=runInfo$num_references
 		d=runInfo$dimension
 		refGroupName = runInfo$references_group_name
@@ -441,27 +440,10 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 
 		# add additions to database
 		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName)
-		print("new compound ids: "); print(compoundIds)
-		message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
-		#additionDescriptors=getDescriptors(conn,descriptorType,compoundIds)
-		#print("additionDescriptors")
-		#print(additionDescriptors)
-		#numAdditions = length(compoundIds)
-		#refIds = readIddb(conn,groupId=runInfo$references_group_id)
+		#print("new compound ids: "); print(compoundIds)
+		#message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 
-#		#embed queries in search space
-#		embeddedAdditions= embedFromRefs(r,d,file.path(workDir,refGroupName), 
-#									t(IddbVsGivenDist(conn,refIds,additionDescriptors,distance,descriptorType)))
-#		#if(debug) print(dim(embeddedAdditions))
-#		print("embeddedAdditions")
-#		if(debug) print(embeddedAdditions)
-
-
-		#cl=makeCluster(1,type="SOCK",outfile="")
-		#connSource= function() conn
-		#embedAll(conn,runId,refIds,coords,distance,cl,connSource)
 		embedAll(conn,runId,distance,dir=dir)
-		#insertEmbeddedDescriptors(conn,embeddingId,compoundIds,t(embeddedAdditions))
 
 		writeMatrixFile(conn,runId,dir=dir)
 		compoundIds
@@ -478,8 +460,8 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		runInfo = getExtendedRunInfo(conn,runId) 
 		if(nrow(runInfo)==0)
 			stop("no information found for ",runId)
-		print(runInfo)
-		print("got run info")
+		if(debug) print(runInfo)
+		if(debug) print("got run info")
 		r=runInfo$num_references
 		d=runInfo$dimension
 		descriptorType=getDescriptorType(conn,info=runInfo)
@@ -487,90 +469,54 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 		#sort these to ensure it lines up with the matrix file
-		#mainIndex = readIddb(conn,file.path(dir,Main),sorted=TRUE)
 		mainDescriptorIds = getRunDescriptorIds(conn,runId)
+
 		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T) #neighbors is now matrix space
-message("mainDescriptorIds")
-print(mainDescriptorIds)
+
 		#translate to descriptor id space
 		neighborDescIds  = mainDescriptorIds[as.vector(neighbors[,,1])]
-print("neightborDescIds")
-print(neighborDescIds)
 		#remove NAs
 		neighborDescIds = neighborDescIds[!is.na(neighborDescIds)]
-message("neighborDescIds 2")
-print(neighborDescIds)
 		#map each descriptor back to its one primary compound
-		#compIds = descriptorsToCompounds(conn,unique(neighborDescIds))
 		compIds = descriptorsToCompounds(conn,mainDescriptorIds)
-		print("compIds: ")
-		print(compIds)
 
 
-		#save(neighbors,file="neighbors.RData")
-
-		##ml=length(mainIndex)
-		#ml = getGroupSize(conn,name=file.path(dir,Main)) #number of compounds in Main
 		ml = length(mainDescriptorIds)
 		compId2Sequential = 1:ml
 		names(compId2Sequential)=compIds
-		message("ml: ",ml)
-		#names(compId2Sequential) = unlist(compIds)
 
-#		neighbors = array(matrix(1:ml,nrow=ml,
-#								 ncol=ml,byrow=TRUE),dim=c(ml,ml,2))
-#		neighbors[,,2]=-2.0
-		print(neighbors)
+		#print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
 			similarities = array(NA,dim=c(ml,K))
 	
-		#print("refining")
 		i=1
-		#batchByIndex(mainIndex,function(indexSet){
 		batchByIndex(mainDescriptorIds,function(indexSet){
 
-			print("indexset:"); print(indexSet)
-			#descriptors = getDescriptors(conn,descriptorType,indexSet)
 			descriptors = getDescriptorsByDescriptorId(conn,indexSet)
-			message("got ",length(descriptors))
 
 			lapply(1:length(indexSet),function(x){ #for each descriptor id, i
 				#print(neighbors[i,,])
-				#nonNegs=neighbors[i,,1]!=-1
-				nonNegs=!is.na(neighbors[i,,1]) #matrix space
-				#print(nonNegs)
-			   n=neighbors[i,nonNegs,]   #matrix space
-			#	print(dim(n))
+				nonNAs=!is.na(neighbors[i,,1]) #matrix space
+			   n=neighbors[i,nonNAs,,drop=FALSE]   #matrix space
 				#must set this manually because if only one row is
 				#left after filtering, R decides its not really an
 				#array anymore
-				dim(n)=c(sum(nonNegs) ,2) #martrix space
-		      #translate from matrixFile index space to database index space
-		#		reverseIndex=n[,1]
-		#		names(reverseIndex)=mainIndex[n[,1]]
-		#	   n[,1] = mainIndex[n[,1]]
-
-		#		#matrix space -> descriptor space -> compound space
-		#	   n[,1] = unlist(compIds[as.character(neighborDescIds[n[,1]])]) 
+			   dim(n)=c(sum(nonNAs), 2) #martrix space
 
 				#matrix space -> descriptor space 
 			   n[,1] = neighborDescIds[n[,1]]
 
-				#print(reverseIndex)
 				#print(n)
 				#print(paste("refining",i))
 				refined = refine(n,descriptors[x],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
-				#dim(refined)=c(min(sum(nonNegs),K) ,2)
 				#print("refined: ")
 				#print(refined)
-				#print(paste(mainIndex[i],paste(refined[,1],collapse=",")))
 
 				#descriptor space -> compound space
 				refinedCompounds = compIds[as.character(refined[,1])]
 				#print(refinedCompounds)
-				#print(compId2Sequential[as.character(refinedCompounds)])
 
 				# compound space -> sequential id space
 				refinedNeighbors[i,1:nrow(refined)]<<-
@@ -580,30 +526,24 @@ print(neighborDescIds)
 				#print(refinedNeighbors[i,1:nrow(refined)])
 				i<<-i+1
 			})
-		 },batchSize=10)
+		 },batchSize=1000)
 
 		
 
-		rownames(refinedNeighbors)=1:ml  ##
-		print("final refined:")
-		print((refinedNeighbors))
+		rownames(refinedNeighbors)=1:ml
+		#print("final refined:")
+		#print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
-							names=compIds, #CHECK THIS
+							names=compIds,
 							similarities=similarities))
 
 		#print("clustering")
 		rawClustering = jarvisPatrick_c(refinedNeighbors,minNbrs,fast=TRUE)
-		print(length(refinedNeighbors))
-		print(length(rawClustering))
 		# sequential space -> descriptor space -> compound space
 		clustering = compIds[as.character(mainDescriptorIds[rawClustering])]
-		names(clustering) = compIds #CHECK THIS
-		print(length(compIds))
-		print(length(clustering))
-		print(compIds)
-		print(clustering)
+		names(clustering) = compIds 
 		clustering
 }
 
@@ -634,9 +574,9 @@ search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 		
 		neighbors = lshsearch(embeddedQueries,searchCache$matrixFile,K=2*K,lshData=lshData,...)
 		
-		print(paste("got ",paste(dim(neighbors),callapse=","),"neighbors back from lshsearch"))
-#		print("neighbors:")
-#		print(neighbors)
+		if(debug) print(paste("got ",paste(dim(neighbors),collapse=","),"neighbors back from lshsearch"))
+		#print("neighbors:")
+		#print(neighbors)
 
 		#select only those positions actually used so we don't have to query
 		# all descriptors every time.
@@ -832,13 +772,7 @@ desc2descDist <- function(desc1,desc2,dist)
 IddbVsGivenDistByDescId <- function(conn,descIds,descriptors,dist,descriptorType,file=NA){
 	#message("descIds: ")
 	#print(descIds)
-	IddbVsGivenDistBase(function(ids){
-							  #message("getting descriptors")
-							  #print(ids)
-							  x=getDescriptorsByDescriptorId(conn,ids)
-							  #message("got descriptors")
-							  x
-			},
+	IddbVsGivenDistBase(function(ids) getDescriptorsByDescriptorId(conn,ids) ,
 							  conn,descIds,descriptors,dist,descriptorType,file)
 }
 IddbVsGivenDist<- function(conn,iddb,descriptors,dist,descriptorType,file=NA){
@@ -852,9 +786,6 @@ IddbVsGivenDistBase<- function(descSource,conn,iddb,descriptors,dist,descriptorT
 
 	process = function(record){
 		batchByIndex(iddb,function(ids){
-			#outerDesc=preProcess(getDescriptors(conn,descriptorType,ids))
-			#print("descSource ids: ")
-			#print(ids)
 			outerDesc=preProcess(descSource(ids))
 			record(desc2descDist(outerDesc,descriptors,dist))
 		},batchSize=1000)
@@ -1046,10 +977,10 @@ embedAll <- function(conn,runId, distance,dir=".",
 
 		descriptors = getDescriptorsByDescriptorId(conn,ids)
 		rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
-		embeddedDescriptors = apply(rawDists,c(1),
-			function(x) embedCoord(solver,d,x))
+		embeddedDescriptors = apply(rawDists,c(1), function(x) embedCoord(solver,d,x))
 
-		insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
+		x=insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
+		x
 	}
 	
 	if(is.null(cl)){ #don't use cluster
@@ -1068,7 +999,8 @@ embedAll <- function(conn,runId, distance,dir=".",
 		#rm(coords,unembeddedDescriptorIds,distance,envir=environment(embedJob))
 		rm(coords,distance,envir=environment(embedJob))
 
-		parBatchByIndex(unembeddedDescriptorIds,embedJob,
+		x=parBatchByIndex(unembeddedDescriptorIds,embedJob,
 							 reduce=identity,cl=cl,batchSize=jobSize)
+		x
 	}
 }
