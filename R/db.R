@@ -350,24 +350,43 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 
 descriptorsToCompounds <- function(conn,descriptorIds, all=FALSE){
 
-	#message("descriptorIds: ")
-	#print(descriptorIds)
-	df = selectInBatches(conn,descriptorIds, function(ids)
-									paste("SELECT compound_id, descriptor_id FROM compound_descriptors",
-										  " WHERE descriptor_id IN (",paste(ids,collapse=","),")",sep=""))
-	if(all) {
-		compIds = list()
-		for(i in seq(along=df$compound_id)){
-			key = as.character(df$descriptor_id[i])
-			value = df$compound_id[i]
-			compIds[[key]] = if(is.na(compIds[key])) value else  c(compIds[key],value)
-		}
-		compIds
+
+	if(all){
+		stop("Returning all compounds for a set of desciptors is not yet supported")
 	}else{
+		df = selectInBatches(conn,descriptorIds, function(ids)
+					paste("SELECT cd.descriptor_id, min(cd.compound_id) AS compound_id 
+							FROM compound_descriptors AS cd 
+								  JOIN (SELECT descriptor_id, min(priority) AS priority
+										  FROM compound_descriptors GROUP BY descriptor_id) AS t 
+										ON(cd.descriptor_id=t.descriptor_id AND cd.priority=t.priority)",
+							"WHERE cd.descriptor_id IN (",paste(ids,collapse=","),")",
+							"GROUP BY cd.descriptor_id",sep=""))
 		compIds = df$compound_id
 		names(compIds) = df$descriptor_id
 		compIds[as.character(descriptorIds)]
 	}
+
+
+
+#	#message("descriptorIds: ")
+#	#print(descriptorIds)
+#	df = selectInBatches(conn,descriptorIds, function(ids)
+#									paste("SELECT compound_id, descriptor_id FROM compound_descriptors",
+#										  " WHERE descriptor_id IN (",paste(ids,collapse=","),")",sep=""))
+#	if(all) {
+#		compIds = list()
+#		for(i in seq(along=df$compound_id)){
+#			key = as.character(df$descriptor_id[i])
+#			value = df$compound_id[i]
+#			compIds[[key]] = if(is.na(compIds[key])) value else  c(compIds[key],value)
+#		}
+#		compIds
+#	}else{
+#		compIds = df$compound_id
+#		names(compIds) = df$descriptor_id
+#		compIds[as.character(descriptorIds)]
+#	}
 }
 
 
