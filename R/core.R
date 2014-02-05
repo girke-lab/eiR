@@ -155,6 +155,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
+	setPriorities(conn,randomPriorities)
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
