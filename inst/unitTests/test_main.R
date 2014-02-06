@@ -136,7 +136,7 @@ test_bb.eiMakeDb <- function() {
 	message("  eiMakeDb   ")
 
 	conn = connSource()
-	runDbChecks = function(rid){
+	runDbChecks = function(rid,targetSampleNum=20){
 
 		parameters = eiR:::runQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
 										WHERE r.run_id = ",rid))
@@ -157,7 +157,8 @@ test_bb.eiMakeDb <- function() {
 		numSamples = eiR:::runQuery(conn,paste("SELECT count(*) FROM runs as r  
 											JOIN compound_group_members as cgm ON(r.sample_group_id=cgm.compound_group_id)
 										WHERE r.run_id = ",rid))[[1]]
-		checkEquals(20,numSamples)
+		message("found ",numSamples," samples")
+		checkEquals(targetSampleNum,numSamples)
 
 
 		numDescriptors = eiR:::runQuery(conn,paste("SELECT count(distinct descriptor_id) FROM runs as r JOIN embedded_descriptors as ed USING(embedding_id) 
@@ -182,9 +183,9 @@ test_bb.eiMakeDb <- function() {
 	print("by file name")
    refFile = file.path(test_dir,"reference_file.cdb")
 	eiR:::writeIddbFile((1:r)+200,refFile)
-   rid=eiMakeDb(refFile,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
+   rid=eiMakeDb(refFile,d,cl=cl,descriptorType=descType,dir=test_dir,
 		connSource=connSource	)
-   runDbChecks(rid)
+   runDbChecks(rid,targetSampleNum = 10)
 	unlink(runDir,recursive=TRUE)
 
 	print("by number")

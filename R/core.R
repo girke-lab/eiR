@@ -159,7 +159,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
-				dir=".",numSamples=getGroupSize(conn,name=dir)*0.1,conn=defaultConn(dir),
+				dir=".",numSamples=getGroupSize(conn,name=file.path(dir,Main))*0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
 {
 	conn
@@ -252,6 +252,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		write.table(coords,file=coordFile,row.names=F,col.names=F)
 		coords
 	}
+	if(is.null(connSource))
+		cl=NULL
 	embedAll(conn,runId,refIds=refIds,
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)

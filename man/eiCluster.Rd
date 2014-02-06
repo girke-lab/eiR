@@ -8,19 +8,18 @@
 	the LSH algorithm to quickly find nearest neighbors.
 }
 \usage{
-	eiCluster(r,d,K,minNbrs, dir=".",cutoff=NULL,
-							 descriptorType="ap",distance=getDefaultDist(descriptorType),
+	eiCluster(runId,K,minNbrs, dir=".",cutoff=NULL,
+							 distance=getDefaultDist(descriptorType),
 							 conn=defaultConn(dir), W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single")
 }
 \arguments{
-  \item{r}{
-      The number of references used to build the database you wish to
-      query against.
+	\item{runId}{
+		The id number identifying a particular set of settings for a database. This is generally
+		the number returned by \code{\link{eiMakeDb}}. If your coming from an older version of eiR, you should
+		not use this value instead of
+		specifying \code{r}, \code{d}, and \code{descriptorType}.
 	}
-  \item{d}{
-      The number of dimensions used to build the database you wish to
-      query against.
-	}
+
   \item{K}{
 	  The number of neighbors to consider for each compound.
 	}
@@ -31,10 +30,6 @@
       The directory where the "data" directory lives. Defaults to the
       current directory.
    }
-	\item{descriptorType}{
-		The format of the descriptor. Currently supported values are "ap" for atom pair, and 
-		"fp" for fingerprint.
-	}
 	\item{distance}{
 		The distance function to be used to compute the distance between two descriptors. A default function is
 		provided for "ap" and "fp" descriptors.
@@ -135,8 +130,8 @@
    eiInit(sdfsample,dir=dir)
 
    #create compound db
-   eiMakeDb(r,d,numSamples=20,dir=dir, cl=makeCluster(1,type="SOCK",outfile=""))
+   runId=eiMakeDb(r,d,numSamples=20,dir=dir, cl=makeCluster(1,type="SOCK",outfile=""))
 
-	eiCluster(r,d,K=5,minNbrs=2,cutoff=0.5,dir=dir)
+	eiCluster(runId,K=5,minNbrs=2,cutoff=0.5,dir=dir)
 
 }

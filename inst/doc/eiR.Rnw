@@ -145,15 +145,14 @@ The default value is "ap", for atompair.  You can also specify a custom distance
 take two descriptors in the format specified and return a distance value.
 The default distance method used is $1-\hbox{Tanimoto}(d1,d2)$.
 
-The return value is the path of the refIddb file, which is a file
-containing list of referenice id values. This file is needed by other
-functions.
+The return value is called the Run Id. This value is needed by other
+functions to identify the data set and embedding parameters to use.
 
 
 <<>>=
 r<- 60
 d<- 40
-refIddb <- eiMakeDb(r,d)
+runId <- eiMakeDb(r,d)
 @
 
 
@@ -168,12 +167,10 @@ be a list of compound names (as returned by sdfid on an SDFset), or a list
 of id numbers from the database, such as what is returned by the eiInit
 function.
 
-The \texttt{r} and \texttt{d} parameters are required, as well as the 
-\texttt{refIddb} file, which is returned by the \texttt{eiMakeDb} function. These
-three values determine which embedded database to use. 
-As with \texttt{eiMakeDb}, the \texttt{descriptorType} and \texttt{distance}
-parameters may be given if desired. They will default to atompair and the
-Tanimoto Coefficient, respectively. 
+The \texttt{runId} parameter is required to determine which embedded database to use. 
+As with \texttt{eiMakeDb}, the \texttt{distance}
+parameter may be given if desired, it will default to the
+Tanimoto Coefficient otherwise.
 Finally, the parameter \texttt{K} is the number of results that will be 
 returned. In some cases, particularly if \texttt{K} is small, you may need to set it
 to a larger value and then trim down the result set yourself. This is 
@@ -184,18 +181,13 @@ of a larger set of candidates. When $K$ is small though, sometimes that expansio
 ratio is not quite enough.
 
 Note also that this function returns distance values and not similarities.
-Similarities can be computed as shown in the example below.
+Similarities can be computed by setting \texttt{asSimilarity} to TRUE.
 
-Then you
-can perform a query as follows: 
+Then you can perform a query as follows: 
 
 <<term=false,fig=true>>=
 #find compounds similar to each query
-result=eiQuery(r,d,refIddb,sdfsample[45],K=10)
-
-#compute similarities from distance values
-result$similarities=1-result$distance
-print(result[1:4,])
+result=eiQuery(runId,sdfsample[45],K=10)
 
 #Compare to traditional similarity search:
 data(apset)
@@ -218,13 +210,13 @@ New Compounds can be added to an existing database, however, the
 reference compounds cannot be changed. 
 To add new compounds, use the eiAdd function. This function
 is very similar to the eiQuery function, except instead of a 
-\texttt{queiries} parameter, there is an \texttt{additions} parameter,
+\texttt{queries} parameter, there is an \texttt{additions} parameter,
 defining the compounds to be added. The format of the value of this
 parameter works the same as in the eiQuery function.
 For example, to add one compound from an SDFset you would do:
 
 <<term=false>>=
-eiAdd(r,d,refIddb,sdfsample[100])
+eiAdd(runId,sdfsample[100])
 @
 
 
@@ -232,14 +224,14 @@ eiAdd(r,d,refIddb,sdfsample[100])
 \label{performance-tests}
 
 The eiPerforamceTest function will run several tests using some sample
-data to evaluate the performace of the current embedding. It takes
-the usual $r$ and $d$ parameters, as well as on option distance function
-and descriptor type, to choose which set of descriptors to use. It also
+data to evaluate the performance of the current embedding. It takes
+the usual \texttt{runId} parameter, as well as on optional distance function.
+It also
 takes several LSH parameters, though the defaults are usually fine. 
 To evaluate the performance you can run:
 
 <<term=false>>=
-eiPerformanceTest(r,d,K=22)
+eiPerformanceTest(runId,K=22)
 @
 
 This will perform two different tests.
@@ -331,7 +323,7 @@ would make the following call:
 <<>>=
 addTransform("ap","sdf",
 	# Any sdf source -> APset
-	toObject = function(input,dir="."){
+	toObject = function(input,conn=NULL,dir="."){
 		sdfset=if(is.character(input) && file.exists(input)){
 			read.SDFset(input)
 		}else if(inherits(input,"SDFset")){
@@ -346,11 +338,11 @@ addTransform("ap","sdf",
 
 addTransform("ap",  
 	# APset -> string,
-	toString = function(apset,dir="."){
+	toString = function(apset,conn=NULL,dir="."){
 		unlist(lapply(ap(apset), function(x) paste(x,collapse=", ")))
 	},
 	# string or list -> AP set list
-	toObject= function(v,dir="."){ 
+	toObject= function(v,conn=NULL,dir="."){ 
 		if(inherits(v,"list") || length(v)==0)
 			return(v)
 
