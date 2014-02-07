@@ -9,7 +9,8 @@
 }
 \usage{
 	eiMakeDb(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
-				dir=".",numSamples=cdbSize(dir)*0.1,conn=defaultConn(dir),
+				dir=".",numSamples=getGroupSize(conn,
+				name = file.path(dir,Main)) * 0.1,conn=defaultConn(dir),
 				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
 
 }
@@ -90,7 +91,7 @@
 }
 \value{
    Creates files in \code{dir} ("run-r-d" by default).
-	The return value is the name of the refIddb file, which needs to be
+	The return value is an id number called the \code{runId}, which needs to be
 	given to other functions such as eiQuery or eiAdd.
 }
 \author{
@@ -102,6 +103,7 @@
    \code{\link{eiInit}}
    \code{\link{eiPerformanceTest}}
    \code{\link{eiQuery}}
+   \code{\link{eiCluster}}
 }
 \examples{
    library(snow)
@@ -116,7 +118,7 @@
    eiInit(sdfsample,dir=dir)
 
    #create compound db
-   refIddb=eiMakeDb(r,d,numSamples=20,dir=dir,
+   runId=eiMakeDb(r,d,numSamples=20,dir=dir,
       cl=makeCluster(1,type="SOCK",outfile=""))
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the

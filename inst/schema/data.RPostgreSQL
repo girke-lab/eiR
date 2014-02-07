@@ -3,20 +3,22 @@
 -- meant to be added to the schema defined by ChmmineR
 CREATE TABLE compound_groups (
 	compound_group_id serial PRIMARY KEY,
-	name TEXT DEFAULT ''  -- UNIQUE ?
+	name TEXT  UNIQUE 
 );
 CREATE TABLE compound_group_members (
-	compound_group_id INTEGER REFERENCES compound_groups(compound_group_id) ON DELETE CASCADE,
-	compound_id INTEGER REFERENCES compounds(compound_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	compound_group_id INTEGER NOT NULL REFERENCES compound_groups(compound_group_id) ON DELETE CASCADE,
+	compound_id INTEGER NOT NULL REFERENCES compounds(compound_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	UNIQUE(compound_group_id,compound_id)
 );
-CREATE TABLE embedding(
+CREATE INDEX compound_group_members_compound_group_id ON compound_group_members(compound_group_id);
+
+CREATE TABLE embeddings(
 	embedding_id serial PRIMARY KEY,
 	name TEXT NOT NULL UNIQUE,
 	dimension INTEGER NOT NULL,
 	num_references INTEGER NOT NULL,
-	descriptor_type_id INTEGER REFERENCES descriptor_types(descriptor_type_id) ON DELETE RESTRICT, 
-	references_group_id INTEGER REFERENCES compound_groups(compound_group_id) ON DELETE RESTRICT,
+	descriptor_type_id INTEGER NOT NULL REFERENCES descriptor_types(descriptor_type_id) ON DELETE RESTRICT, 
+	references_group_id INTEGER NOT NULL REFERENCES compound_groups(compound_group_id) ON DELETE RESTRICT,
 	UNIQUE(dimension,num_references,descriptor_type_id,references_group_id)
 );
 
@@ -24,17 +26,65 @@ CREATE TABLE embedding(
 CREATE TABLE runs (
 	run_id serial PRIMARY KEY,
 	name TEXT DEFAULT '',
-	embedding_id INTEGER REFERENCES embedding(embedding_id) ON DELETE RESTRICT,
-	compound_group_id INTEGER REFERENCES compound_groups(compound_group_id) ON DELETE RESTRICT,
+	embedding_id INTEGER NOT NULL REFERENCES embeddings(embedding_id) ON DELETE RESTRICT,
+	compound_group_id INTEGER NOT NULL REFERENCES compound_groups(compound_group_id) ON DELETE RESTRICT,
 	sample_group_id INTEGER REFERENCES compound_groups(compound_group_id) ON DELETE RESTRICT,
 	UNIQUE(embedding_id,compound_group_id)
 );
 
 CREATE TABLE embedded_descriptors (
-	embedding_id INTEGER REFERENCES embedding(embedding_id) ON DELETE CASCADE,
-	descriptor_id INTEGER REFERENCES descriptors(descriptor_id) ON DELETE CASCADE,
+	embedding_id INTEGER NOT NULL REFERENCES embeddings(embedding_id) ON DELETE CASCADE,
+	descriptor_id INTEGER NOT NULL REFERENCES descriptors(descriptor_id) ON DELETE CASCADE,
 	ordering INTEGER NOT NULL,
-	value REAL NOT NULL,
+	value DOUBLE PRECISION NOT NULL,
 	UNIQUE(embedding_id,descriptor_id,ordering)
 );
 CREATE INDEX embedded_desc_embed_id_desc_id ON embedded_descriptors(embedding_id,descriptor_id);
+
+--compounds in compound group for run id=3 that are do not have descriptors of type 'ap'
+--in embedded_descriptors
+
+CREATE  VIEW unembedded_descriptors AS
+	SELECT DISTINCT cd.descriptor_id, r.run_id
+	FROM	 runs AS r 
+			 JOIN compound_groups AS cg USING(compound_group_id)
+			 JOIN compound_group_members AS cgm USING(compound_group_id)
+			 JOIN compound_descriptors AS cd USING(compound_id)
+			 LEFT JOIN embedded_descriptors AS ed ON(
+				r.embedding_id=ed.embedding_id AND cd.descriptor_id = ed.descriptor_id)
+	WHERE
+			ed.descriptor_id IS NULL
+;			 
+
+CREATE VIEW run_embedded_descriptors AS
+	SELECT a.run_id, ed.descriptor_id,ed.value
+	FROM	 embedded_descriptors AS ed 
+			 JOIN (
+				 SELECT DISTINCT r.run_id, d.descriptor_id, e.embedding_id
+				 FROM  runs AS r
+						 JOIN compound_groups AS cg USING(compound_group_id)
+						 JOIN compound_group_members AS cgm USING(compound_group_id)
+						 JOIN compound_descriptors USING(compound_id)
+						 JOIN descriptors AS d USING(descriptor_id)
+						 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
+						 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
+				 ) as a ON(ed.embedding_id=a.embedding_id AND ed.descriptor_id = a.descriptor_id)
+	ORDER BY ed.descriptor_id,ed.ordering
+;
+
+CREATE VIEW run_sample_embedded_descriptors AS
+	SELECT a.run_id, ed.descriptor_id,ed.value
+	FROM	 embedded_descriptors AS ed 
+			 JOIN (
+				 SELECT DISTINCT r.run_id, d.descriptor_id, e.embedding_id
+				 FROM  runs AS r
+						 JOIN compound_groups AS cg USING(compound_group_id)
+						 JOIN compound_group_members AS cgm ON(cgm.compound_group_id = r.sample_group_id)
+						 JOIN compound_descriptors USING(compound_id)
+						 JOIN descriptors AS d USING(descriptor_id)
+						 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
+						 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
+				 ) as a ON(ed.embedding_id=a.embedding_id AND ed.descriptor_id = a.descriptor_id)
+	ORDER BY ed.descriptor_id,ed.ordering
+;
+
