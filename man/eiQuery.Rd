@@ -7,27 +7,20 @@
    Finds similar compounds for each query.
 }
 \usage{
-	eiQuery(r,d,refIddb,queries,format="sdf",
-		dir=".",descriptorType="ap",distance=getDefaultDist(descriptorType),conn=defaultConn(dir),
+	eiQuery(runId,queries,format="sdf",
+		dir=".",distance=getDefaultDist(descriptorType),conn=defaultConn(dir),
 		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,
-		mainIds = readIddb(file.path(dir, Main)))
+		mainIds = readIddb(conn,file.path(dir, Main),sorted=TRUE))
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{r}{
-      The number of references used to build the database you wish to
-      query against.
-   }
-  \item{d}{
-      The number of dimensions used to build the database you wish to
-      query against.
-   }
-  \item{refIddb}{
-      An Iddb formatted file containing the reference IDs of the database
-      you wish to query against. This should almost always be the file:
-      run-\code{r}-\code{d}/<long random string>.cdb.
-		The \code{refIddb} value should also be returned by eiMakeDb.
-   }
+	\item{runId}{
+		The id number identifying a particular set of settings for a database. This is generally
+		the number returned by \code{\link{eiMakeDb}}. If your coming from an older version of eiR, you should
+		not use this value instead of
+		specifying \code{r}, \code{d},\code{refIddb}, and \code{descriptorType}.
+	}
+
   \item{queries}{
       This can be either an SDFset, or a file containg 1 or more
       query compounds.
@@ -42,10 +35,6 @@
       The directory where the "data" directory lives. Defaults to the
       current directory.
    }
-	\item{descriptorType}{
-		The format of the descriptor. Currently supported values are "ap" for atom pair, and 
-		"fp" for fingerprint.
-	}
 	\item{distance}{
 		The distance function to be used to compute the distance between two descriptors. A default function is
 		provided for "ap" and "fp" descriptors. The Tanimoto function is used by default.
@@ -135,11 +124,11 @@
    eiInit(sdfsample,dir=dir)
 
    #create compound db
-   refIddb=eiMakeDb(r,d,numSamples=20,dir=dir,
+   runId=eiMakeDb(r,d,numSamples=20,dir=dir,
       cl=makeCluster(1,type="SOCK",outfile=""))
 
    #find compounds similar two each query
-   results = eiQuery(r,d,refIddb,sdfsample[1:2],K=15,dir=dir)
+   results = eiQuery(runId,sdfsample[1:2],K=15,dir=dir)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
