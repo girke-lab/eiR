@@ -7,26 +7,18 @@
    Add additional compounds to and existing database
 }
 \usage{
-	eiAdd(r,d,refIddb,additions,dir=".",format="sdf",conn=defaultConn(dir),
-		descriptorType="ap",distance=getDefaultDist(descriptorType),
+	eiAdd(runId,additions,dir=".",format="sdf",conn=defaultConn(dir),
+		distance=getDefaultDist(descriptorType),
 		updateByName = FALSE)
 
 }
 \arguments{
-  \item{r}{
-      The number of references used to build the database you wish to
-      query agains.
-   }
-  \item{d}{
-      The number of dimensions used to build the database you wish to
-      query agains.
-   }
-  \item{refIddb}{
-      An Iddb formatted file containing the reference IDs of the database
-      you wish to append to. This should almost always be the file:
-      run-\code{r}-\code{d}/<long random string>.cdb.
-		The \code{refIddb} value should also be returned by eiMakeDb.
-   }
+	\item{runId}{
+		The id number identifying a particular set of settings for a database. This is generally
+		the number returned by \code{\link{eiMakeDb}}If your coming from an older version of eiR, you should
+		not use this value instead of specifying \code{r}, \code{d}, \code{descriptorType}
+		and \code{refIddb,}.
+	}
   \item{additions}{
       The compounds to add. This can be either a file in sdf format, or 
 		and SDFset object.
@@ -41,10 +33,6 @@
    }
 	\item{conn}{
 		Database connection to use.
-	}
-	\item{descriptorType}{
-		The format of the descriptor. Currently supported values are "ap" for atom pair, and 
-		"fp" for fingerprint.
 	}
 	\item{distance}{
 		The distance function to be used to compute the distance between two descriptors. A default function is
@@ -82,11 +70,11 @@
    eiInit(sdfsample[1:99],dir=dir)
 
    #create compound db
-   refIddb=eiMakeDb(r,d,numSamples=20,dir=dir)
+   runId=eiMakeDb(r,d,numSamples=20,dir=dir)
       
 
    #find compounds similar two each query
-   eiAdd(r,d,refIddb,sdfsample[100],dir=dir)
+   eiAdd(runId,sdfsample[100],dir=dir)
 
 
 }

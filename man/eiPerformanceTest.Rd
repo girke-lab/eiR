@@ -7,28 +7,21 @@
    Tests the performance of embedding and LSH.
 }
 \usage{
-	eiPerformanceTest(r,d,distance=getDefaultDist(descriptorType),descriptorType="ap",
+	eiPerformanceTest(runId,distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
- \item{r}{
-      The number of references used to build the database you wish to
-      query agains.
-   }
-  \item{d}{
-      The number of dimensions used to build the database you wish to
-      query agains.
-   }
-
+	\item{runId}{
+		The id number identifying a particular set of settings for a database. This is generally
+		the number returned by \code{\link{eiMakeDb}}. If your coming from an older version of eiR, you should
+		not use this value instead of
+		specifying \code{r}, \code{d}, and \code{descriptorType}.
+	}
 
 	\item{distance}{
 		The distance function to be used to compute the distance between two descriptors. A default function is
 		provided for "ap" and "fp" descriptors.
-	}
-	\item{descriptorType}{
-		The format of the descriptor. Currently supported values are "ap" for atom pair, and 
-		"fp" for fingerprint.
 	}
 	\item{conn}{
 		Database connection to use.
@@ -115,10 +108,10 @@
    eiInit(sdfsample,dir=dir)
 
    #create compound db
-   eiMakeDb(r,d,numSamples=20,dir=dir,
+   runId = eiMakeDb(r,d,numSamples=20,dir=dir,
       cl=makeCluster(1,type="SOCK",outfile=""))
 
-   eiPerformanceTest(r,d,dir=dir,K=22)
+   eiPerformanceTest(runId,dir=dir,K=22)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.
