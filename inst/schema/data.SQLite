@@ -3,8 +3,27 @@
 -- meant to be added to the schema defined by ChmmineR
 
 CREATE TABLE embeddedDescriptors (
+	run_id
 	descriptor_id INTEGER REFERENCES descriptors(descriptor_id) ON DELETE CASCADE,
 	order INTEGER NOT NULL,
 	value REAL NOT NULL,
 	UNIQUE(descriptor_id,order)
 );
+
+CREATE TABLE runs (
+	run_id
+	dimension
+	reference_count
+	descriptor_type_id
+	compound_group_id
+	reference_group_id
+	sample_group_id
+);
+
+compound_groups
+	compound_group_id
+	group_name
+
+compound_group_members
+	compound_group_id
+	compound_id
