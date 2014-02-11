@@ -185,7 +185,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 		createWorkDir(r)
 	}else if(is.numeric(refs)){
 		if(length(refs)==0){ #assume its the number of refs to use
-			stop(paste("variable refs must be posative, found ",refs))
+			stop(paste("variable refs must be positive, found ",refs))
 		}else if(length(refs)==1){ #assume its the number of refs to use
 			r=refs
 			createWorkDir(r)
