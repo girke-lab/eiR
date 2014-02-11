@@ -5,6 +5,8 @@ library(DBI)
 
 options(warn=2)
 options(error=dump.frames)
+options(warnPartialMatchDollar=TRUE)
+
 test_dir="test_workspace"
 r<- 50
 d<- 40

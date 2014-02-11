@@ -118,7 +118,7 @@ getGroupSize <- function(conn,name=NULL,groupId=NULL) {
 	}else if(is.null(groupId) && is.null(name))
 		stop("either 'groupId' or 'name' must be specified to 'getGroupSize'")
 
-	size = runQuery(conn,paste("SELECT count(*) FROM compound_group_members
+	size = runQuery(conn,paste("SELECT count(*) AS count FROM compound_group_members
 										  WHERE compound_group_id = ",groupId,sep=""))$count
 	if(length(size) == 0)
 		stop("could not find size of compound group ",handle)
