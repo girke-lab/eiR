@@ -148,7 +148,10 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	}else{
 		message("loading locally")
 		connSource=function() conn
-		compoundIds=unlist(lapply(inputs,loadInput))
+		if(is.character(inputs) && length(inputs) > 1) # list of filenames
+			compoundIds=unlist(lapply(inputs,loadInput))
+		else
+			compoundIds = loadInput(inputs)
 	}
 
 
