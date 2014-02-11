@@ -304,7 +304,7 @@ getGroupDescriptorCount <- function(conn,groupId,descriptorTypeId){
 
 writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 
-	if(debug) print("writing matrix file")
+	message("Regenerating matrix file...")
 
 	runInfo = getExtendedRunInfo(conn,runId)
 	matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
@@ -317,12 +317,10 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 	floatSize = 4
 	viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
 
-	#numRows= getGroupSize(conn,groupId= if(samples) runInfo$sample_group_id else runInfo$compound_group_id)
 	numRows = getGroupDescriptorCount(conn,if(samples) runInfo$sample_group_id else runInfo$compound_group_id,
 												 runInfo$descriptor_type_id)
 	numCols = runInfo$dimension
-	#if(debug) message("numRows: ",numRows," numCols: ",numCols)
-	message("numRows: ",numRows," numCols: ",numCols)
+	if(debug)  message("numRows: ",numRows," numCols: ",numCols)
 
 	writeBin(as.integer(floatSize),f,floatSize)
 	writeBin(as.integer(numRows),f,floatSize)
@@ -339,8 +337,7 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 				count <<- count + 1
 			}
 			writeBin(as.vector(df$value),f,floatSize)
-   },batchSize = 50,closeRS=TRUE)
-   #},batchSize = 10000,closeRS=TRUE)
+   },batchSize = 10000,closeRS=TRUE)
 	
 	close(f)
 	close(indexF)

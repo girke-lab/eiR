@@ -148,7 +148,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	}else{
 		message("loading locally")
 		connSource=function() conn
-		compoundIds=loadInput(inputs)
+		compoundIds=unlist(lapply(inputs,loadInput))
 	}
 
 
@@ -354,7 +354,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 
 		runInfo = getExtendedRunInfo(conn,runId) 
 		if(nrow(runInfo)==0)
-			stop("no information found for ",runId)
+			stop("no information found for run ",runId)
 		if(debug) print(runInfo)
 		if(debug) print("got run info")
 		r=runInfo$num_references
@@ -370,7 +370,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		#TODO make this work for modified descriptors
 
 		# add additions to database
-		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName)
+		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName,conn=conn)
 		#print("new compound ids: "); print(compoundIds)
 		#message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 
