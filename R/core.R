@@ -2,25 +2,16 @@
 library(snow)
 
 DataDir = "data"
-TestQueries = file.path(DataDir,"test_query.iddb")
 TestQueryResults=file.path(DataDir,"chemical-search.results")
 ChemPrefix="chem"
 ChemDb = file.path(DataDir,paste(ChemPrefix,".db",sep=""))
 ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
-Main = file.path(DataDir,"main.iddb")
 
 
 #debug=TRUE
 debug=FALSE
 
-# Notes
-#  Need function to produce descriptors from sdf or smile
-#  Need function to compute distances between descriptors
 
-#cdbSize <- function(dir=".") {
-#	#TODO: make this more efficient
-#	length(readIddb(conn,file.path(dir,Main)))
-#}
 embedCoord <- function(s,len,coords) 
 	.Call("embedCoord",s,as.integer(len),as.double(coords))
 
@@ -83,19 +74,9 @@ lshsearchAll <- function(matrixFile,
 }
 
 
-# functions needed for sql backend:
-# distance
-
-# descriptorStr  raw format (sdf,smile) -> descriptor object -> string
-# str2Descriptor  string -> descriptor object
-# also need descrptor type, ie, "ap" "fpap", etc.
-
-# and compound format, ei, "SDF", "SMILE", etc.
-# X optionally: compound -> string and string -> compound
-
 eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
-						 cl=NULL,connSource=NULL)
+						 cl=NULL,connSource=NULL,dataSetName="main")
 {
 	givenConn = ! missing(conn)  # true if we were handed an existing connection, so don't disconnect it
 	if(!file.exists(file.path(dir,DataDir)))
@@ -157,13 +138,13 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
-	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
+	writeIddb(conn,compoundIds,dataSetName,append=append)
 	setPriorities(conn,randomPriorities)
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
-				dir=".",numSamples=getGroupSize(conn,name=file.path(dir,Main))*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
+				dir=".",numSamples=getGroupSize(conn,name=dataSetName)*0.1,conn=defaultConn(dir),
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL,dataSetName="main")
 {
 	conn
 	workDir=NA
@@ -179,8 +160,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	if(is.null(conn))
 		stop("no database connection given")
 
-	message("readding main.iddb")
-	mainIds <- readIddb(conn,file.path(dir,Main))
+	message("readding data set ",dataSetName)
+	mainIds <- readIddb(conn,dataSetName)
 
 	if(is.character(refs)){ #assume its a filename
 		refIds=readIddbFile(refs)
@@ -218,15 +199,15 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 
 	message("generating test query ids")
 	queryIds=genTestQueryIds(numSamples,dir,mainIds,refIds)
-	queryGroupId = writeIddb(conn,queryIds,file.path(dir,TestQueries))
+	queryGroupId = writeIddb(conn,queryIds,paste(dataSetName,"samples"))
 	#print("queryids")
 	#print(queryIds)
 	message("done generating test query ids")
 
 	#create run
 	# need: name,embedding id, compound group id, sample group id
-	mainGroupId = getCompoundGroupId(conn,file.path(dir,Main))
-	runId = getRunId(conn,workDir,embeddingId,mainGroupId,queryGroupId,create=TRUE)
+	mainGroupId = getCompoundGroupId(conn,dataSetName)
+	runId = getRunId(conn,paste(dataSetName,refGroupName),embeddingId,mainGroupId,queryGroupId,create=TRUE)
 
 
 	selfDistFile <- paste(file.path(workDir,refGroupName),"distmat",sep=".")
@@ -270,8 +251,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 eiQuery <- function(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,
-		mainIds =readIddb(conn,file.path(dir,Main),sorted=TRUE))
+		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL)
 {
 		conn
 		if(debug) print("eiQuery")
@@ -286,7 +266,7 @@ eiQuery <- function(runId,queries,format="sdf",
 		r=runInfo$num_references
 		d=runInfo$dimension
 		refGroupName = runInfo$references_group_name
-		descriptorType=getDescriptorType(conn,info =runInfo)
+		descriptorType=getDescriptorType(conn,info =runInfo)  # used in argument list
 
 		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
@@ -606,12 +586,10 @@ readNames <- function(file) as.numeric(readLines(file))
 # testing
 genTestQueryIds <- function(numSamples,dir,mainIds,refIds=c())
 {
-	#testQueryFile <-file.path(dir,TestQueries)
 	set=setdiff(mainIds,refIds)
 	if(numSamples < 0 || numSamples > length(set)) 
 		stop(paste("trying to take more samples than there are compounds available",numSamples,length(set)))
 	queryIds <- sort(sample(set,numSamples))
-#	writeIddb(conn,queryIds,testQueryFile)
 	queryIds
 }
 genRefs <- function(n,mainIds,queryIds=c())
@@ -629,15 +607,15 @@ genRefName <- function(workDir)
 				 paste(paste(sample(c(0:9,letters),32,replace=TRUE),
 								 collapse=""),
 						 "cdb",sep="."))
-genTestQueryResults <- function(distance,dir,descriptorType,conn=defaultConn(dir))
+genTestQueryResults <- function(distance,dir,descriptorType,dataSetName,conn=defaultConn(dir))
 {
 	if(file.exists(file.path(dir,TestQueryResults)))
 		return()
 
 	out=file(file.path(dir,TestQueryResults),"w")
 	d=IddbVsIddbDist(conn,
-		readIddb(conn,file.path(dir,TestQueries)),
-		readIddb(conn,file.path(dir,Main)),distance,descriptorType)
+		readIddb(conn,paste(dataSetName,"samples")),
+		readIddb(conn,dataSetName),distance,descriptorType)
 	if(debug) print(paste("dim(d): ",dim(d)))
 	maxLength=min(dim(d)[2],50000)
 	for(i in 1:(dim(d)[1]))
@@ -663,7 +641,7 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 
 	workDir=file.path(dir,paste("run",r,d,sep="-"))
 	eucsearch=file.path(workDir,sprintf("eucsearch.%s-%s",r,d))
-	genTestQueryResults(distance,dir,descriptorType,conn=conn)
+	genTestQueryResults(distance,dir,descriptorType,runInfo$compound_group_name,conn=conn)
 	eucsearch2file(file.path(workDir,sprintf("matrix.%s-%s",r,d)),
 				 file.path(workDir,sprintf("matrix.query.%s-%s",r,d)),
 				 50000,eucsearch)

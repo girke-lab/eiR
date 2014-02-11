@@ -112,7 +112,7 @@ test_ba.parDist <- function(){
 	require(snow)
 	cl = makeSOCKcluster(3,outfile="")
 
-	set1=eiR:::readIddb(conn,file.path(test_dir,"data","main.iddb"))
+	set1=eiR:::readIddb(conn,"main")
 	set2 = testRefs()
 
 	if(debug){
@@ -397,7 +397,7 @@ test_fo.nnm_test  <- function(){
 	#dir="."
 	cutoff = 0.5
 
-	compoundIds=eiR:::readIddb(file.path(dir,eiR:::Main))
+	compoundIds=eiR:::readIddb("main")
 
 	#compoundIds = compoundIds[1:100]
 
@@ -520,8 +520,9 @@ checkMatrix <- function(pattern,x,y,dir=runDir){
 }
 
 checkDescriptor = function(conn,rid,descriptorIndex=NULL,
-									compoundId = eiR:::readIddb(conn,
-																		 file.path(test_dir,eiR:::Main))[descriptorIndex],
+							compoundId = eiR:::readIddb(conn,"main")[descriptorIndex],
+							#compoundId = eiR:::readIddb(conn,
+												 #file.path(test_dir,eiR:::Main))[descriptorIndex],
 									printAll=FALSE) {
 
 		parameters = eiR:::runQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
