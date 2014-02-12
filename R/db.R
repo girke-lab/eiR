@@ -280,6 +280,8 @@ getDescriptorsByDescriptorId <- function(conn,descriptorIds){
 }
 
 getDescriptorIds <- function(conn,compoundIds,descriptorType,keepOrder=FALSE){
+	if(length(compoundIds) == 0)
+		return(c())
 	data = runQuery(conn, paste("SELECT descriptor_id,compound_id FROM compound_descriptors as cd
 													  JOIN descriptors USING(descriptor_id)
 													  JOIN descriptor_types USING(descriptor_type_id) 
