@@ -97,7 +97,6 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
 						 cl=NULL,connSource=NULL)
 {
-	givenConn = ! missing(conn)  # true if we were handed an existing connection, so don't disconnect it
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
 			stop("failed to create data directory ",file.path(dir,DataDir))
@@ -121,6 +120,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 		stop(paste("unknown input format:",format," supported formats: SDF, SMILE"))
 	}
 
+	closeConn = TRUE
 	connSource
 	loadInput = function(input){
 		conn=connSource()
@@ -133,7 +133,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 				message("loaded ",length(ids)," compounds")
 			ids
 		  },error = function(e) stop(e),
-		  finally = if(FALSE && !givenConn) dbDisconnect(conn)
+		  finally = if(closeConn) dbDisconnect(conn)
 		)
 	}
 
@@ -148,6 +148,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	}else{
 		message("loading locally")
 		connSource=function() conn
+		closeConn=FALSE
 		if(is.character(inputs) && length(inputs) > 1) # list of filenames
 			compoundIds=unlist(lapply(inputs,loadInput))
 		else
@@ -904,6 +905,7 @@ embedAll <- function(conn,runId, distance,dir=".",
 	embeddingId = runInfo$embedding_id
 	descriptorType=getDescriptorType(conn,info =runInfo)
 	unembeddedDescriptorIds = getUnEmbeddedDescriptorIds(conn,runId)
+	closeConn=TRUE
 
 	embedJob = function(ids,jobId){
 		solver <- getSolver(r,d,coords)	
@@ -914,11 +916,14 @@ embedAll <- function(conn,runId, distance,dir=".",
 		embeddedDescriptors = apply(rawDists,c(1), function(x) embedCoord(solver,d,x))
 
 		x=insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
+		if(closeConn)
+			dbDisconnect(conn)
 		x
 	}
 	
 	if(is.null(cl)){ #don't use cluster
 		connSource = function() conn
+		closeConn=FALSE
 		batchByIndex(unembeddedDescriptorIds,embedJob)
 	}else{
 		#ensure we have at least as many jobs as cluster nodes, but if
