@@ -1,4 +1,20 @@
 
+withConnection <- function(connSource,connUser){
+
+	#given a connection object directly
+	if(inherits(connSource,"DBIConnection")){
+		connUser(connSource)
+	}else{
+		conn=connSource()
+		tryCatch({
+			connUser(conn)
+		  },error = function(e) stop(e),
+		  finally = dbDisconnect(conn)
+		)
+	}
+}
+
+
 
 ensureSchema <- function(conn) {
 
