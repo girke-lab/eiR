@@ -8,7 +8,7 @@
 	the LSH algorithm to quickly find nearest neighbors.
 }
 \usage{
-	eiCluster(runId,K,minNbrs, dir=".",cutoff=NULL,
+	eiCluster(runId,K,minNbrs,compoundIds=c(), dir=".",cutoff=NULL,
 							 distance=getDefaultDist(descriptorType),
 							 conn=defaultConn(dir), W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single")
 }
@@ -25,6 +25,11 @@
 	}
   \item{minNbrs}{
 	  The minimum number of neighbors that two comopunds must have in common in order to be joined.
+	}
+	\item{compoundIds}{
+		If this variable is set to a vector of compound ids, then clustering will be done
+		with just those compounds. If left unset or empty, clustering will apply to all
+		compounds in the given run.
 	}
 	\item{dir}{
       The directory where the "data" directory lives. Defaults to the
