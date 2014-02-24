@@ -97,7 +97,6 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
 						 cl=NULL,connSource=NULL)
 {
-	givenConn = ! missing(conn)  # true if we were handed an existing connection, so don't disconnect it
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
 			stop("failed to create data directory ",file.path(dir,DataDir))
@@ -123,8 +122,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 
 	connSource
 	loadInput = function(input){
-		conn=connSource()
-		tryCatch({
+		withConnection(connSource,function(conn){
 			if(is.character(input)) message("loading ",input)
 			ids = loadFormat(conn,input, descriptors=descriptorFunction,updateByName=updateByName)
 			if(is.character(input))
@@ -132,9 +130,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 			else
 				message("loaded ",length(ids)," compounds")
 			ids
-		  },error = function(e) stop(e),
-		  finally = if(FALSE && !givenConn) dbDisconnect(conn)
-		)
+		})
 	}
 
 		
@@ -143,11 +139,12 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 		if(is.null(connSource))
 			stop("a connSource must be provided when using a cluster")
 		message("using cluster")
-		addDescriptorType(connSource(),descriptorType)
+		withConnection(connSource,function(conn)
+							addDescriptorType(conn,descriptorType))
 		compoundIds = unlist(clusterApplyLB(cl,inputs, loadInput))
 	}else{
 		message("loading locally")
-		connSource=function() conn
+		connSource= conn
 		if(is.character(inputs) && length(inputs) > 1) # list of filenames
 			compoundIds=unlist(lapply(inputs,loadInput))
 		else
@@ -158,7 +155,8 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
-	setPriorities(conn,randomPriorities)
+	descIds = getDescriptorIds(conn,compoundIds,descriptorType)
+	setPriorities(conn,randomPriorities,descIds)
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
@@ -288,7 +286,6 @@ eiQuery <- function(runId,queries,format="sdf",
 		refGroupName = runInfo$references_group_name
 		descriptorType=getDescriptorType(conn,info =runInfo)
 
-		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		refIds = readIddb(conn,groupId=runInfo$references_group_id)
 
@@ -367,7 +364,6 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		descriptorType=getDescriptorType(conn,info=runInfo)
 		message("initial compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 
-		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 
 		#TODO make this work for modified descriptors
@@ -383,7 +379,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		compoundIds
 }
 
-eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
+eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 							 distance=getDefaultDist(descriptorType),
 							 conn=defaultConn(dir),
 							  W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single"){
@@ -400,10 +396,14 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		d=runInfo$dimension
 		descriptorType=getDescriptorType(conn,info=runInfo)
 	
-		workDir=file.path(dir,paste("run",r,d,sep="-"))
-		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-		#sort these to ensure it lines up with the matrix file
-		mainDescriptorIds = getRunDescriptorIds(conn,runId)
+		if(length(compoundIds) > 0){
+			if(debug) message("using custom set to cluster")
+			matrixFile = writeMatrixFile(conn,runId,compoundIds)
+		}else{
+			workDir=file.path(dir,paste("run",r,d,sep="-"))
+			matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
+		}
+		mainDescriptorIds = readMatrixIndex(matrixFile)
 
 		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T) #neighbors is now matrix space
 
@@ -761,14 +761,19 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 
 						# this must be done here to ensure connSource() is evaluated
 						# before getDescriptors starts to run
-						conn=NULL
-						tryCatch({
-								conn=connSource()
-								outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
-							},
-							error=function(e) stop(e),
-							finally= if(!is.null(conn)) dbDisconnect(conn)
-						)
+
+						outerDesc = withConnection(connSource, function(conn){
+											preProcess(getDescriptors(conn,descriptorType,ids))
+										})
+
+				#		conn=NULL
+				#		tryCatch({
+				#				conn=connSource()
+				#				outerDesc = preProcess(getDescriptors(conn,descriptorType,ids))
+				#			},
+				#			error=function(e) stop(e),
+				#			finally= if(!is.null(conn)) dbDisconnect(conn)
+				#		)
 						cat("got descriptors","\n",file=f); flush(f)
 						d2d=desc2descDist(outerDesc,descriptors,dist)
 						cat("got distances","\n",file=f); flush(f)
@@ -786,6 +791,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 			ipEnv$recordPart=recordPart
 			ipEnv$connSource=connSource
 			ipEnv$preProcess=preProcess
+			ipEnv$withConnection=withConnection
 
 			environment(ip)=ipEnv
 
@@ -907,18 +913,25 @@ embedAll <- function(conn,runId, distance,dir=".",
 
 	embedJob = function(ids,jobId){
 		solver <- getSolver(r,d,coords)	
-		conn=connSource()
 
-		descriptors = getDescriptorsByDescriptorId(conn,ids)
-		rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
-		embeddedDescriptors = apply(rawDists,c(1), function(x) embedCoord(solver,d,x))
+		withConnection(connSource,function(conn){
 
-		x=insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
-		x
+			descriptors = getDescriptorsByDescriptorId(conn,ids)
+			rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
+			embeddedDescriptors = apply(rawDists,c(1), function(x) embedCoord(solver,d,x))
+
+			insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
+
+		})
+
+		#conn=connSource()
+		#if(closeConn)
+			#dbDisconnect(conn)
+		#x
 	}
 	
 	if(is.null(cl)){ #don't use cluster
-		connSource = function() conn
+		connSource = conn
 		batchByIndex(unembeddedDescriptorIds,embedJob)
 	}else{
 		#ensure we have at least as many jobs as cluster nodes, but if

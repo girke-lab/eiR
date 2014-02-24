@@ -1,4 +1,20 @@
 
+withConnection <- function(connSource,connUser){
+
+	#given a connection object directly
+	if(inherits(connSource,"DBIConnection")){
+		connUser(connSource)
+	}else{
+		conn=connSource()
+		tryCatch({
+			connUser(conn)
+		  },error = function(e) stop(e),
+		  finally = dbDisconnect(conn)
+		)
+	}
+}
+
+
 
 ensureSchema <- function(conn) {
 
@@ -264,11 +280,16 @@ getDescriptorsByDescriptorId <- function(conn,descriptorIds){
 }
 
 getDescriptorIds <- function(conn,compoundIds,descriptorType,keepOrder=FALSE){
-	data = runQuery(conn, paste("SELECT descriptor_id,compound_id FROM compound_descriptors as cd
+	if(length(compoundIds) == 0)
+		return(c())
+
+	selectClause = if(keepOrder) "descriptor_id, compound_id" else "DISTINCT descriptor_id"
+	data = selectInBatches(conn,compoundIds, function(ids) 
+								  paste("SELECT ",selectClause," FROM compound_descriptors as cd
 													  JOIN descriptors USING(descriptor_id)
 													  JOIN descriptor_types USING(descriptor_type_id) 
 													  WHERE descriptor_type = '",descriptorType,"'
-													  AND cd.compound_id IN (",paste(compoundIds,collapse=","),")",sep=""))
+													  AND cd.compound_id IN (",paste(ids,collapse=","),")",sep=""))
 	descriptorIds =data$descriptor_id
 	if(keepOrder){
 		names(descriptorIds) = data$compound_id
@@ -302,23 +323,30 @@ getGroupDescriptorCount <- function(conn,groupId,descriptorTypeId){
 												" AND cgm.compound_group_id = ",groupId,") as t "))[[1]]
 }
 
-writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
+writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
 
 	message("Regenerating matrix file...")
 
 	runInfo = getExtendedRunInfo(conn,runId)
-	matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
+	if(length(compoundIds) == 0){
+		matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
 								  paste(if(samples) "matrix.query" else "matrix",".",runInfo$num_references,"-",runInfo$dimension,sep=""))
+
+		viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
+		numRows = getGroupDescriptorCount(conn,if(samples) runInfo$sample_group_id else runInfo$compound_group_id,
+												 runInfo$descriptor_type_id)
+	}
+	else{
+		matrixFile = file.path(if(debug) "." else tempdir(),"matrix")
+		numRows = length(compoundIds)
+	}
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
 	matrixFileIndex = paste(matrixFile,".index",sep="")
 	if(debug) message("filename: ",matrixFile)
 
 	f = file(matrixFileTemp,"wb")
 	floatSize = 4
-	viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
 
-	numRows = getGroupDescriptorCount(conn,if(samples) runInfo$sample_group_id else runInfo$compound_group_id,
-												 runInfo$descriptor_type_id)
 	numCols = runInfo$dimension
 	if(debug)  message("numRows: ",numRows," numCols: ",numCols)
 
@@ -326,23 +354,44 @@ writeMatrixFile<- function(conn,runId,dir=".",samples=FALSE){
 	writeBin(as.integer(numRows),f,floatSize)
 	writeBin(as.integer(numCols),f,floatSize)
 	
-	rs=dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId))
 
 	indexF = file(matrixFileIndex,"w")
 	count=0
-	bufferResultSet(rs,function(df){
+
+	writeChunk = function(df){
 			for( i in 1:nrow(df)){
 				if(count %% numCols == 0)
 					cat(paste(df$descriptor_id[i]),file=indexF,sep="\n")
 				count <<- count + 1
 			}
 			writeBin(as.vector(df$value),f,floatSize)
-   },batchSize = 10000,closeRS=TRUE)
+   }
+
+
+	if(length(compoundIds)==0){
+		bufferResultSet(dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId)),
+							 writeChunk,
+							 batchSize = 10000,
+							 closeRS=TRUE)
+	}else{
+
+		descriptorIds = getDescriptorIds(conn,compoundIds,getDescriptorType(conn,info=runInfo))
+		batchByIndex(descriptorIds,function(ids){
+			writeChunk(dbGetQuery(conn,paste("SELECT descriptor_id,value
+													  FROM embedded_descriptors 
+													  WHERE descriptor_id IN (",paste(ids,collapse=","),")
+															  AND embedding_id = ",runInfo$embedding_id,
+													  "ORDER BY descriptor_id, ordering")))
+		 },1000)
+	}
 	
 	close(f)
 	close(indexF)
 	file.rename(matrixFileTemp,matrixFile)
-
+	matrixFile
+}
+readMatrixIndex <- function(matrixFile){
+	readIddbFile( paste(matrixFile,".index",sep=""))
 }
 
 descriptorsToCompounds <- function(conn,descriptorIds, all=FALSE){
