@@ -286,7 +286,6 @@ eiQuery <- function(runId,queries,format="sdf",
 		refGroupName = runInfo$references_group_name
 		descriptorType=getDescriptorType(conn,info =runInfo)
 
-		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 		refIds = readIddb(conn,groupId=runInfo$references_group_id)
 
@@ -365,7 +364,6 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		descriptorType=getDescriptorType(conn,info=runInfo)
 		message("initial compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 
-		tmpDir=tempdir()
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 
 		#TODO make this work for modified descriptors
@@ -381,7 +379,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		compoundIds
 }
 
-eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
+eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 							 distance=getDefaultDist(descriptorType),
 							 conn=defaultConn(dir),
 							  W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single"){
@@ -398,10 +396,14 @@ eiCluster <- function(runId,K,minNbrs, dir=".",cutoff=NULL,
 		d=runInfo$dimension
 		descriptorType=getDescriptorType(conn,info=runInfo)
 	
-		workDir=file.path(dir,paste("run",r,d,sep="-"))
-		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-		#sort these to ensure it lines up with the matrix file
-		mainDescriptorIds = getRunDescriptorIds(conn,runId)
+		if(length(compoundIds) > 0){
+			if(debug) message("using custom set to cluster")
+			matrixFile = writeMatrixFile(conn,runId,compoundIds)
+		}else{
+			workDir=file.path(dir,paste("run",r,d,sep="-"))
+			matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
+		}
+		mainDescriptorIds = readMatrixIndex(matrixFile)
 
 		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T) #neighbors is now matrix space
 
