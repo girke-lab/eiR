@@ -48,8 +48,8 @@ pgSource=function(reset=FALSE){
 	conn
 }
 
-connSource = sqliteSource
-#connSource = pgSource
+#connSource = sqliteSource
+connSource = pgSource
 connSource(TRUE) # reset postgres
 
 lastRunId=0
@@ -84,7 +84,7 @@ test_aa.eiInit <- function() {
 
 	message("default descriptor")
    data(sdfsample)
-   compoundIds = eiInit(sdfsample,descriptorType=descType,dir=test_dir)
+   compoundIds = eiInit(sdfsample[1:N],descriptorType=descType,dir=test_dir)
 	#checkData(compoundIds)
 
 	message("fp descriptor")
@@ -187,7 +187,7 @@ test_bb.eiMakeDb <- function() {
 	eiR:::writeIddbFile((1:r)+200,refFile)
    rid=eiMakeDb(refFile,d,cl=cl,descriptorType=descType,dir=test_dir,
 		connSource=connSource	)
-   runDbChecks(rid,targetSampleNum = 10)
+   runDbChecks(rid,targetSampleNum = N*0.1)
 	unlink(runDir,recursive=TRUE)
 
 	print("by number")
@@ -296,6 +296,7 @@ test_fa.eiCluster <- function(){
 
 	runId = lastRunId
 
+	#normal clustering
 	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
 	print(byCluster(clustering))
 	checkTrue(length(clustering) >= numUniqueDescriptors) #eiAdd will add some stuff
@@ -310,6 +311,7 @@ test_fa.eiCluster <- function(){
 	checkTrue(all(sizes[,2]==2))
 
 
+	#returning just the matrix file and then clustering manually
 	nnm=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,type="matrix",cutoff=1-cutoff,dir=test_dir)
 
    clustering = jarvisPatrick(nnm,k=minNbrs,mode="a1b")
@@ -319,160 +321,24 @@ test_fa.eiCluster <- function(){
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
 	checkTrue(nrow(sizes) %in% c(6)) 
 	checkTrue(all(sizes[,2]==2))
-}
-test_fn.cluster_comparison <- function(){
 
-	DEACTIVATED("off, out of date")
-	numNbrs=10
-	minNbrs=2
-	fast=TRUE
-	cutoff=0.8
+	#clustering a subset
+	message("subset clustering")
+	compoundIds= eiR:::readIddb(conn, file.path(test_dir,eiR:::Main))
+	clustering=eiCluster(runId,compoundIds=compoundIds[1:70],K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
+	print(byCluster(clustering))
+	checkTrue(length(clustering) >= 66)
 
-	dir=test_dir
-	#dir="/home/khoran/runs/drug_bank_1000"
-	#r=300
-	#d=100
-
-
-	clustering=eiCluster(r,d,K=numNbrs,minNbrs=minNbrs,dir=dir,cutoff=1-cutoff,descriptorType=descType)
-	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
-
-	conn = connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
-	#print(sort(clustering))
+	sizes= clusterSizes(clustering)
+	print(sizes)
+	checkTrue(nrow(sizes) %in% c(3))
+	checkTrue(all(sizes[,2]==2))
 
 
-	#### non lsh clustering
-	preProcess = eiR:::getTransform(descType)$toObject
-	desc = preProcess(eiR:::getDescriptors(conn,descType,compoundIds))
-	aps=if(descType=="ap") as(desc,"APset")
-		 else if(descType=="fp"){
-			 x=as(sapply(1:length(desc),function(i) as(desc[[i]],"character")),"FPset")
-			 cid(x) = compoundNames
-			 x
-		 }
 
-	cl2nnm = nearestNeighbors(aps,numNbrs=numNbrs,cutoff=cutoff)
-
-	#print(tail(cl2nnm))
-
-
-	cl2 = jarvisPatrick_c(cl2nnm$indexes,minNbrs,fast=fast)
-	names(cl2)=compoundNames
-	#print(cl2)
-
-
-	#print(sort(clustering))
-	#print(sort(cl2))
-
-
-	source("http://faculty.ucr.edu/~tgirke/Documents/R_BioCond/My_R_Scripts/clusterIndex.R")
-	#print(clusterSizes(clustering))
-	#print(clusterSizes(cl2))
-	ci <- cindex(clV1=clustering, clV2=cl2, minSZ=0, method="jaccard")$Jaccard_Index
-
-	rand <- cindex(clV1=clustering, clV2=cl2, minSZ=0,
-						method="rand")
-	rand=rand$Rand_Index
-	arand <- cindex(clV1=clustering, clV2=cl2, minSZ=0,
-						 method="arand")
-	arand=arand$Adjusted_Rand_Index
-	print(paste("cluster similarity:",ci,rand,arand))
-	checkEquals(ci,1)
-
-}
-
-test_fo.nnm_test  <- function(){
-	DEACTIVATED("off, local only,  out of date")
-	numNbrs=10
-	minNbrs=2
-	fast=TRUE
-	
-
-	dir="/home/khoran/runs/drug_bank_1000"
-	r=300
-	d=100
-	#dir="."
-	cutoff = 0.5
-
-	compoundIds=eiR:::readIddb(file.path(dir,eiR:::Main))
-
-	#compoundIds = compoundIds[1:100]
-
-	print("computeing lsh results")
-	lshnnm=lshNnm(r=r,d=d,K=numNbrs,minNbrs=minNbrs,dir=dir,cutoff=cutoff)
-
-#	lshnnm = queriedNnm(compoundIds,r,d,numNbrs,dir)
-	#print(lshnnm)
-
-	print("lsh NNM:")
-	print(tail(lshnnm,n=30))
-	#print(lshnnm)
-
-	print("computing true results")
-	truennm = trueNnm(compoundIds,numNbrs,minNbrs,dir=dir,cutoff=cutoff)
-
-	print("true NNM: ")
-	print(tail(truennm,n=30))
-	#print(truennm)
-
-	#compute precsion/recall
-	results=sapply(1:nrow(lshnnm),function(i){
-			intersection =  intersect(truennm[i,],lshnnm[i,])
-			t=length( intersection[!is.na(intersection)])
-			#numFetched = sum(lshnnm[i,] != -1)
-			numFetched = sum(!is.na(lshnnm[i,])) 
-			numTrue = sum(!is.na(truennm[i,])) 
-			#print(paste(t,numFetched,numTrue))
-			p=t/numFetched
-			r=t/numTrue
-			#print(paste(t,numFetched,numTrue,p,r))
-			c(p,r,  2* (p*r)/(p+r)  )
-				 })
-	print(results)
-	print(paste(sum(results[1,])/length(results[1,]), sum(results[2,])/length(results[2,])
-					,  sum(results[3,])/length(results[3,])))
-
-}
-lshNnm <- function(...){
-
-	nnm=eiCluster(...,type="matrix",descriptorType=descType)
-	nnm
-}
-queriedNnm <- function(compoundIds,r,d,numNbrs,dir){
-
-		refIddb=findRefIddb(file.path(dir,paste("run",r,d,sep="-")))
-		results = eiQuery(r,d,refIddb,compoundIds,format="compound_id",K=numNbrs,dir=dir,descriptorType=descType)
-		cidToPosition = 1:length(compoundIds)
-		names(cidToPosition) = as.character(compoundIds)
-		print(results)
-
-		t(sapply(seq(along=compoundIds),function(i){
-					#print(paste("i:",i,"cid: ",compoundIds[i],paste(which(results$query==compoundIds[i]),collapse=",")))
-					cidToPosition[as.character(results[results$query==compoundIds[i],"target_ids"])]
-				 }))
-
-
-}
-trueNnm <- function(compoundIds,numNbrs,minNbrs,dir,cutoff=NA){
-
-	conn = connSource()
-	preProcess = eiR:::getTransform(descType)$toObject
-	aps=as(preProcess(eiR:::getDescriptors(conn,descType,compoundIds)),"APset")
-	#cid(aps)=compoundNames
-	#cid(aps)=as.character(compoundIds)
-	cid(aps)=as.character(1:length(compoundIds))
-
-
-	nnm = nearestNeighbors(aps,cutoff=cutoff,numNbrs=numNbrs)
-	d=dim(nnm)
-	nnm=as.numeric(nnm)
-	dim(nnm)=d
-	rownames(nnm)=cid(aps)
-
-	nnm$indexes
 }
 
 clusterSizes <- function(clustering) {
