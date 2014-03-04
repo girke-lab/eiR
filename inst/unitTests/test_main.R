@@ -48,8 +48,8 @@ pgSource=function(reset=FALSE){
 	conn
 }
 
-#connSource = sqliteSource
-connSource = pgSource
+connSource = sqliteSource
+#connSource = pgSource
 connSource(TRUE) # reset postgres
 
 lastRunId=0
