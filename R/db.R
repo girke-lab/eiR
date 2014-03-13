@@ -271,6 +271,7 @@ getDescriptorsByDescriptorId <- function(conn,descriptorIds){
 										  ,paste(ids,collapse=","),")",sep=""))
 	if(nrow(data) != length(descriptorIds)){
 		if(debug) print(descriptorIds)
+		if(debug && nrow(data) < 100) {print("data: "); print(data$descriptor_id)}
 		stop(paste("missing some descriptors. Found only ",nrow(data)," out of ",length(descriptorIds), "given descriptor ids"))
 	}
 
@@ -279,17 +280,26 @@ getDescriptorsByDescriptorId <- function(conn,descriptorIds){
 	temp[as.character(descriptorIds)]
 }
 
-getDescriptorIds <- function(conn,compoundIds,descriptorType,keepOrder=FALSE){
+getDescriptorIds <- function(conn,compoundIds,descriptorType=NULL,descriptorTypeId=NULL,keepOrder=FALSE){
 	if(length(compoundIds) == 0)
 		return(c())
 
+	if(is.null(descriptorType) && is.null(descriptorTypeId))
+		stop("either descriptorType or descriptorTypeId must be specified")
+
 	selectClause = if(keepOrder) "descriptor_id, compound_id" else "DISTINCT descriptor_id"
-	data = selectInBatches(conn,compoundIds, function(ids) 
-								  paste("SELECT ",selectClause," FROM compound_descriptors as cd
+	queryBase = if(!is.null(descriptorType))
+					paste("SELECT ",selectClause," FROM compound_descriptors as cd
 													  JOIN descriptors USING(descriptor_id)
 													  JOIN descriptor_types USING(descriptor_type_id) 
-													  WHERE descriptor_type = '",descriptorType,"'
-													  AND cd.compound_id IN (",paste(ids,collapse=","),")",sep=""))
+													  WHERE descriptor_type = '",descriptorType,"'",sep="")
+			  else #use descriptorTypeId
+					paste("SELECT ",selectClause," FROM compound_descriptors as cd
+													  JOIN descriptors USING(descriptor_id)
+													  WHERE descriptor_type_id = '",descriptorTypeId,"'",sep="")
+													  
+	data = selectInBatches(conn,compoundIds, function(ids) 
+								  paste(queryBase," AND cd.compound_id IN (",paste(ids,collapse=","),")",sep=""))
 	descriptorIds =data$descriptor_id
 	if(keepOrder){
 		names(descriptorIds) = data$compound_id
@@ -328,6 +338,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
 	message("Regenerating matrix file...")
 
 	runInfo = getExtendedRunInfo(conn,runId)
+	descriptorIds=c()
 	if(length(compoundIds) == 0){
 		matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
 								  paste(if(samples) "matrix.query" else "matrix",".",runInfo$num_references,"-",runInfo$dimension,sep=""))
@@ -338,7 +349,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
 	}
 	else{
 		matrixFile = file.path(if(debug) "." else tempdir(),"matrix")
-		numRows = length(compoundIds)
+		descriptorIds = getDescriptorIds(conn,compoundIds,descriptorTypeId=runInfo$descriptor_type_id)
+		numRows = length(descriptorIds)
 	}
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
 	matrixFileIndex = paste(matrixFile,".index",sep="")
@@ -374,8 +386,6 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
 							 batchSize = 10000,
 							 closeRS=TRUE)
 	}else{
-
-		descriptorIds = getDescriptorIds(conn,compoundIds,getDescriptorType(conn,info=runInfo))
 		batchByIndex(descriptorIds,function(ids){
 			writeChunk(dbGetQuery(conn,paste("SELECT descriptor_id,value
 													  FROM embedded_descriptors 
@@ -384,6 +394,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
 													  "ORDER BY descriptor_id, ordering")))
 		 },1000)
 	}
+	if(count/numCols != numRows)
+		stop("expected to find ",numRows," but wrote ",count/numCols)
 	
 	close(f)
 	close(indexF)
