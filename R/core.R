@@ -407,13 +407,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 
 		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T) #neighbors is now matrix space
 
-		#translate to descriptor id space
-		neighborDescIds  = mainDescriptorIds[as.vector(neighbors[,,1])]
-		#remove NAs
-		neighborDescIds = neighborDescIds[!is.na(neighborDescIds)]
-		#map each descriptor back to its one primary compound
 		compIds = descriptorsToCompounds(conn,mainDescriptorIds)
-
 
 		ml = length(mainDescriptorIds)
 		compId2Sequential = 1:ml
@@ -439,10 +433,12 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 				#array anymore
 			   dim(n)=c(sum(nonNAs), 2) #martrix space
 
-				#matrix space -> descriptor space 
-			   n[,1] = neighborDescIds[n[,1]]
 
-				#print(n)
+				#matrix space -> descriptor space 
+			   n[,1] = mainDescriptorIds[n[,1]]
+				#print("neighbors: ")
+				#print(n[,1])
+
 				#print(paste("refining",i))
 				refined = refine(n,descriptors[x],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
 				#print("refined: ")
