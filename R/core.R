@@ -105,7 +105,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 		data.frame(descriptor=getTransform(descriptorType,"sdf")$toString(set,conn,dir),
 					  descriptor_type=descriptorType)
 	
-	message("input type: ",class(inputs))
+	if(debug) message("input type: ",class(inputs))
 
 	if(is.null(conn))
 		stop("no database connection found")
@@ -143,7 +143,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 							addDescriptorType(conn,descriptorType))
 		compoundIds = unlist(clusterApplyLB(cl,inputs, loadInput))
 	}else{
-		message("loading locally")
+		if(debug) message("loading locally")
 		connSource= conn
 		if(is.character(inputs) && length(inputs) > 1) # list of filenames
 			compoundIds=unlist(lapply(inputs,loadInput))
@@ -172,12 +172,12 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				stop("Could not create run directory ",workDir)
 		workDir <<- normalizePath(workDir)
 	}
-	message("createWorkDir envir: ",ls(environment(createWorkDir)))
+	if(debug) message("createWorkDir envir: ",ls(environment(createWorkDir)))
 
 	if(is.null(conn))
 		stop("no database connection given")
 
-	message("readding main.iddb")
+	if(debug) message("reading ",file.path(dir,Main))
 	mainIds <- readIddb(conn,file.path(dir,Main))
 
 	if(is.character(refs)){ #assume its a filename
@@ -214,12 +214,12 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	# need: name, d, r,, descriptor type,refIds
 	embeddingId = getEmbeddingId(conn,refGroupName,r,d,descriptorType,refGroupId,create=TRUE)
 
-	message("generating test query ids")
+	if(debug) message("generating test query ids")
 	queryIds=genTestQueryIds(numSamples,dir,mainIds,refIds)
 	queryGroupId = writeIddb(conn,queryIds,file.path(dir,TestQueries))
 	#print("queryids")
 	#print(queryIds)
-	message("done generating test query ids")
+	if(debug) message("done generating test query ids")
 
 	#create run
 	# need: name,embedding id, compound group id, sample group id
@@ -240,7 +240,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	}else{
 		#compute pairwise distances for all references
 		if(! file.exists(selfDistFile)){
-			message("generating selfDistFile")
+			if(debug) message("generating selfDistFile")
 			IddbVsIddbDist(conn,refIds,refIds,distance,descriptorType,file=selfDistFileTemp)
 			file.rename(selfDistFileTemp,selfDistFile)
 		}
@@ -321,7 +321,7 @@ eiQuery <- function(runId,queries,format="sdf",
 
 
 		numHits=sum(sapply(hits,function(x) !is.na(sum(x[,1]))))
-		print(paste("numHits:",numHits))
+		if(debug) print(paste("numHits:",numHits))
 		#fetch names for queries and hits and put in a data frame
 		results = data.frame(query=rep(NA,numHits),
 								  target = rep(NA,numHits),
@@ -362,7 +362,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		refGroupName = runInfo$references_group_name
 		embeddingId = runInfo$embedding_id
 		descriptorType=getDescriptorType(conn,info=runInfo)
-		message("initial compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
+		if(debug) message("initial compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
 

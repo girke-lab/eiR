@@ -23,7 +23,7 @@ ensureSchema <- function(conn) {
 #	print(tableList)
 	if( ! all(c("compound_groups","compound_group_members","embeddings","runs","embedded_descriptors") 
 				 %in% tableList)) {
-		print("ammending db")
+		if(debug) print("ammending db")
 
 		sqlFile = file.path("schema",if(inherits(conn,"SQLiteConnection")) "data.SQLite" 
 								  else if(inherits(conn,"PostgreSQLConnection")) "data.RPostgreSQL")
@@ -100,13 +100,13 @@ getDescriptorType <- function(conn,runId=NULL,embeddingId=NULL,info = if(!is.nul
 writeIddb <- function(conn,ids,name,append=FALSE) {
 
 	dbTransaction(conn,{
-		message("writeiddb name: ",name)
+		if(debug) message("writeiddb name: ",name)
 		groupId = getCompoundGroupId(conn,name,create=TRUE)
 		if(!append) # delete existing group
 			runQuery(conn,paste("DELETE FROM compound_group_members WHERE compound_group_id = ",groupId))
 
-		message("groupid: ",groupId)
-		message("inserting members")
+		if(debug) message("groupid: ",groupId)
+		if(debug) message("inserting members")
 		#insert ids
 		if(length(ids) !=0)
 			insertGroupMembers(conn,data.frame(compound_group_id=groupId,compound_id=ids))
@@ -138,7 +138,7 @@ getGroupSize <- function(conn,name=NULL,groupId=NULL) {
 										  WHERE compound_group_id = ",groupId,sep=""))$count
 	if(length(size) == 0)
 		stop("could not find size of compound group ",handle)
-	message("size of ",handle," is: ",size)
+	if(debug) message("size of ",handle," is: ",size)
 	size
 }
 getCompoundGroupId<- function(conn,name,create=FALSE) {
