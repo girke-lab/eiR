@@ -94,6 +94,26 @@ called 'data'. Commands should always be executed in the folder
 containing this directory (ie, the parent directory of "data"), or else
 specify the location of that directory with the *dir* option.
 
+*EiInit* also has some options to support loading data in parallel. This is only 
+possible if the SQL database being used supports parallel writes. For now, this
+means only PostgreSQL. To use this feature, the *inputs* parameter must be set to 
+an array of filenames, *cl* set to a SNOW cluster, and *connSource* set to a
+function which will return a new database connection when called with no parameters. 
+Then each file will be loaded on a different node of the given cluster, in parallel. 
+The *connSource* function must actually create a new connection on each call, simply 
+returning the same reference to an existing connection will not work. This is because
+that function will be called on potentially different machines which will have to
+establish their own connection to the database.
+
+Compounds which already exist in the database will be skipped over, so it is safe to 
+re-run *eiInit* on an input file which has already been partially loaded. By default
+it discovers duplicates by comparing the entire compound definition. However, if you 
+want two compounds with the same name to be considered equal even if the definition
+is different, you can set *updateByName* to be true. In this mode, if a compound being
+loaded is found to exist in the database already, by name, but has a different
+definition, the compound will be updated with the new definition and any associated
+descriptors and/or features will be re-computed.
+
 eiInit will return a list of compound id numbers which represent the
 compounds just inserted. These numbers can be used to issue queries
 later.
@@ -103,16 +123,19 @@ Creating a Searchable Database
 
 In this step the compounds in the data directory will be embedded in
 another space which allows for more efficient searching. The main two
-parameters are *r* and *d*. *r* is the number of reference compounds to
-use and *d* is the dimension of the embedding space. We have found in
+parameters are *refs* and *d*. *refs* can be either a list of compound ids
+to use as references, or else an integer value indicating the number
+of references to use, which will then be randomly chosen. We will use
+*r* to represent the number of reference compounds.
+*d* is the dimension of the embedding space. We have found in
 practice that setting *d* to around 100 works well. *r* should be large
 enough to "represent" the full compound database.
 Since creating a database is the longest running step, a SNOW cluster can be
-provided to parallelize the task.
-
+provided to parallelize the task. A *conSource* function is also required
+in this case, as described in Section [Initialization](#initialization).
 
 To help tune these values, *eiMakeDb* will pick *numSamples*
-non-reference samples which can later be used by the *eiPerformanceTest*
+non-reference samples which can later be used by the [*eiPerformanceTest*](#performance-tests)
 function.
 
 *eiMakdDb* does its job in a job folder, named after the number of
@@ -145,9 +168,10 @@ Queries
 
 Queries can be given in several formats, defined by the *format*
 parameter. The default format is "sdf". The *queries* parameter can be
-either an SDF file or an SDFset under this format. Other valid values for *format* are "name" and "compound\_id". Under these two formats the
+either an SDF file or an SDFset under this format. Other valid values for
+*format* are "name" and "compound\_id". Under these two formats the
 *queries* parameter is expected to be a list of compound names (as
-returned by sdfid on an SDFset), or a list of id numbers from the
+returned by sdfid on an SDFset), or a list of compound id numbers from the
 database, such as what is returned by the eiInit function.
 
 The *runId* parameter is required to determine which embedded database
@@ -165,7 +189,7 @@ not quite enough.
 
 Note also that this function returns distance values and not
 similarities. Similarities can be computed by setting *asSimilarity* to
-TRUE. This assumes that whatever distance function currently in use
+TRUE. This assumes that whatever distance function is currently in use
 returns values between 0 and 1. This is true for the default distance 
 functions for "ap" and "fp" descriptors.
 
@@ -212,6 +236,8 @@ example, to add one compound from an SDFset you would do:
 
 The returned value is a list of the compounds ids that were just
 added.
+This function will also write out a new matrix file in the run directory.
+For large databases, this can take a significant amount of time.
 
 Performance Tests
 =================
@@ -258,6 +284,34 @@ have your embedding result in a matrix file, you should follow
 instruction on
 <http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html> to find the
 best values for these parameters.
+
+Clustering
+==========
+Compounds can be clustered in near linear time using the Jarvis-Patrick
+clustering algorithm by taking advantage of the near constant time nearest
+neighbor lookup provided by the LSH index. Clustering is done with the
+*eiCluster* function. It takes a *runId* to identify the data set and
+embedding, and two parameters for the Jarvis-Patrick algorithm:
+*K* is the number of neighbors to fetch for each compound, and *minNbrs*
+is the minimum number of neighbors two compounds must have in 
+common in order to be joined into the same cluster. A *cutoff* value
+can also be given to set a maximum distance between neighbors. Any two
+compounds farther apart than this cutoff will never be considered
+neighbors. This parameter is helpful in preventing compounds which are
+very different from almost every other compound from being considered
+similar to other distant compounds simply because they happened to be 
+closest.
+
+By default *eiCluster* will cluster the entire dataset specified by
+*runId*. If you want to only cluster a subset of those compounds, you can
+provide their compound id values to the *compoundIds* parameter.
+
+
+```{r }
+	clustering <- eiCluster(runId,K=5,minNbrs=2,cutoff=0.5)
+	byCluster(clustering)
+```
+
 
 Customization
 =============
