@@ -194,7 +194,7 @@ data(apset)
 print(cmp.search(apset,apset[45],type=3,cutoff=4,quiet=TRUE))
 
 cid(sdfsample)=sdfid(sdfsample)
-plot(sdfsample[result$target[1:4]])
+plot(sdfsample[result$target[1:4]]) # $
 @
 
 The result will be a data frame with four columns. The first is
