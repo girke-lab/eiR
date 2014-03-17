@@ -1,3 +1,6 @@
+% EiR
+% Kevin Horan & Thomas Girke
+% `r format(Sys.time(),"%B %d, %Y")`
 <!--
 \usepackage[utf8]{inputenc}
 %\VignetteEngine{knitr::knitr}
@@ -12,14 +15,6 @@ unlink(paste("run",60,40,sep="-"),recursive=TRUE)
 set.seed(80) 
 ```
 
-EiR
-====
-
-Kevin Horan & Thomas Girke
-
-`r format(Sys.time(),"%B %d, %Y")`
-
-
 
 Introduction
 ============
@@ -31,7 +26,7 @@ Then each compound in the database is embedded into *d*-dimensional
 space based on their distance to each reference compound. This requires
 time linear in the size of the database, but only needs to be done once
 for a database. Within this space, Locality Sensitive Hashing (LSH)
-`r citep(c("10.1145/1459359.1459384","10.1145/1458082.1458172"))` is
+`r citep(c("10.1145/1459359.1459384","10.1145/1458082.1458172"),linked=FALSE)` is
 employed to allow sub-linear time nearest neighbor lookups. This means
 that nearest neighbors can be found without doing a linear scan through
 the entire compound database. Additional compounds can be added to the
@@ -68,7 +63,7 @@ done with the eiCluster function.
 
 EiR also provides some mechanisms to allow the user to extend the set of
 descriptor formats used and to define new distance functions. See
-Section  <a href='#toc_7'>7</a> for details.
+Section [Customization](#customization)  for details.
 
 Initialization
 ==============
@@ -94,7 +89,7 @@ Descriptors will also be computed at this time. The default descriptor
 type is atompair. Other types can be used by setting the
 *descriptorType* parameter. Currently available types are "ap" for
 atompair, and "fp" for fingerprint. The set of available descriptors can
-be extended, see Section <a href="#toc_7">7</a>. EiInit will create a folder
+be extended, see Section [Customization](#customization). EiInit will create a folder
 called 'data'. Commands should always be executed in the folder
 containing this directory (ie, the parent directory of "data"), or else
 specify the location of that directory with the *dir* option.
@@ -197,7 +192,7 @@ similarity if *asSimilary* was true) between the query and the
 target, and the fourth column is the compound id number of
 the target.
 Lsh parameters can be passed in as well, see Section 
-<a href='#toc_6'>6</a> for more details.
+[Performance Tests](#performance-tests) for more details.
 
 Adding New Compounds
 ====================
