@@ -1,6 +1,23 @@
 
 \name{NEWS}
 \title{EiR News}
+\section{CHANGES IN VERSION 1.4.0 2014-4-14}{
+   \subsection{NEW FEATURES}{
+      \itemize{
+			\item eiCluster can now cluster subsets of database
+			\item use new features in ChemmineR to store duplicate
+			descriptors only once. 
+			\item embedded descriptors now stored in database and the
+			matrix file is written out only as needed by LSH to create an
+			index.
+		}
+	}
+	\subsection{UPGRADING}{
+		Database schema changes make this version incompatible with
+		version 1.2 an earlier. Existing databases will need to be
+		re-loaded.
+	}
+}
 \section{CHANGES IN VERSION 1.2.0 2013-9-10}{
    \subsection{NEW FEATURES}{
       \itemize{
