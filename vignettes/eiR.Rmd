@@ -370,7 +370,6 @@ source we would make the following call:
 
 ```{r }
 addTransform("ap","sdf",
-	# Any sdf source -> APset
 	toObject = function(input,conn=NULL,dir="."){
 		sdfset=if(is.character(input) && file.exists(input)){
 			read.SDFset(input)
@@ -385,11 +384,9 @@ addTransform("ap","sdf",
 )
 
 addTransform("ap",  
-	# APset -> string,
 	toString = function(apset,conn=NULL,dir="."){
 		unlist(lapply(ap(apset), function(x) paste(x,collapse=", ")))
 	},
-	# string or list -> AP set list
 	toObject= function(v,conn=NULL,dir="."){ 
 		if(inherits(v,"list") || length(v)==0)
 			return(v)
