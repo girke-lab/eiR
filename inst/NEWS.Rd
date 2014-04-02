@@ -13,9 +13,11 @@
 		}
 	}
 	\subsection{UPGRADING}{
-		Database schema changes make this version incompatible with
-		version 1.2 an earlier. Existing databases will need to be
-		re-loaded.
+		\itemize{
+			\item Database schema changes make this version incompatible with
+					version 1.2 an earlier. Existing databases will need to be
+					re-loaded.
+		}
 	}
 }
 \section{CHANGES IN VERSION 1.2.0 2013-9-10}{
