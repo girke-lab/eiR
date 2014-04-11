@@ -1,0 +1,3 @@
+echo "removing exploded boost header source..."
+cd src; rm -rf trimmed_boost_1_49_0
+cd f2c; make clean
