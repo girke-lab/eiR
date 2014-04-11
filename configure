@@ -1,0 +1,10 @@
+#!/bin/sh
+BASEBOOSTNAME=trimmed_boost_1_49_0
+BOOSTTGZNAME=${BASEBOOSTNAME}.tar.gz
+if test -d ./src/${BASEBOOSTNAME};
+	then 
+			echo 'found ' $BASEBOOSTNAME ' header sources and tar archive;\n using what is there.'
+	else
+		echo "untarring boost include tree...";
+		cd src; gunzip -dc ${BOOSTTGZNAME} | tar xf -;
+fi;
