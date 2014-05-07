@@ -322,15 +322,13 @@ getRunDescriptorIds <- function(conn,runId){
 
 	data$descriptor_id
 }
-getGroupDescriptorCount <- function(conn,groupId,descriptorTypeId){
-	runQuery(conn,paste("SELECT count(*)
-										 FROM
-											(SELECT DISTINCT d.descriptor_id
+getGroupDescriptorIds <- function(conn,groupId,descriptorTypeId){
+	runQuery(conn,paste(" SELECT DISTINCT d.descriptor_id
 											 FROM  compound_group_members AS cgm 
 													 JOIN compound_descriptors USING(compound_id)
 													 JOIN descriptors AS d USING(descriptor_id)
 											WHERE d.descriptor_type_id = ",descriptorTypeId,
-												" AND cgm.compound_group_id = ",groupId,") as t "))[[1]]
+												" AND cgm.compound_group_id = ",groupId))[[1]]
 }
 
 writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
@@ -344,8 +342,9 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
 								  paste(if(samples) "matrix.query" else "matrix",".",runInfo$num_references,"-",runInfo$dimension,sep=""))
 
 		viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
-		numRows = getGroupDescriptorCount(conn,if(samples) runInfo$sample_group_id else runInfo$compound_group_id,
+		descriptorIds= getGroupDescriptorIds(conn,if(samples) runInfo$sample_group_id else runInfo$compound_group_id,
 												 runInfo$descriptor_type_id)
+		numRows = length(descriptorIds)
 	}
 	else{
 		matrixFile = file.path(if(debug) "." else tempdir(),"matrix")
@@ -380,12 +379,12 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
    }
 
 
-	if(length(compoundIds)==0){
-		bufferResultSet(dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId)),
-							 writeChunk,
-							 batchSize = 10000,
-							 closeRS=TRUE)
-	}else{
+	#if(length(compoundIds)==0){
+		#bufferResultSet(dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId)),
+							 #writeChunk,
+							 #batchSize = 10000,
+							 #closeRS=TRUE)
+	#}else{
 		batchByIndex(descriptorIds,function(ids){
 			writeChunk(dbGetQuery(conn,paste("SELECT descriptor_id,value
 													  FROM embedded_descriptors 
@@ -393,7 +392,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
 															  AND embedding_id = ",runInfo$embedding_id,
 													  "ORDER BY descriptor_id, ordering")))
 		 },1000)
-	}
+	#}
 	if(count/numCols != numRows)
 		stop("expected to find ",numRows," but wrote ",count/numCols)
 	
