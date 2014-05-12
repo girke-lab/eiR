@@ -16,3 +16,4 @@ Imports: snow, tools, snowfall, RUnit, methods,ChemmineR,RCurl,digest,
         BiocGenerics
 biocViews: Infrastructure, DataImport, Clustering, Proteomics
 VignetteBuilder: knitr
+LinkingTo: BH
