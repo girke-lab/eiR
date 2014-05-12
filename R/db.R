@@ -331,7 +331,7 @@ getGroupDescriptorIds <- function(conn,groupId,descriptorTypeId){
 												" AND cgm.compound_group_id = ",groupId))[[1]]
 }
 
-writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
+writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL){
 
 	message("Regenerating matrix file...")
 
@@ -379,20 +379,15 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE){
    }
 
 
-	#if(length(compoundIds)==0){
-		#bufferResultSet(dbSendQuery(conn,paste("SELECT * FROM ",viewName," WHERE run_id=",runId)),
-							 #writeChunk,
-							 #batchSize = 10000,
-							 #closeRS=TRUE)
-	#}else{
-		batchByIndex(descriptorIds,function(ids){
-			writeChunk(dbGetQuery(conn,paste("SELECT descriptor_id,value
-													  FROM embedded_descriptors 
-													  WHERE descriptor_id IN (",paste(ids,collapse=","),")
-															  AND embedding_id = ",runInfo$embedding_id,
-													  "ORDER BY descriptor_id, ordering")))
-		 },1000)
-	#}
+	batchByIndex(descriptorIds,function(ids){
+		c = if(is.null(connSource)) conn else connSource()
+		writeChunk(dbGetQuery(c,paste("SELECT descriptor_id,value
+												  FROM embedded_descriptors 
+												  WHERE descriptor_id IN (",paste(ids,collapse=","),")
+														  AND embedding_id = ",runInfo$embedding_id,
+												  "ORDER BY descriptor_id, ordering")))
+		if(!is.null(connSource)) dbDisconnect(c)
+	},1000)
 	if(count/numCols != numRows)
 		stop("expected to find ",numRows," but wrote ",count/numCols)
 	

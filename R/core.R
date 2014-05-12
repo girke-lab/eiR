@@ -259,7 +259,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)
 
-	writeMatrixFile(conn,runId,dir=dir)
+	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource)
 	writeMatrixFile(conn,runId,dir=dir,samples=TRUE)
 
 	runId
