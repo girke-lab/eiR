@@ -2,7 +2,7 @@
 #include <fstream>
 #include <string.h>
 #include <math.h>
-using namespace std;
+//using namespace std;
 #include <f2c.h>
 #include "solver.h"
 

@@ -8,7 +8,7 @@
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 
-using namespace std;
+//using namespace std;
 
 void usage(const char* argv[])
 {

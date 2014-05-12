@@ -1694,11 +1694,11 @@ SWIG_PropagateClientData(void) {
 SWIGEXPORT void SWIG_init(void) {
 
 }
+#include <R_ext/Rdynload.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <R_ext/Rdynload.h>
 
 #ifdef __cplusplus
 }

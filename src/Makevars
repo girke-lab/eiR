@@ -10,5 +10,6 @@ PKG_LIBS+=-lm -Lf2c -lf2c -L. -lgsl -lgslcblas
 
 $(SHLIB): f2c/libf2c.a
 
+#@(cd f2c && $(MAKE) CC="$(CC)" CXX="$(CXX)" 'CFLAGS=$(CFLAGS) $(CPICFLAGS)' AR="$(AR)" RANLIB="$(RANLIB)")
 f2c/libf2c.a:
-	@(cd f2c && $(MAKE) CC="$(CC)" CXX="$(CXX)" 'CFLAGS=$(CFLAGS) $(CPICFLAGS)' AR="$(AR)" RANLIB="$(RANLIB)")
+	@(cd f2c && $(MAKE) CC="$(CC)" CXX="$(CXX)" 'CFLAGS=$(CFLAGS) $(CPICFLAGS)')

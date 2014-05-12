@@ -1,7 +1,7 @@
 #include "config.h"
 #include <f2c.h>
 
-using namespace std;
+//using namespace std;
 
 class Solver
 {

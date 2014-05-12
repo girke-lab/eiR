@@ -4,8 +4,18 @@
 #include <R.h>
 #include <Rinternals.h>
 
-using namespace lshkit;
-using namespace std;
+//using namespace lshkit;
+//using namespace std;
+using lshkit::MultiProbeLshIndex;
+using lshkit::FloatMatrix;
+using lshkit::DefaultRng;
+using lshkit::Topk;
+using lshkit::TopkScanner;
+
+using std::string;
+using std::ifstream;
+using std::ofstream;
+using std::ios_base;
 
 typedef MultiProbeLshIndex<unsigned> Index;
 
@@ -129,7 +139,7 @@ SEXP lshsearchAll( SEXP matrixFile, SEXP indexFile,
 
    loadIndex(index,data,index_file,W,H,M,L);
 
-   metric::l2sqr<float> l2sqr(data.getDim());
+   lshkit::metric::l2sqr<float> l2sqr(data.getDim());
 
    //SEXP queryDim = getAttrib(queries,R_DimSymbol);
    int numQueries = data.getSize();
@@ -146,7 +156,7 @@ SEXP lshsearchAll( SEXP matrixFile, SEXP indexFile,
       unsigned cnt;
       Topk<unsigned> topk;
       float maxValue = std::numeric_limits<float>::max();
-      TopkScanner<FloatMatrix::Accessor, metric::l2sqr<float> > 
+      TopkScanner<FloatMatrix::Accessor, lshkit::metric::l2sqr<float> > 
 			query(accessor, l2sqr, K, R);
       topk.reset(K);
 
@@ -247,7 +257,7 @@ SEXP query(SEXP queries, SEXP sid,SEXP Kin,SEXP Tin,SEXP Rin)
 
 	void *p = R_ExternalPtrAddr(sid);
 	IndexedData *id = reinterpret_cast<IndexedData*>(p);
-   metric::l2sqr<float> l2sqr(id->data->getDim());
+   lshkit::metric::l2sqr<float> l2sqr(id->data->getDim());
    FloatMatrix::Accessor accessor(*(id->data));
 
    SEXP queryDim = getAttrib(queries,R_DimSymbol);
@@ -273,7 +283,7 @@ SEXP query(SEXP queries, SEXP sid,SEXP Kin,SEXP Tin,SEXP Rin)
       unsigned cnt;
       Topk<unsigned> topk;
       float maxValue = std::numeric_limits<float>::max();
-      TopkScanner<FloatMatrix::Accessor, metric::l2sqr<float> > query(accessor, l2sqr, K, R);
+      TopkScanner<FloatMatrix::Accessor, lshkit::metric::l2sqr<float> > query(accessor, l2sqr, K, R);
       topk.reset(K);
 
       query.reset(queryPtr);
