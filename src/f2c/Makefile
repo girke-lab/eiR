@@ -13,7 +13,8 @@
 # to the CFLAGS = line below.
 
 .SUFFIXES: .c .o
-CC = cc
+#CC = cc
+CC = clang
 SHELL = /bin/sh
 CFLAGS = -O
 
@@ -27,8 +28,9 @@ CFLAGS = -O
 ## If your system does not have the ld command, comment out
 ## or remove both the ld and mv lines above.
 
+##	getenv_.o signal_.o s_stop.o s_paus.o system_.o cabs.o ctype.o\
 MISC =	f77vers.o i77vers.o main.o s_rnge.o abort_.o exit_.o getarg_.o iargc_.o\
-	getenv_.o signal_.o s_stop.o s_paus.o system_.o cabs.o ctype.o\
+	getenv_.o signal_.o s_stop.o  system_.o cabs.o\
 	derf_.o derfc_.o erf_.o erfc_.o sig_die.o uninit.o
 POW =	pow_ci.o pow_dd.o pow_di.o pow_hh.o pow_ii.o pow_ri.o pow_zi.o pow_zz.o
 CX =	c_abs.o c_cos.o c_div.o c_exp.o c_log.o c_sin.o c_sqrt.o
@@ -188,10 +190,10 @@ arith.h: arithchk.c
 	./a.out >arith.h
 	rm -f a.out arithchk.o
 
+##	s_cat.c s_cmp.c s_copy.c s_paus.c s_rnge.c s_stop.c scomptry.bat sfe.c \
 check:
 	xsum Notice README abort_.c arithchk.c backspac.c c_abs.c c_cos.c \
 	c_div.c c_exp.c c_log.c c_sin.c c_sqrt.c cabs.c close.c comptry.bat \
-	ctype.c ctype.h \
 	d_abs.c d_acos.c d_asin.c d_atan.c d_atn2.c d_cnjg.c d_cos.c d_cosh.c \
 	d_dim.c d_exp.c d_imag.c d_int.c d_lg10.c d_log.c d_mod.c \
 	d_nint.c d_prod.c d_sign.c d_sin.c d_sinh.c d_sqrt.c d_tan.c \
@@ -211,7 +213,7 @@ check:
 	r_cnjg.c r_cos.c r_cosh.c r_dim.c r_exp.c r_imag.c r_int.c r_lg10.c \
 	r_log.c r_mod.c r_nint.c r_sign.c r_sin.c r_sinh.c r_sqrt.c \
 	r_tan.c r_tanh.c rawio.h rdfmt.c rewind.c rsfe.c rsli.c rsne.c \
-	s_cat.c s_cmp.c s_copy.c s_paus.c s_rnge.c s_stop.c scomptry.bat sfe.c \
+	s_cat.c s_cmp.c s_copy.c s_rnge.c s_stop.c scomptry.bat sfe.c \
 	sig_die.c signal1.h0 signal_.c signbit.c sue.c sysdep1.h0 system_.c \
 	typesize.c \
 	uio.c uninit.c util.c wref.c wrtfmt.c wsfe.c wsle.c wsne.c xwsne.c \
