@@ -38,7 +38,7 @@
 /** Concept checking requires boost > 1.35.
   * Remove this definition to disable concept checking.
   */
-//#define CONCEPT_CHECK 0
+#define CONCEPT_CHECK 0
 
 #ifdef CONCEPT_CHECK
 #include <lshkit/concept.h>

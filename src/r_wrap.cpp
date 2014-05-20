@@ -727,12 +727,6 @@ SWIG_UnpackDataName(const char *c, void *ptr, size_t sz, const char *name) {
 }
 #endif
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* Remove global namespace pollution */
 #if !defined(SWIG_NO_R_NO_REMAP)
 # define R_NO_REMAP
 #endif
@@ -745,6 +739,17 @@ extern "C" {
 #include <stdlib.h>
 #include <assert.h>
 
+#ifdef __cplusplus
+#include <exception>
+#endif
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Remove global namespace pollution */
 #if R_VERSION >= R_Version(2,6,0)
 #define VMAXTYPE void *
 #else
@@ -1091,7 +1096,6 @@ SWIG_R_ConvertPacked(SEXP obj, void *ptr, size_t sz, swig_type_info *ty) {
 }  
 
 #ifdef __cplusplus
-#include <exception>
 #define SWIG_exception_noreturn(code, msg) do { throw std::runtime_error(msg); } while(0)
 #else
 #define SWIG_exception_noreturn(code, msg) do { return result; } while(0)
