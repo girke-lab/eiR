@@ -10,3 +10,10 @@ You can find GSL for different platforms here:
           https://trac.macports.org/browser/trunk/dports/math/gsl/Portfile
           https://trac.macports.org/browser/trunk/dports/math/gsl-devel/Portfile
     3. Windows: http://gnuwin32.sourceforge.net/packages/gsl.htm
+
+If your getting compile errors that look like:
+	./f2c.h:283:15: error: exception specification in declaration does not match previous declaration
+	extern double erfc(double) throw();
+
+make sure you don't have the '-pedantic' flag set anywhere, such as in your ~/.R/Makevars file.
+
