@@ -186,9 +186,13 @@ getUnEmbeddedDescriptorIds <- function(conn,runId){
 insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 
 	numDescriptors = nrow(data)
+	if(numDescriptors == 0)
+		return()
+
 	descriptorLength = ncol(data)
 	assert(numDescriptors == length(descriptorIds))
 	data=as.vector(data)
+
 	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
 				  #ordering = rep(1:descriptorLength,numDescriptors),
 				  ordering = as.vector(sapply(1:descriptorLength,function(i) rep(i,numDescriptors))),
@@ -370,6 +374,25 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	count=0
 
 	writeChunk = function(df){
+
+			# for testing
+			#df  = rbind(df,data.frame(descriptor_id=887,value=8.7))
+			#df  = rbind(df,data.frame(descriptor_id=887,value=8.7))
+			#df  = rbind(df,data.frame(descriptor_id=888,value=8.8))
+
+			if(nrow(df) %% numCols != 0) {#this chunk is not a mulitple of descriptor dimention
+				#find out which descriptor is lacking and then fail
+				numIncomplete = 0
+				for( id in unique(df$descriptor_id)){
+					numValues = sum(df$descriptor_id == id)
+					if( numValues != numCols){
+						numIncomplete = numIncomplete + 1
+						message("descriptor ",id," has only ",numValues," values out of ",numCols)
+					}
+				}
+				stop(numIncomplete," descriptors missing values")
+			}
+			
 			for( i in 1:nrow(df)){
 				if(count %% numCols == 0)
 					cat(paste(df$descriptor_id[i]),file=indexF,sep="\n")

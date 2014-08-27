@@ -10,8 +10,8 @@ ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
@@ -155,8 +155,10 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
-	descIds = getDescriptorIds(conn,compoundIds,descriptorType)
-	setPriorities(conn,forestSizePriorities,descIds)
+	if(length(compoundIds)!=0 ){
+		descIds = getDescriptorIds(conn,compoundIds,descriptorType)
+		setPriorities(conn,forestSizePriorities,descIds)
+	}
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
@@ -373,9 +375,10 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		#print("new compound ids: "); print(compoundIds)
 		#message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 
-		embedAll(conn,runId,distance,dir=dir)
-
-		writeMatrixFile(conn,runId,dir=dir)
+		if(length(compoundIds) != 0){
+			embedAll(conn,runId,distance,dir=dir)
+			writeMatrixFile(conn,runId,dir=dir)
+		}
 		compoundIds
 }
 
@@ -906,6 +909,7 @@ embedAll <- function(conn,runId, distance,dir=".",
 	embeddingId = runInfo$embedding_id
 	descriptorType=getDescriptorType(conn,info =runInfo)
 	unembeddedDescriptorIds = getUnEmbeddedDescriptorIds(conn,runId)
+	if(debug) message("embedding ",length(unembeddedDescriptorIds)," unembedded descriptors")
 
 	embedJob = function(ids,jobId){
 		solver <- getSolver(r,d,coords)	
@@ -927,9 +931,11 @@ embedAll <- function(conn,runId, distance,dir=".",
 	}
 	
 	if(is.null(cl)){ #don't use cluster
+		if(debug) message("embedding locally")
 		connSource = conn
 		batchByIndex(unembeddedDescriptorIds,embedJob)
 	}else{
+		if(debug) message("embedding on cluster")
 		#ensure we have at least as many jobs as cluster nodes, but if
 		# we have a large number of compounds, batch them by no more than 10,000
 		num = length(unembeddedDescriptorIds)
@@ -944,6 +950,7 @@ embedAll <- function(conn,runId, distance,dir=".",
 
 		x=parBatchByIndex(unembeddedDescriptorIds,embedJob,
 							 reduce=identity,cl=cl,batchSize=jobSize)
+		if(debug) message("done with cluster embedding")
 		x
 	}
 }
