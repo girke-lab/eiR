@@ -1,6 +1,8 @@
 % EiR
 % Kevin Horan & Thomas Girke
 % `r format(Sys.time(),"%B %d, %Y")`
+
+
 <!--
 \usepackage[utf8]{inputenc}
 %\VignetteEngine{knitr::knitr}
@@ -13,8 +15,10 @@ library(knitcitations)
 unlink("data",recursive=TRUE)
 unlink(paste("run",60,40,sep="-"),recursive=TRUE) 
 set.seed(80) 
+#options(citation_format="pandoc")
+#cite_options(citation_format="pandoc",style="html", hyperlink="to.doc")
+RefManageR:::BibOptions(style="markdown")
 ```
-
 
 Introduction
 ============
@@ -26,7 +30,7 @@ Then each compound in the database is embedded into *d*-dimensional
 space based on their distance to each reference compound. This requires
 time linear in the size of the database, but only needs to be done once
 for a database. Within this space, Locality Sensitive Hashing (LSH)
-`r citep(c("10.1145/1459359.1459384","10.1145/1458082.1458172"),linked=FALSE)` is
+`r citep(c("http://dl.acm.org/citation.cfm?doid=1458082.1458172","http://dl.acm.org/citation.cfm?id=1459384"))` is
 employed to allow sub-linear time nearest neighbor lookups. This means
 that nearest neighbors can be found without doing a linear scan through
 the entire compound database. Additional compounds can be added to the
@@ -34,7 +38,7 @@ database in time linear to the number of new compounds. No time is spend
 processing existing compounds, as long as the set of reference compounds
 remains the same. Given the ability to quickly find nearest neighbors,
 this method enables fast clustering with the Jarvis-Pattrick algorithm
-as well `r citep(c("10.1109/T-C.1973.223640"))`. 
+as well `r citep("http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=1672233")`.`
 For details on the whole process see `r citet(c("10.1093/bioinformatics/btq067"))`.
 
 This library uses an SQL back-end (SQLite by default) to store chemical
@@ -47,7 +51,7 @@ database, it can import data from SDF or SMILE formated files, or an
 SDFset object.
 
 Once a database has been created, an embedding must also be created 
-`r citep(c("10.1002/1096-987X(20010415)22:5<488::AID-JCC1020>3.0.CO;2-4"),linked=FALSE)`. In
+`r citep(c("10.1002/1096-987X(20010415)22:5<488::AID-JCC1020>3.0.CO;2-4"))`. In 
 this step the reference compounds are chosen and each compound is
 embedded into the new space. This step creates a new directory called
 "run-r-d", where "r" and "d" are the corresponding values. This is the
