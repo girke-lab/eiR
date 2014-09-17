@@ -106,7 +106,7 @@ testRefs <- function(){
 
 test_ba.parDist <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	conn = connSource()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
@@ -208,7 +208,7 @@ test_bb.eiMakeDb <- function() {
 
 test_ca.eiQuery <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	message("eiQuery")
 	conn=connSource()
    data(sdfsample)
@@ -242,7 +242,7 @@ test_ca.eiQuery <- function(){
 }
 
 test_da.eiPerformanceTest <- function() {
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
@@ -294,10 +294,16 @@ test_fa.eiCluster <- function(){
 	minNbrs=2
 	cutoff=0.5
 
+	message("eiCluster start")
 	runId = lastRunId
 
 	#normal clustering
-	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
+	message("normal clustering")
+	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,type="matrix",
+								cutoff=1-cutoff,dir=test_dir)
+	print(clustering)
+	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,
+								cutoff=1-cutoff,dir=test_dir)
 	print(byCluster(clustering))
 	checkTrue(length(clustering) >= numUniqueDescriptors) #eiAdd will add some stuff
 
@@ -312,6 +318,7 @@ test_fa.eiCluster <- function(){
 
 
 	#returning just the matrix file and then clustering manually
+	message("matrix only clustering")
 	nnm=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,type="matrix",cutoff=1-cutoff,dir=test_dir)
 
    clustering = jarvisPatrick(nnm,k=minNbrs,mode="a1b")
