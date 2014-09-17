@@ -1,8 +1,3 @@
-% EiR
-% Kevin Horan & Thomas Girke
-% `r format(Sys.time(),"%B %d, %Y")`
-
-
 <!--
 \usepackage[utf8]{inputenc}
 %\VignetteEngine{knitr::knitr}
@@ -17,8 +12,15 @@ unlink(paste("run",60,40,sep="-"),recursive=TRUE)
 set.seed(80) 
 #options(citation_format="pandoc")
 #cite_options(citation_format="pandoc",style="html", hyperlink="to.doc")
-RefManageR:::BibOptions(style="markdown")
+RefManageR:::BibOptions(style="markdown",no.print.fields=c("doi"))
 ```
+EiR
+====
+
+Kevin Horan & Thomas Girke
+
+Last update: `r format(Sys.time(),"%B %d, %Y")`
+
 
 Introduction
 ============
@@ -51,7 +53,7 @@ database, it can import data from SDF or SMILE formated files, or an
 SDFset object.
 
 Once a database has been created, an embedding must also be created 
-`r citep(c("10.1002/1096-987X(20010415)22:5<488::AID-JCC1020>3.0.CO;2-4"))`. In 
+`r citep(c("http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.84.2995"))`. In 
 this step the reference compounds are chosen and each compound is
 embedded into the new space. This step creates a new directory called
 "run-r-d", where "r" and "d" are the corresponding values. This is the
