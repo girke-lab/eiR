@@ -477,29 +477,37 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		clustering
 }
 
-searchCache = NULL
+searchCache = new.env()
+searchCache$descriptorIds=NULL
+searchCache$runId=NULL
+loadSearchCache <- function(conn,runId,dir) {
+		if(debug) message("loading search cache")
+		runInfo = getExtendedRunInfo(conn,runId) 
+		if(nrow(runInfo)==0)
+			stop("no information found for ",runId)
+		r=runInfo$num_references
+		d=runInfo$dimension
+		descriptorType=getDescriptorType(conn,info=runInfo)
+	
+		workDir=file.path(dir,paste("run",r,d,sep="-"))
+		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
+
+
+		searchCache$runId=runId
+		searchCache$matrixFile = matrixFile
+		searchCache$descriptorType = descriptorType
+		searchCache$descriptorIds = getRunDescriptorIds(conn,runId)
+
+		if(debug) message("done loading search cache")
+
+}
 #expects one query per column
 search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 						 conn=defaultConn(dir),lshData=NULL,...)
 {
 		if(is.null(searchCache$descriptorIds) || 
 			(!is.null(searchCache$runId) && searchCache$runId != runId)){
-
-			runInfo = getExtendedRunInfo(conn,runId) 
-			if(nrow(runInfo)==0)
-				stop("no information found for ",runId)
-			r=runInfo$num_references
-			d=runInfo$dimension
-			descriptorType=getDescriptorType(conn,info=runInfo)
-		
-			workDir=file.path(dir,paste("run",r,d,sep="-"))
-			matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-
-
-			searchCache$runId=runId
-			searchCache$matrixFile = matrixFile
-			searchCache$descriptorType = descriptorType
-			searchCache$descriptorIds = getRunDescriptorIds(conn,runId)
+			loadSearchCache(conn,runId,dir)
 		}
 		
 		neighbors = lshsearch(embeddedQueries,searchCache$matrixFile,K=2*K,lshData=lshData,...)

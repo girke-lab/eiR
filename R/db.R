@@ -309,16 +309,15 @@ getDescriptorIds <- function(conn,compoundIds,descriptorType=NULL,descriptorType
 }
 getRunDescriptorIds <- function(conn,runId){
 
-	data = runQuery(conn,paste("SELECT DISTINCT d.descriptor_id
+	data = runQuery(conn,paste("SELECT DISTINCT cd.descriptor_id
 										 FROM  runs AS r
 												 JOIN compound_groups AS cg USING(compound_group_id)
 												 JOIN compound_group_members AS cgm USING(compound_group_id)
-												 JOIN compound_descriptors USING(compound_id)
-												 JOIN descriptors AS d USING(descriptor_id)
+												 JOIN compound_descriptors as cd USING(compound_id)
 												 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
 												 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
 										WHERE r.run_id = ",runId,
-										"ORDER BY d.descriptor_id "))
+										"ORDER BY cd.descriptor_id "))
 
 	data$descriptor_id
 }
