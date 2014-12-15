@@ -150,29 +150,40 @@ getCompoundGroupId<- function(conn,name,create=FALSE) {
 
 }
 
-getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds){
+getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds,descriptorIds=NULL){
+
+	if(is.null(descriptorIds)){
+		 queryIds = compoundIds
+		 queryFn = function(ids) 
+			  paste("SELECT cd.compound_id AS ids,value FROM descriptors as d
+							JOIN embedded_descriptors ed USING(descriptor_id)
+							JOIN embeddings as em USING(embedding_id)
+							JOIN compound_descriptors as cd USING(descriptor_id)
+						WHERE d.descriptor_type_id = em.descriptor_type_id AND  em.embedding_id = ",embeddingId,
+						"  AND cd.compound_id IN (",paste(ids,collapse=","),")
+						ORDER BY cd.compound_id,ordering",sep="")
+	}
+	else {
+		 queryIds = descriptorIds
+		 queryFn = function(ids) 
+				paste("SELECT descriptor_id AS ids,value FROM embedded_descriptors WHERE embedding_id = ",embeddingId,
+					"  AND descriptor_id IN (",paste(ids,collapse=","),")
+					ORDER BY descriptor_id,ordering",sep="")
+	}
 
 
-	data = selectInBatches(conn,compoundIds,function(ids) 
-								  paste("SELECT cd.compound_id,value FROM descriptors as d
-												JOIN embedded_descriptors ed USING(descriptor_id)
-												JOIN embeddings as em USING(embedding_id)
-												JOIN compound_descriptors as cd USING(descriptor_id)
-											WHERE d.descriptor_type_id = em.descriptor_type_id AND  em.embedding_id = ",embeddingId,
-											"  AND cd.compound_id IN (",paste(ids,collapse=","),")
-											ORDER BY cd.compound_id,ordering",sep=""))
+	data = selectInBatches(conn,queryIds,queryFn)
 
 
-	embeddedDescriptors = aggregate(data$value,list(compound_id=data$compound_id),identity)$x
+	embeddedDescriptors = aggregate(data$value,list(ids=data$ids),identity)$x
 	if(!is.matrix(embeddedDescriptors))
 		stop("Could not create a matrix from emebdded descriptors. Perhaps they are not all the correct (same) length? ")
 
 
-	n=data$descriptor
-	if(nrow(embeddedDescriptors) != length(compoundIds)){
+	if(nrow(embeddedDescriptors) != length(queryIds)){
 		if(debug) print(compoundIds)
 		stop(paste("missing some embedded descriptors! Found only",
-					  nrow(embeddedDescriptors),"out of",length(compoundIds),"given ids"))
+					  nrow(embeddedDescriptors),"out of",length(queryIds),"given ids"))
 	}
 
 	embeddedDescriptors
@@ -313,16 +324,15 @@ getDescriptorIds <- function(conn,compoundIds,descriptorType=NULL,descriptorType
 }
 getRunDescriptorIds <- function(conn,runId){
 
-	data = runQuery(conn,paste("SELECT DISTINCT d.descriptor_id
+	data = runQuery(conn,paste("SELECT DISTINCT cd.descriptor_id
 										 FROM  runs AS r
 												 JOIN compound_groups AS cg USING(compound_group_id)
 												 JOIN compound_group_members AS cgm USING(compound_group_id)
-												 JOIN compound_descriptors USING(compound_id)
-												 JOIN descriptors AS d USING(descriptor_id)
+												 JOIN compound_descriptors as cd USING(compound_id)
 												 JOIN embeddings AS e ON(e.embedding_id = r.embedding_id)
 												 JOIN descriptor_types AS dt ON(dt.descriptor_type_id = e.descriptor_type_id)
 										WHERE r.run_id = ",runId,
-										"ORDER BY d.descriptor_id "))
+										"ORDER BY cd.descriptor_id "))
 
 	data$descriptor_id
 }
