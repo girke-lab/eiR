@@ -150,29 +150,40 @@ getCompoundGroupId<- function(conn,name,create=FALSE) {
 
 }
 
-getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds){
+getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds,descriptorIds=NULL){
+
+	if(is.null(descriptorIds)){
+		 queryIds = compoundIds
+		 queryFn = function(ids) 
+			  paste("SELECT cd.compound_id AS ids,value FROM descriptors as d
+							JOIN embedded_descriptors ed USING(descriptor_id)
+							JOIN embeddings as em USING(embedding_id)
+							JOIN compound_descriptors as cd USING(descriptor_id)
+						WHERE d.descriptor_type_id = em.descriptor_type_id AND  em.embedding_id = ",embeddingId,
+						"  AND cd.compound_id IN (",paste(ids,collapse=","),")
+						ORDER BY cd.compound_id,ordering",sep="")
+	}
+	else {
+		 queryIds = descriptorIds
+		 queryFn = function(ids) 
+				paste("SELECT descriptor_id AS ids,value FROM embedded_descriptors WHERE embedding_id = ",embeddingId,
+					"  AND descriptor_id IN (",paste(ids,collapse=","),")
+					ORDER BY descriptor_id,ordering",sep="")
+	}
 
 
-	data = selectInBatches(conn,compoundIds,function(ids) 
-								  paste("SELECT cd.compound_id,value FROM descriptors as d
-												JOIN embedded_descriptors ed USING(descriptor_id)
-												JOIN embeddings as em USING(embedding_id)
-												JOIN compound_descriptors as cd USING(descriptor_id)
-											WHERE d.descriptor_type_id = em.descriptor_type_id AND  em.embedding_id = ",embeddingId,
-											"  AND cd.compound_id IN (",paste(ids,collapse=","),")
-											ORDER BY cd.compound_id,ordering",sep=""))
+	data = selectInBatches(conn,queryIds,queryFn)
 
 
-	embeddedDescriptors = aggregate(data$value,list(compound_id=data$compound_id),identity)$x
+	embeddedDescriptors = aggregate(data$value,list(ids=data$ids),identity)$x
 	if(!is.matrix(embeddedDescriptors))
 		stop("Could not create a matrix from emebdded descriptors. Perhaps they are not all the correct (same) length? ")
 
 
-	n=data$descriptor
-	if(nrow(embeddedDescriptors) != length(compoundIds)){
+	if(nrow(embeddedDescriptors) != length(queryIds)){
 		if(debug) print(compoundIds)
 		stop(paste("missing some embedded descriptors! Found only",
-					  nrow(embeddedDescriptors),"out of",length(compoundIds),"given ids"))
+					  nrow(embeddedDescriptors),"out of",length(queryIds),"given ids"))
 	}
 
 	embeddedDescriptors
