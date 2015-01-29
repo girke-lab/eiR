@@ -350,7 +350,6 @@ clusterSizes <- function(clustering) {
 
 
 cleanup<- function(){
-	conn=connSource()
 #	if(inherits(conn,"PostgreSQLConnection"))
 #	{
 #		message("resetting postgres")
@@ -365,6 +364,7 @@ cleanup<- function(){
    #junk <- c("data","example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"),fpDir)
    #junk <- c("example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"))
    #unlink(junk,recursive=T)
+	conn=connSource()
 }
 findRefIddb <- function(runDir){
    matches<-dir(runDir,pattern=".cdb$",full.names=T)

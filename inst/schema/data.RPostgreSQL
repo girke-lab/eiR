@@ -51,7 +51,8 @@ CREATE  VIEW unembedded_descriptors AS
 			 JOIN compound_group_members AS cgm USING(compound_group_id)
 			 JOIN compound_descriptors AS cd USING(compound_id)
 			 LEFT JOIN embedded_descriptors AS ed ON(
-				r.embedding_id=ed.embedding_id AND cd.descriptor_id = ed.descriptor_id)
+				r.embedding_id=ed.embedding_id AND cd.descriptor_id = ed.descriptor_id
+					AND ed.ordering=1)
 	WHERE
 			ed.descriptor_id IS NULL
 ;			 
