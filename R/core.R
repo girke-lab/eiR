@@ -9,6 +9,7 @@ ChemDb = file.path(DataDir,paste(ChemPrefix,".db",sep=""))
 ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
+tmessage = function(msg) message(Sys.time(),": ",msg)
 
 #debug=TRUE
 debug=FALSE
@@ -155,8 +156,10 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
-	descIds = getDescriptorIds(conn,compoundIds,descriptorType)
-	setPriorities(conn,forestSizePriorities,descIds)
+	if(length(compoundIds)!=0 ){
+		descIds = getDescriptorIds(conn,compoundIds,descriptorType)
+		setPriorities(conn,forestSizePriorities,descIds,cl=cl,connSource=connSource)
+	}
 	compoundIds
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
@@ -181,7 +184,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	mainIds <- readIddb(conn,file.path(dir,Main))
 
 	if(is.character(refs)){ #assume its a filename
-		refIds=readIddbFile(refs)
+		refIds=readIddbFile(refs,sorted=TRUE)
 		r=length(refIds)
 		createWorkDir(r)
 	}else if(is.numeric(refs)){
@@ -192,7 +195,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 			createWorkDir(r)
 			refIds=genRefs(r,mainIds)
 		}else{ #refs is a vector of compound indexes to use a referances
-			refIds=refs
+			refIds=sort(refs)
 			r=length(refIds)
 			createWorkDir(r)
 		}
@@ -259,7 +262,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)
 
-	writeMatrixFile(conn,runId,dir=dir)
+	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource)
 	writeMatrixFile(conn,runId,dir=dir,samples=TRUE)
 
 	runId
@@ -287,7 +290,7 @@ eiQuery <- function(runId,queries,format="sdf",
 		descriptorType=getDescriptorType(conn,info =runInfo)
 
 		workDir=file.path(dir,paste("run",r,d,sep="-"))
-		refIds = readIddb(conn,groupId=runInfo$references_group_id)
+		refIds = readIddb(conn,groupId=runInfo$references_group_id,sorted=TRUE)
 
 		#print("refids: "); print(refIds)
 
@@ -306,7 +309,7 @@ eiQuery <- function(runId,queries,format="sdf",
 		#search for nearby compounds
 		#if(debug) print(embeddedQueries)
 		hits = search(embeddedQueries,runId,
-							queryDescriptors,distance,dir,conn=conn,
+							queryDescriptors,distance,dir=dir,conn=conn,
 							lshData=lshData,
 							K=K,W=W,M=M,L=L,T=T)
 		#if(debug) print("hits")
@@ -373,9 +376,10 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		#print("new compound ids: "); print(compoundIds)
 		#message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 
-		embedAll(conn,runId,distance,dir=dir)
-
-		writeMatrixFile(conn,runId,dir=dir)
+		if(length(compoundIds) != 0){
+			embedAll(conn,runId,distance,dir=dir)
+			writeMatrixFile(conn,runId,dir=dir)
+		}
 		compoundIds
 }
 
@@ -477,29 +481,37 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		clustering
 }
 
-searchCache = NULL
+searchCache = new.env()
+searchCache$descriptorIds=NULL
+searchCache$runId=NULL
+loadSearchCache <- function(conn,runId,dir) {
+		if(debug) message("loading search cache")
+		runInfo = getExtendedRunInfo(conn,runId) 
+		if(nrow(runInfo)==0)
+			stop("no information found for ",runId)
+		r=runInfo$num_references
+		d=runInfo$dimension
+		descriptorType=getDescriptorType(conn,info=runInfo)
+	
+		workDir=file.path(dir,paste("run",r,d,sep="-"))
+		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
+
+
+		searchCache$runId=runId
+		searchCache$matrixFile = matrixFile
+		searchCache$descriptorType = descriptorType
+		searchCache$descriptorIds = getRunDescriptorIds(conn,runId)
+
+		if(debug) message("done loading search cache")
+
+}
 #expects one query per column
 search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 						 conn=defaultConn(dir),lshData=NULL,...)
 {
 		if(is.null(searchCache$descriptorIds) || 
 			(!is.null(searchCache$runId) && searchCache$runId != runId)){
-
-			runInfo = getExtendedRunInfo(conn,runId) 
-			if(nrow(runInfo)==0)
-				stop("no information found for ",runId)
-			r=runInfo$num_references
-			d=runInfo$dimension
-			descriptorType=getDescriptorType(conn,info=runInfo)
-		
-			workDir=file.path(dir,paste("run",r,d,sep="-"))
-			matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-
-
-			searchCache$runId=runId
-			searchCache$matrixFile = matrixFile
-			searchCache$descriptorType = descriptorType
-			searchCache$descriptorIds = getRunDescriptorIds(conn,runId)
+			loadSearchCache(conn,runId,dir)
 		}
 		
 		neighbors = lshsearch(embeddedQueries,searchCache$matrixFile,K=2*K,lshData=lshData,...)
@@ -879,7 +891,7 @@ toMatrix <- function(nrows,ncols,body,mapReduce){
 embedDescriptor <- function(conn,r,d,refName,descriptor,descriptorType="ap",
 									 distance=getDefaultDist(descriptorType), dir="."){
 	refIddb = file.path(dir,paste("run",r,d,sep="-"),refName)
-	refIds = readIddb(conn,refName)
+	refIds = readIddb(conn,refName,sorted=TRUE)
 	embedFromRefs(r,d,refIddb,
 			t(IddbVsGivenDist(conn,refIds,descriptor,distance,descriptorType)))
 }
@@ -896,7 +908,7 @@ getCoords <- function(conn,runId, dir="."){ # looks for coord file in current di
 }
 
 embedAll <- function(conn,runId, distance,dir=".", 
-							refIds=readIddb(conn,groupId=runInfo$references_group_id),
+							refIds=readIddb(conn,groupId=runInfo$references_group_id,sorted=TRUE),
 							coords = getCoords(conn,runId,dir),
 							cl=NULL,
 							connSource=NULL){
@@ -906,30 +918,27 @@ embedAll <- function(conn,runId, distance,dir=".",
 	embeddingId = runInfo$embedding_id
 	descriptorType=getDescriptorType(conn,info =runInfo)
 	unembeddedDescriptorIds = getUnEmbeddedDescriptorIds(conn,runId)
+	if(debug) message("embedding ",length(unembeddedDescriptorIds)," unembedded descriptors")
 
 	embedJob = function(ids,jobId){
 		solver <- getSolver(r,d,coords)	
 
 		withConnection(connSource,function(conn){
-
+		
 			descriptors = getDescriptorsByDescriptorId(conn,ids)
 			rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
 			embeddedDescriptors = apply(rawDists,c(1), function(x) embedCoord(solver,d,x))
 
 			insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
-
 		})
-
-		#conn=connSource()
-		#if(closeConn)
-			#dbDisconnect(conn)
-		#x
 	}
 	
 	if(is.null(cl)){ #don't use cluster
+		if(debug) message("embedding locally")
 		connSource = conn
 		batchByIndex(unembeddedDescriptorIds,embedJob)
 	}else{
+		if(debug) message("embedding on cluster")
 		#ensure we have at least as many jobs as cluster nodes, but if
 		# we have a large number of compounds, batch them by no more than 10,000
 		num = length(unembeddedDescriptorIds)
@@ -944,6 +953,46 @@ embedAll <- function(conn,runId, distance,dir=".",
 
 		x=parBatchByIndex(unembeddedDescriptorIds,embedJob,
 							 reduce=identity,cl=cl,batchSize=jobSize)
+		if(debug) message("done with cluster embedding")
 		x
 	}
+}
+checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
+							refIds=readIddb(conn,groupId=runInfo$references_group_id,sorted=TRUE),
+							coords = getCoords(conn,runId,dir)) {
+	runInfo = getExtendedRunInfo(conn,runId) 
+	descriptorType=getDescriptorType(conn,info =runInfo)
+
+	solver <- getSolver(runInfo$num_references,runInfo$dimension,coords)	
+
+ 	embedJob = function(ids){
+		print(ids)
+		descriptors = getDescriptorsByDescriptorId(conn,ids)
+		#print(head(descriptors))
+		#print(distance)
+		#print(descriptorType)
+		rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
+		print(head(t(rawDists)))
+		apply(rawDists,c(1), function(x) embedCoord(solver,runInfo$dimension,x)) # return embeddedd descriptors
+ 	}
+
+	for(descriptorId in descriptorIds){
+		#fetch what is in the db
+		dbEmbeddedDescriptor = t(getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=descriptorIds))
+
+		#generate the embedding ourselves
+		localEmbeddedDescriptor = embedJob(descriptorId)
+
+		if( ! isTRUE(all.equal(dbEmbeddedDescriptor, localEmbeddedDescriptor))){
+			warning("found mismatched embedding!")
+			print("db version: ")
+			print(head(dbEmbeddedDescriptor))
+			print("local version: ")
+			print(head(localEmbeddedDescriptor))
+			#print(data.frame(dbEmbeddedDescriptor,localEmbeddedDescriptor))
+
+		}
+
+	}
+
 }
