@@ -11,8 +11,8 @@ Main = file.path(DataDir,"main.iddb")
 
 tmessage = function(msg) message(Sys.time(),": ",msg)
 
-debug=TRUE
-#debug=FALSE
+#debug=TRUE
+debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
