@@ -366,7 +366,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 		numRows = length(descriptorIds)
 	}
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
-	matrixFileIndex = paste(matrixFile,".index",sep="")
+	matrixFileIndexTemp = paste(matrixFile,".index.temp",sep="")
 	if(debug) message("filename: ",matrixFile)
 
 	f = file(matrixFileTemp,"wb")
@@ -380,11 +380,11 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	writeBin(as.integer(numCols),f,floatSize)
 	
 
-	indexF = file(matrixFileIndex,"w")
+	indexF = file(matrixFileIndexTemp,"w")
 	count=0
 
 	writeChunk = function(df){
-
+			if(debug) message("writing chunk. count= ",count)
 			# for testing
 			#df  = rbind(df,data.frame(descriptor_id=887,value=8.7))
 			#df  = rbind(df,data.frame(descriptor_id=887,value=8.7))
@@ -420,13 +420,14 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 														  AND embedding_id = ",runInfo$embedding_id,
 												  "ORDER BY descriptor_id, ordering")))
 		if(!is.null(connSource)) dbDisconnect(c)
-	},1000)
+	},10)
 	if(count/numCols != numRows)
 		stop("expected to find ",numRows," but wrote ",count/numCols)
 	
 	close(f)
 	close(indexF)
 	file.rename(matrixFileTemp,matrixFile)
+	file.rename(matrixFileIndexTemp,paste(matrixFile,".index",sep=""))
 	matrixFile
 }
 readMatrixIndex <- function(matrixFile){
@@ -443,9 +444,11 @@ descriptorsToCompounds <- function(conn,descriptorIds, all=FALSE){
 					paste("SELECT cd.descriptor_id, min(cd.compound_id) AS compound_id 
 							FROM compound_descriptors AS cd 
 								  JOIN (SELECT descriptor_id, min(priority) AS priority
-										  FROM compound_descriptors GROUP BY descriptor_id) AS t 
+										  FROM compound_descriptors ",
+										  "WHERE descriptor_id IN (",paste(ids,collapse=","),")",
+										  "GROUP BY descriptor_id) AS t 
 										ON(cd.descriptor_id=t.descriptor_id AND cd.priority=t.priority)",
-							"WHERE cd.descriptor_id IN (",paste(ids,collapse=","),")",
+							#"WHERE cd.descriptor_id IN (",paste(ids,collapse=","),")",
 							"GROUP BY cd.descriptor_id",sep=""))
 		compIds = df$compound_id
 		names(compIds) = df$descriptor_id

@@ -9,6 +9,7 @@ ChemDb = file.path(DataDir,paste(ChemPrefix,".db",sep=""))
 ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
+tmessage = function(msg) message(Sys.time(),": ",msg)
 
 debug=TRUE
 #debug=FALSE
@@ -157,7 +158,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
 	if(length(compoundIds)!=0 ){
 		descIds = getDescriptorIds(conn,compoundIds,descriptorType)
-		setPriorities(conn,forestSizePriorities,descIds)
+		setPriorities(conn,forestSizePriorities,descIds,cl=cl,connSource=connSource)
 	}
 	compoundIds
 }
