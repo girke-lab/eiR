@@ -4,7 +4,7 @@ library(snow)
 library(DBI)
 
 options(warn=2)
-options(error=dump.frames)
+#options(error=dump.frames)
 options(warnPartialMatchDollar=TRUE)
 
 test_dir="test_workspace"
@@ -59,7 +59,7 @@ debug=FALSE
 
 
 test_aa.eiInit <- function() {
-#	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 
    cleanup()
 	connSource() #sets default connection
@@ -126,8 +126,8 @@ test_ba.parDist <- function(){
 	eiR:::IddbVsIddbDist(conn,set1,set2, distance,"ap",file=file.path(test_dir,"parDist.final"),
 								cl=cl, connSource= connSource )
 	stopCluster(cl)
-
-	checkTrue(file.exists(file.path(test_dir,"parDist.final")))
+#
+#	checkTrue(file.exists(file.path(test_dir,"parDist.final")))
 
 
 }
@@ -350,6 +350,7 @@ clusterSizes <- function(clustering) {
 
 
 cleanup<- function(){
+	conn=connSource()
 #	if(inherits(conn,"PostgreSQLConnection"))
 #	{
 #		message("resetting postgres")
@@ -364,7 +365,6 @@ cleanup<- function(){
    #junk <- c("data","example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"),fpDir)
    #junk <- c("example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"))
    #unlink(junk,recursive=T)
-	conn=connSource()
 }
 findRefIddb <- function(runDir){
    matches<-dir(runDir,pattern=".cdb$",full.names=T)

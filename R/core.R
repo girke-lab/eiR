@@ -9,7 +9,7 @@ ChemDb = file.path(DataDir,paste(ChemPrefix,".db",sep=""))
 ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
 Main = file.path(DataDir,"main.iddb")
 
-tmessage = function(msg) message(Sys.time(),": ",msg)
+tmessage = function(...) message(Sys.time(),": ",...)
 
 #debug=TRUE
 debug=FALSE
@@ -184,7 +184,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	mainIds <- readIddb(conn,file.path(dir,Main))
 
 	if(is.character(refs)){ #assume its a filename
-		refIds=readIddbFile(refs,sorted=TRUE)
+		refIds=readIddbFile(refs)
 		r=length(refIds)
 		createWorkDir(r)
 	}else if(is.numeric(refs)){
@@ -375,6 +375,8 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName,conn=conn)
 		#print("new compound ids: "); print(compoundIds)
 		#message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
+		
+		invalidateCache()
 
 		if(length(compoundIds) != 0){
 			embedAll(conn,runId,distance,dir=dir)
@@ -485,7 +487,7 @@ searchCache = new.env()
 searchCache$descriptorIds=NULL
 searchCache$runId=NULL
 loadSearchCache <- function(conn,runId,dir) {
-		if(debug) message("loading search cache")
+		if(debug) message("loading search cache with runId ",runId)
 		runInfo = getExtendedRunInfo(conn,runId) 
 		if(nrow(runInfo)==0)
 			stop("no information found for ",runId)
@@ -504,6 +506,13 @@ loadSearchCache <- function(conn,runId,dir) {
 
 		if(debug) message("done loading search cache")
 
+}
+invalidateCache <- function(){
+
+	searchCache$descriptorIds=NULL
+	searchCache$runId=NULL
+	searchCache$matrixFile = NULL
+	searchCache$descriptorType = NULL
 }
 #expects one query per column
 search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
@@ -821,7 +830,7 @@ IddbVsIddbDist<- function(conn,iddb1,iddb2,dist,descriptorType,file=NA,cl=NULL,c
 		#absPath=file.path(getwd(),file)
 		#absPath=normalizePath(file)
 		absPath=file #given file is now absolute already
-		print(absPath)
+		#print(absPath)
 
 		output(absPath,length(iddb1),length(iddb2),process,mapReduce=TRUE)
 	}
