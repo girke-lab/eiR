@@ -37,7 +37,8 @@
 		\code{\link{eiAdd}} instead to add new compounds to a database.
 	}
 	\item{conn}{
-		Database connection to use.
+		Database connection to use. If a connection is given, you must ensure that it has been initialized using 
+		the \code{\link{initDb}} function from ChemmineR before calling \code{\link{eiInit}}.
 	}
 	\item{updateByName}{
 		If true we make the assumption that all compounds, both in the existing database and the
