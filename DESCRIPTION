@@ -1,9 +1,9 @@
 Package: eiR
 Type: Package
 Title: Accelerated similarity searching of small molecules
-Version: 1.8.1
-Date: 2015-5-8
-Author: Kevin Horan
+Version: 1.8.2
+Date: 2015-06-09
+Author: Kevin Horan, Thomas Girke
 Maintainer: Thomas Girke <thomas.girke@ucr.edu>
 Suggests: RCurl,snow,BiocStyle,knitcitations,knitr,knitrBootstrap
 Description: The eiR package provides utilities for accelerated
@@ -14,6 +14,9 @@ SystemRequirements: GSL (>=1.14) http://www.gnu.org/software/gsl/
 Depends: R (>= 2.10.0), ChemmineR (>= 2.15.15), methods, DBI
 Imports: snow, tools, snowfall, RUnit, methods,ChemmineR,RCurl,digest,
         BiocGenerics
-biocViews: Infrastructure, DataImport, Clustering, Proteomics
+biocViews: Cheminformatics, BiomedicalInformatics, Pharmacogenetics, 
+        Pharmacogenomics, MicrotitrePlateAssay, CellBasedAssays, Visualization,
+        Infrastructure, DataImport, Clustering, Proteomics
+URL: https://github.com/girke-lab/ChemmineR
 VignetteBuilder: knitr
 LinkingTo: BH
