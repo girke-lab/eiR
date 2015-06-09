@@ -307,7 +307,7 @@ test_fa.eiCluster <- function(){
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
 	print(sizes)
-	checkTrue(nrow(sizes) %in% c(6))
+	checkTrue(nrow(sizes) %in% c(5))
 	checkTrue(all(sizes[,2]==2))
 
 
@@ -319,7 +319,7 @@ test_fa.eiCluster <- function(){
 
 	print(clusterSizes(clustering))
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
-	checkTrue(nrow(sizes) %in% c(6)) 
+	checkTrue(nrow(sizes) %in% c(5)) 
 	checkTrue(all(sizes[,2]==2))
 
 	#clustering a subset
@@ -334,7 +334,7 @@ test_fa.eiCluster <- function(){
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
 	print(sizes)
-	checkTrue(nrow(sizes) %in% c(3))
+	checkTrue(nrow(sizes) %in% c(2))
 	checkTrue(all(sizes[,2]==2))
 
 
