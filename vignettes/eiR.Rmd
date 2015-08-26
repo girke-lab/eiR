@@ -17,7 +17,7 @@ RefManageR:::BibOptions(style="markdown",no.print.fields=c("doi"))
 EiR
 ====
 
-Kevin Horan & Thomas Girke
+Kevin Horan, Yiqun Cao, Tyler Backman & Thomas Girke
 
 Last update: `r format(Sys.time(),"%B %d, %Y")`
 
