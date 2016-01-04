@@ -1,6 +1,6 @@
 ---
 title: "_eiR_: Accelerated Similarity Searching of Small Molecules"
-author: "Authors: Kevin Horan, Yiqun Cao, Tyler Backman & Thomas Girke (thomas.girke@ucr.edu)"
+author: "Authors: Kevin Horan, Yiqun Cao, Tyler Backman & [Thomas Girke](thomas.girke@ucr.edu)"
 date: "Last update: `r format(Sys.time(), '%d %B, %Y')`" 
 package: "`r pkg_ver('eiR')`"
 output:
