@@ -1,101 +1,78 @@
----
-title: "_eiR_: Accelerated Similarity Searching of Small Molecules"
-author: "Authors: Kevin Horan, Yiqun Cao, Tyler Backman & [Thomas Girke](mailto:thomas.girke@ucr.edu)"
-date: "Last update: `r format(Sys.time(), '%d %B, %Y')`" 
-package: "`r pkg_ver('eiR')`"
-output:
-  BiocStyle::html_document:
-    toc: true
-    toc_depth: 3
-    fig_caption: yes
-
-fontsize: 14pt
-bibliography: references.bib
----
 <!--
-%% \VignetteEngine{knitr::rmarkdown}
-%% \VignetteEncoding{UTF-8}
+\usepackage[utf8]{inputenc}
+%\VignetteEngine{knitr::knitr}
 %\VignetteIndexEntry{eiR}
-%% \VignetteKeywords{cheminformatics, structural searching, clustering}
-%% \VignettePackage{eiR}
 -->
 
-<!---
-- Compile from command-line
-echo "rmarkdown::render('eiR.Rmd')" | R -slave; R CMD Stangle eiR.Rmd
-
-- Commit to github
-git commit -am "some edits"; git push -u origin master
-
-- To customize font size and other style features, add this line to output section in preamble:  
-    css: style.css
--->
-
-```{r style, echo = FALSE, results = 'asis'}
-BiocStyle::markdown()
-options(width=100, max.print=1000)
-knitr::opts_chunk$set(
-    eval=as.logical(Sys.getenv("KNITR_EVAL", "TRUE")),
-    cache=as.logical(Sys.getenv("KNITR_CACHE", "TRUE")))
+```{r echo=FALSE, results='hide',message=FALSE,warning=FALSE,error=FALSE}
+library(eiR) 
+library(knitcitations)
+unlink("data",recursive=TRUE)
+unlink(paste("run",60,40,sep="-"),recursive=TRUE) 
+set.seed(80) 
+#options(citation_format="pandoc")
+#cite_options(citation_format="pandoc",style="html", hyperlink="to.doc")
+RefManageR:::BibOptions(style="markdown",no.print.fields=c("doi"))
 ```
+EiR
+====
 
-```{r setup, echo=FALSE, messages=FALSE, warnings=FALSE}
-suppressPackageStartupMessages({
-    library(eiR)
-    library(ChemmineR)
-})
-```
+Kevin Horan, Yiqun Cao, Tyler Backman & Thomas Girke
 
-Note: the most recent version of this tutorial can be found <a href="https://htmlpreview.github.io/?https://github.com/girke-lab/eiR/blob/master/vignettes/eiR.html">here</a> and a short overview slide show [here](http://faculty.ucr.edu/~tgirke/HTML_Presentations/Manuals/Workshop_Dec_5_8_2014/Rcheminfo/Cheminfo.pdf).
+Last update: `r format(Sys.time(),"%B %d, %Y")`
 
 
-# Introduction
+Introduction
+============
 
-The R package `eiR` provides an index for chemical compound databases allowing one to
+EiR provides an index for chemical compound databases allowing one to
 quickly find similar compounds in a very large database. To create this
 index, *r* reference compounds are selected to represent the database.
 Then each compound in the database is embedded into *d*-dimensional
 space based on their distance to each reference compound. This requires
 time linear in the size of the database, but only needs to be done once
-for a database. Within this space, Locality Sensitive Hashing (LSH) is
-employed to allow sub-linear time nearest neighbor lookups [@Dong2008-ib; @Dong2008-kn]
+for a database. Within this space, Locality Sensitive Hashing (LSH)
+`r citep(c("http://dl.acm.org/citation.cfm?doid=1458082.1458172","http://dl.acm.org/citation.cfm?id=1459384"))` is
+employed to allow sub-linear time nearest neighbor lookups. This means
 that nearest neighbors can be found without doing a linear scan through
 the entire compound database. Additional compounds can be added to the
 database in time linear to the number of new compounds. No time is spend
 processing existing compounds, as long as the set of reference compounds
 remains the same. Given the ability to quickly find nearest neighbors,
 this method enables fast clustering with the Jarvis-Pattrick algorithm
-as well [@Jarvis1973-lp]. For details on the whole process see [@Cao2010-ir].
+as well `r citep("http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=1672233")`.`
+For details on the whole process see `r citet(c("10.1093/bioinformatics/btq067"))`.
 
 This library uses an SQL back-end (SQLite by default) to store chemical
 compound definitions, either in SDF or SMILE format, as well as
 descriptors. Several different kinds of descriptors can be stored for
 each compound, for example, one could compute and store atom-pair and
 fingerprint descriptors for each compound. The SQLite database, if used,
-is stored in a directory called `data`. The `eiInit` function is used to create a new
+is stored in a directory called "data". The eiInit function is used to create a new
 database, it can import data from SDF or SMILE formated files, or an
-`SDFset` object.
+SDFset object.
 
 Once a database has been created, an embedding must also be created 
-[@Dimitris_K_Agrafiotis_Dmitrii_N_Rassokhin_Victor_S_Lobanov2001-eq]. 
-In this step the reference compounds are chosen and each compound is
+`r citep(c("http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.84.2995"))`. In 
+this step the reference compounds are chosen and each compound is
 embedded into the new space. This step creates a new directory called
-`run-r-d`, where `r` and `d` are the corresponding values. This is the
-most costly step of the process and is handled by the `eiMakeDb` function.
+"run-r-d", where "r" and "d" are the corresponding values. This is the
+most costly step of the process and is handled by the eiMakeDb function.
 This step can be parallelized by providing a SNOW cluster to the
 eiMakeDb function.
 
 Given an embedded database, queries can be run against it with the
-`eiQuery` function. Additional compounds can also be added to an existing
-database and embedding using `eiAdd`. Performance tests can be run using
+eiQuery function. Additional compounds can also be added to an existing
+database and embedding using eiAdd. Performance tests can be run using
 the eiPerformanceTest function, and Jarvis-Patrick clustering can be
-done with the `eiCluster` function.
+done with the eiCluster function.
 
-`eiR` also provides some mechanisms to allow the user to extend the set of
+EiR also provides some mechanisms to allow the user to extend the set of
 descriptor formats used and to define new distance functions. See
 Section [Customization](#customization)  for details.
 
-# Initialization
+Initialization
+==============
 
 An initial compound database must be created with the following command:
 
@@ -109,36 +86,36 @@ eiInit(sdfsample[1:99])
 
 EiInit can take either an SDFset, or a filename. If a filename is given
 it must be in either SDF or SMILE format and the format must be
-specified with the `format` paramter. It might complain if your SDF file
+specified with the *format* paramter. It might complain if your SDF file
 does not follow the SDF specification. If this happens, you can create
-an SDFset with the `read.SDFset` command and then use that instead of
+an SDFset with the *read.SDFset* command and then use that instead of
 the filename.
 
 Descriptors will also be computed at this time. The default descriptor
 type is atompair. Other types can be used by setting the
-`descriptorType` parameter. Currently available types are "ap" for
+*descriptorType* parameter. Currently available types are "ap" for
 atompair, and "fp" for fingerprint. The set of available descriptors can
 be extended, see Section [Customization](#customization). EiInit will create a folder
 called 'data'. Commands should always be executed in the folder
 containing this directory (ie, the parent directory of "data"), or else
-specify the location of that directory with the `dir` option.
+specify the location of that directory with the *dir* option.
 
-`EiInit` also has some options to support loading data in parallel. This is only 
+*EiInit* also has some options to support loading data in parallel. This is only 
 possible if the SQL database being used supports parallel writes. For now, this
-means only PostgreSQL. To use this feature, the `inputs` parameter must be set to 
-an array of filenames, `cl` set to a SNOW cluster, and `connSource` set to a
+means only PostgreSQL. To use this feature, the *inputs* parameter must be set to 
+an array of filenames, *cl* set to a SNOW cluster, and *connSource* set to a
 function which will return a new database connection when called with no parameters. 
 Then each file will be loaded on a different node of the given cluster, in parallel. 
-The `connSource` function must actually create a new connection on each call, simply 
+The *connSource* function must actually create a new connection on each call, simply 
 returning the same reference to an existing connection will not work. This is because
 that function will be called on potentially different machines which will have to
 establish their own connection to the database.
 
 Compounds which already exist in the database will be skipped over, so it is safe to 
-re-run `eiInit` on an input file which has already been partially loaded. By default
+re-run *eiInit* on an input file which has already been partially loaded. By default
 it discovers duplicates by comparing the entire compound definition. However, if you 
 want two compounds with the same name to be considered equal even if the definition
-is different, you can set `updateByName` to be true. In this mode, if a compound being
+is different, you can set *updateByName* to be true. In this mode, if a compound being
 loaded is found to exist in the database already, by name, but has a different
 definition, the compound will be updated with the new definition and any associated
 descriptors and/or features will be re-computed.
@@ -147,11 +124,12 @@ eiInit will return a list of compound id numbers which represent the
 compounds just inserted. These numbers can be used to issue queries
 later.
 
-# Creating a Searchable Database
+Creating a Searchable Database
+==============================
 
 In this step the compounds in the data directory will be embedded in
 another space which allows for more efficient searching. The main two
-parameters are `refs` and `d`. `refs` can be either a list of compound ids
+parameters are *refs* and *d*. *refs* can be either a list of compound ids
 to use as references, or else an integer value indicating the number
 of references to use, which will then be randomly chosen. We will use
 *r* to represent the number of reference compounds.
@@ -159,23 +137,23 @@ of references to use, which will then be randomly chosen. We will use
 practice that setting *d* to around 100 works well. *r* should be large
 enough to "represent" the full compound database.
 Since creating a database is the longest running step, a SNOW cluster can be
-provided to parallelize the task. A `conSource` function is also required
+provided to parallelize the task. A *conSource* function is also required
 in this case, as described in Section [Initialization](#initialization).
 
-To help tune these values, `eiMakeDb` will pick `numSamples`
-non-reference samples which can later be used by the [`eiPerformanceTest`](#performance-tests)
+To help tune these values, *eiMakeDb* will pick *numSamples*
+non-reference samples which can later be used by the [*eiPerformanceTest*](#performance-tests)
 function.
 
-`eiMakdDb` does its job in a job folder, named after the number of
+*eiMakdDb* does its job in a job folder, named after the number of
 reference compounds and the number of embedding dimensions. For example,
 using 300 reference compounds to generate a 100-dimensional embedding
-(`r=300, `d`=100`) will result in a job folder called `run-300-100`.
+(*r*=300, *d*=100) will result in a job folder called run-300-100.
 The embedding result is the file matrix.r.d. In the above
-example, the output would be `run-300-100/matrix.300.100`.
+example, the output would be run-300-100/matrix.300.100.
 
 Since more than one type of descriptor can be stored for each compound,
 the desired descriptor type must be given to this function with the
-`descriptorType` parameter. The default value is "ap", for atompair. You
+*descriptorType* parameter. The default value is "ap", for atompair. You
 can also specify a custom distance function that must be able to take
 two descriptors in the format specified and return a distance value. The
 default distance method used is 1-Tanimoto(descriptor1,descriptor2).
@@ -191,31 +169,32 @@ runId <- eiMakeDb(r,d)
 ```
 
 
-# Queries
+Queries
+=======
 
-Queries can be given in several formats, defined by the `format`
-parameter. The default format is "sdf". The `queries` parameter can be
+Queries can be given in several formats, defined by the *format*
+parameter. The default format is "sdf". The *queries* parameter can be
 either an SDF file or an SDFset under this format. Other valid values for
-`format` are "name" and "compound\_id". Under these two formats the
-`queries` parameter is expected to be a list of compound names (as
+*format* are "name" and "compound\_id". Under these two formats the
+*queries* parameter is expected to be a list of compound names (as
 returned by sdfid on an SDFset), or a list of compound id numbers from the
 database, such as what is returned by the eiInit function.
 
-The `runId` parameter is required to determine which embedded database
-to use. As with `eiMakeDb`, the `distance` parameter may be given if
+The *runId* parameter is required to determine which embedded database
+to use. As with *eiMakeDb*, the *distance* parameter may be given if
 desired, it will default to the Tanimoto Coefficient otherwise. Finally,
-the parameter `K` is the number of results that will be returned. In
-some cases, particularly if `K` is small, you may need to set it to a
+the parameter *K* is the number of results that will be returned. In
+some cases, particularly if *K* is small, you may need to set it to a
 larger value and then trim down the result set yourself. This is because
 LSH is not an exact algorithm. Internally, it actually searches for
-`xK` neighbors, where `x` is referred to as the expansion ratio,
-generally set to 2. This allows it to pick the best `K` matches,
+*xK* neighbors, where *x* is referred to as the expansion ratio,
+generally set to 2. This allows it to pick the best *K* matches,
 according to the true distance function, out of a larger set of
-candidates. When `K` is small though, sometimes that expansion ratio is
+candidates. When *K* is small though, sometimes that expansion ratio is
 not quite enough.
 
 Note also that this function returns distance values and not
-similarities. Similarities can be computed by setting `asSimilarity` to
+similarities. Similarities can be computed by setting *asSimilarity* to
 TRUE. This assumes that whatever distance function is currently in use
 returns values between 0 and 1. This is true for the default distance 
 functions for "ap" and "fp" descriptors.
@@ -239,18 +218,19 @@ plot(sdfsample[result$target[1:4]],regenCoords=TRUE,print=FALSE)
 
 The result will be a data frame with four columns. The first is a query
 id, the second is a target, or hit, id, the third is the distance (or
-similarity if `asSimilary` was true) between the query and the
+similarity if *asSimilary* was true) between the query and the
 target, and the fourth column is the compound id number of
 the target.
 Lsh parameters can be passed in as well, see Section 
 [Performance Tests](#performance-tests) for more details.
 
-# Adding New Compounds
+Adding New Compounds
+====================
 
 New Compounds can be added to an existing database, however, the
 reference compounds cannot be changed. To add new compounds, use the
 eiAdd function. This function is very similar to the eiQuery function,
-except instead of a `queries` parameter, there is an `additions`
+except instead of a *queries* parameter, there is an *additions*
 parameter, defining the compounds to be added. The format of the value
 of this parameter works the same as in the eiQuery function. For
 example, to add one compound from an SDFset you would do:
@@ -265,11 +245,12 @@ added.
 This function will also write out a new matrix file in the run directory.
 For large databases, this can take a significant amount of time.
 
-# Performance Tests
+Performance Tests
+=================
 
 The eiPerforamceTest function will run several tests using some sample
 data to evaluate the performance of the current embedding. It takes the
-usual `runId` parameter, as well as on optional distance function. It
+usual *runId* parameter, as well as on optional distance function. It
 also takes several LSH parameters, though the defaults are usually fine.
 To evaluate the performance you can run:
 
@@ -304,22 +285,22 @@ The second test measures the performance of the Locality Sensitive Hash
 run-r-d/indexed.performance. It's a 1,000-line file of recall values.
 Each line corresponds to one test query. LSH search performance is
 highly sensitive to your LSH parameters (K, W, M, L, T). The default
-parameters are listed in the man page for `eiPerformanceTest`. When you
+parameters are listed in the man page for *eiPerformanceTest*. When you
 have your embedding result in a matrix file, you should follow
 instruction on
 <http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html> to find the
 best values for these parameters.
 
-# Clustering
-
+Clustering
+==========
 Compounds can be clustered in near linear time using the Jarvis-Patrick
 clustering algorithm by taking advantage of the near constant time nearest
 neighbor lookup provided by the LSH index. Clustering is done with the
-`eiCluster` function. It takes a `runId` to identify the data set and
+*eiCluster* function. It takes a *runId* to identify the data set and
 embedding, and two parameters for the Jarvis-Patrick algorithm:
-`K` is the number of neighbors to fetch for each compound, and `minNbrs`
+*K* is the number of neighbors to fetch for each compound, and *minNbrs*
 is the minimum number of neighbors two compounds must have in 
-common in order to be joined into the same cluster. A `cutoff` value
+common in order to be joined into the same cluster. A *cutoff* value
 can also be given to set a maximum distance between neighbors. Any two
 compounds farther apart than this cutoff will never be considered
 neighbors. This parameter is helpful in preventing compounds which are
@@ -327,9 +308,9 @@ very different from almost every other compound from being considered
 similar to other distant compounds simply because they happened to be 
 closest.
 
-By default `eiCluster` will cluster the entire dataset specified by
-`runId`. If you want to only cluster a subset of those compounds, you can
-provide their compound id values to the `compoundIds` parameter.
+By default *eiCluster* will cluster the entire dataset specified by
+*runId*. If you want to only cluster a subset of those compounds, you can
+provide their compound id values to the *compoundIds* parameter.
 
 
 ```{r }
@@ -338,15 +319,16 @@ provide their compound id values to the `compoundIds` parameter.
 ```
 
 
-# Customization
+Customization
+=============
 
-`eiR` can be extended to understand new descriptor types and new distance
+EiR can be extended to understand new descriptor types and new distance
 functions. New distance functions can be set in two different ways. Any
 function that takes a distance parameter can be given a new distance
 function that will be used for just that call. If no distance function
 is given, it will fetch a default distance function that has been
 defined for the given descriptor type. This default value can be changed
-using the `setDefaultDistance` function, which takes the descriptor type
+using the *setDefaultDistance* function, which takes the descriptor type
 and a distance function. Once this function has been called, the new
 distance function will be used for that descriptor type by all functions
 using a distance function. The built-in defaults are defined as follows:
@@ -357,16 +339,16 @@ setDefaultDistance("fp", function(d1,d2) 1-fpSim(d1,d2) )
 ```
 
 
-New descriptor types can also be added using the `addTransform`
+New descriptor types can also be added using the *addTransform*
 function. These transforms are basically just ways to read descriptors
 from compound definitions, and to convert descriptors between string and
 object form. This conversion is required because descriptors are stored
 as strings in the SQL database, but are used by the rest of the program
 as objects.
 
-There are two main components that need to be added. The `addTransform`
-function takes the name of the transform and two functions, `toString`,
-and `toObject`. These have slightly different meanings depending on the
+There are two main components that need to be added. The *addTransform*
+function takes the name of the transform and two functions, *toString*,
+and *toObject*. These have slightly different meanings depending on the
 component you are adding. The first component to add is a transform from
 a chemical compound format, such as SDF, to a descriptor format, such as
 atom pair (AP), in either string or object form. The toString function
@@ -431,19 +413,8 @@ addTransform("ap",
 unlink("data",recursive=TRUE)
 unlink(paste("run",r,d,sep="-"),recursive=TRUE) 
 ```
-
-# Version Information
-
-```{r sessionInfo, results='asis'}
-sessionInfo()
+References
+-----------
+```{r biblio, echo=FALSE, results='asis'}
+   bibliography()
 ```
-
-# Funding
-
-This software was developed with funding from the National Science
-Foundation:
-[ABI-0957099](http://www.nsf.gov/awardsearch/showAward.do?AwardNumber=0957099),
-2010-0520325 and IGERT-0504249.
-
-# References
-
