@@ -106,7 +106,7 @@ testRefs <- function(){
 
 test_ba.parDist <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	conn = connSource()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
@@ -208,7 +208,7 @@ test_bb.eiMakeDb <- function() {
 
 test_ca.eiQuery <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	message("eiQuery")
 	conn=connSource()
    data(sdfsample)
@@ -242,7 +242,7 @@ test_ca.eiQuery <- function(){
 }
 
 test_da.eiPerformanceTest <- function() {
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
@@ -252,7 +252,7 @@ test_da.eiPerformanceTest <- function() {
 }
 test_ea.eiAdd<- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	conn = connSource()
 
    data(example_compounds)
@@ -300,6 +300,15 @@ test_fa.eiCluster <- function(){
 	clustering=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,cutoff=1-cutoff,dir=test_dir)
 	print(byCluster(clustering))
 	checkTrue(length(clustering) >= numUniqueDescriptors) #eiAdd will add some stuff
+
+	# expected clustering
+	# as compound ids          descriptor ids
+	# 211 - 286							11 - 82
+	# 215 - 264							15 - 60
+	# 216 - 272							16 - 68
+	# 245 - 251							45 - 51
+	# 248 - 249							48 - 49
+	# 269 - 279							65 - 75
 
 	conn=connSource()
 	compoundIds=names(clustering)
