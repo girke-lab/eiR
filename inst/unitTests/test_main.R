@@ -301,6 +301,15 @@ test_fa.eiCluster <- function(){
 	print(byCluster(clustering))
 	checkTrue(length(clustering) >= numUniqueDescriptors) #eiAdd will add some stuff
 
+	# expected clustering
+	# as compound ids          descriptor ids
+	# 211 - 286							11 - 82
+	# 215 - 264							15 - 60
+	# 216 - 272							16 - 68
+	# 245 - 251							45 - 51
+	# 248 - 249							48 - 49
+	# 269 - 279							65 - 75
+
 	conn=connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
@@ -336,7 +345,7 @@ test_fa.eiCluster <- function(){
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
 	print(sizes)
-	# checkTrue(nrow(sizes) %in% c(3))
+	#checkTrue(nrow(sizes) %in% c(3))
 	checkTrue(nrow(sizes) %in% c(2))
 	checkTrue(all(sizes[,2]==2))
 
