@@ -11,8 +11,8 @@ Main = file.path(DataDir,"main.iddb")
 
 tmessage = function(...) message(Sys.time(),": ",...)
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
@@ -419,7 +419,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		compId2Sequential = 1:ml
 		names(compId2Sequential)=compIds
 
-		#print(neighbors)
+	print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
@@ -467,8 +467,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		
 
 		rownames(refinedNeighbors)=1:ml
-		#print("final refined:")
-		#print((refinedNeighbors))
+		print("final refined:")
+		print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
@@ -652,14 +652,18 @@ genTestQueryResults <- function(distance,dir,descriptorType,conn=defaultConn(dir
 		return()
 
 	out=file(file.path(dir,TestQueryResults),"w")
+	print(out)
+	print("getting test query ids")
+	allIds = readIddb(conn,file.path(dir,Main))
 	d=IddbVsIddbDist(conn,
 		readIddb(conn,file.path(dir,TestQueries)),
-		readIddb(conn,file.path(dir,Main)),distance,descriptorType)
+		allIds,distance,descriptorType)
 	if(debug) print(paste("dim(d): ",dim(d)))
 	maxLength=min(dim(d)[2],50000)
 	for(i in 1:(dim(d)[1]))
 		cat(paste(
-				paste(1:dim(d)[2],d[i,],sep=":")[order(d[i,])[1:maxLength]],
+				#paste(1:dim(d)[2],d[i,],sep=":")[order(d[i,])[1:maxLength]],
+				paste(allIds[1:dim(d)[2]],d[i,],sep=":")[order(d[i,])[1:maxLength]],
 				collapse=" "),"\n",file=out)	
 	close(out)
 }
@@ -701,14 +705,17 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
 	#if(debug) print(hits)
+	
 	for(x in hits)
 		cat(paste(x[,1],x[,2],sep=":",collapse=" "),"\n",file=out)
 	close(out)
 
 	#indexed_evalutator TestQueryResults indexed indexed.performance
-	write.table(compareSearch(file.path(dir,TestQueryResults),indexed),
+	results = compareSearch(file.path(dir,TestQueryResults),indexed)
+	write.table(results,
 			file=file.path(workDir,"indexed.performance"),
 			row.names=F,col.names=F,quote=F)
+	return(results)
 }
 
 
