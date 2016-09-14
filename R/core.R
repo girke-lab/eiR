@@ -203,7 +203,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=getGroupSize(conn,name=file.path(dir,Main))*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL,annType="lsh")
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL,annType="lsh",numTrees=100)
 {
 	conn
 	workDir=NA
@@ -301,8 +301,8 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)
 
-	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource,annType=annType)
-	writeMatrixFile(conn,runId,dir=dir,samples=TRUE,annType=annType)
+	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource,annType=annType,numTrees=numTrees)
+	writeMatrixFile(conn,runId,dir=dir,samples=TRUE,annType=annType,numTrees=numTrees)
 
 	runId
 }
@@ -310,7 +310,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 eiQuery <- function(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,
+		asSimilarity=FALSE,K=200, searchK=-1, lshData=NULL,
 		mainIds =readIddb(conn,file.path(dir,Main),sorted=TRUE))
 {
 		conn
@@ -350,7 +350,7 @@ eiQuery <- function(runId,queries,format="sdf",
 		hits = search(embeddedQueries,runId,
 							queryDescriptors,distance,dir=dir,conn=conn,
 							lshData=lshData,
-							K=K,W=W,M=M,L=L,T=T)
+							searchK=searchK)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
 
@@ -427,7 +427,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 							 distance=getDefaultDist(descriptorType),
 							 conn=defaultConn(dir),annType="lsh",
-							  W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single"){
+							  searchK=-1,type="cluster",linkage="single"){
 
 		if(debug) print("staring eiCluster")
 
@@ -454,7 +454,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		if(annType=="annoy")
 			neighbors = annoySearchAll(searchCache$matrixFile,d,numNeighbors=2*K,...)
 		else
-			neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T) #neighbors is now matrix space
+			neighbors = lshsearchAll(matrixFile,K=2*K,searchK=searchK) #neighbors is now matrix space
 
 		compIds = descriptorsToCompounds(conn,mainDescriptorIds)
 
@@ -739,7 +739,9 @@ genTestQueryResults <- function(distance,dir,descriptorType,conn=defaultConn(dir
 }
 eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 										conn=defaultConn(dir),
-										dir=".",annType="lsh",K=200, W = 1.39564, M=19,L=10,T=30)
+										dir=".",annType="lsh", K=200,
+									#	W = 1.39564, M=19,L=10,T=30,
+										searchK=-1)
 {
 	conn
 
@@ -771,7 +773,10 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 	embeddedTestQueries = t(getEmbeddedDescriptors(conn,embeddingId,sampleCompoundIds))
 
 	hits = search(embeddedTestQueries,runId,
-						testQueryDescriptors,distance,dir=dir,conn=conn,annType=annType,K=K,W=W,M=M,L=L,T=T)
+						testQueryDescriptors,distance,dir=dir,conn=conn,
+						annType=annType,K=K,
+					#	W=W,M=M,L=L,T=T,
+						searchK=searchK)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
 	#if(debug) print(hits)

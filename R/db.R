@@ -345,7 +345,7 @@ getGroupDescriptorIds <- function(conn,groupId,descriptorTypeId){
 												" AND cgm.compound_group_id = ",groupId))[[1]]
 }
 
-writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL,annType="lsh"){
+writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL,annType="lsh",numTrees=50){
 
 	message("Regenerating matrix file...")
 
@@ -451,7 +451,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 		close(f)
 		close(indexF)
 	}else if(annType=="annoy"){
-		annoy$build(50)                             # 50 trees
+		annoy$build(numTrees)
 		annoy$save(matrixFileTemp)
 	}
 
