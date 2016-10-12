@@ -11,6 +11,7 @@ CREATE TABLE compound_group_members (
 	UNIQUE(compound_group_id,compound_id)
 );
 CREATE INDEX compound_group_members_compound_group_id ON compound_group_members(compound_group_id);
+CREATE INDEX compound_group_members_compound_compound_id ON compound_group_members(compound_id);
 
 CREATE TABLE embeddings(
 	embedding_id serial PRIMARY KEY,
