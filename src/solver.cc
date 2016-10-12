@@ -7,6 +7,11 @@ using namespace std;
 #include "solver.h"
 
 extern "C" {
+	typedef long int integer;
+	typedef double doublereal;
+	typedef long int ftnlen;
+
+
 	int s_copy(char *, char *, ftnlen, ftnlen);
   int setulb_(integer *n, integer *m, doublereal *x, 
 	doublereal *l, doublereal *u, integer *nbd, doublereal *f, doublereal 
@@ -46,7 +51,7 @@ void Solver::init_values(doublereal *x, doublereal *l, doublereal *u,
 		l[i] = -.5; u[i] = .5; nbd[i] = 2;
 	}
 }
-
+//euclidean distance
 doublereal Solver::udist(doublereal* x, doublereal* y)
 {
 	doublereal dist = 0;

@@ -14,14 +14,6 @@ tmessage = function(...) message(Sys.time(),": ",...)
 debug=TRUE
 #debug=FALSE
 
-# Notes
-#  Need function to produce descriptors from sdf or smile
-#  Need function to compute distances between descriptors
-
-#cdbSize <- function(dir=".") {
-#	#TODO: make this more efficient
-#	length(readIddb(conn,file.path(dir,Main)))
-#}
 embedCoord <- function(s,len,coords) 
 	.Call("embedCoord",s,as.integer(len),as.double(coords))
 
@@ -29,63 +21,10 @@ embedCoordTest <- function(r,d,refCoords,coords)
 	.Call("embedCoordTest",as.integer(r),as.integer(d),as.double(refCoords),as.double(coords))
 
 
-lshPrep <- function(matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,dir=".") {
-
-	if(!file.exists(matrixFile)) stop(paste("could not find matrix file:",matrixFile))
-
-	#TODO: see about removeing old .lshindex files
-	matrixHash = digest(file = matrixFile,serialize=FALSE)
-	matrixDir=dirname(matrixFile)
-	indexName = file.path(matrixDir,paste(paste(matrixHash,W,H,M,L,T,R,sep="-"),"lshindex",sep="."))
-	if(debug) print(paste("index name: ",indexName))
-	indexName
-}
-
-
-loadLSHData <- function(r,d, W=NA,M=NA,L=NA,K=NA,T=NA,dir=".",matrixFile=NULL) {
-
-	if(is.null(matrixFile)){
-		workDir=file.path(dir,paste("run",r,d,sep="-"))
-		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-	}
-
-	indexFile = lshPrep(matrixFile,W,NA,M,L,K,T,NA)
-	.Call("getIndexedData",as.character(matrixFile),indexFile,
-		as.double(W),NA,as.integer(M),as.integer(L))
-}
-
-freeLSHData <- function(lshData){
-	.Call("freeIndexedData",lshData)
-}
-
-# requires one query per column, not per row
-lshsearch <- function(queries,matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,lshData=NULL) 
-{
-	if(is.null(lshData)){
-		indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
-		.Call("lshsearch",queries,as.character(matrixFile),indexFile,
-			as.double(W),as.integer(H),as.integer(M),as.integer(L),
-			as.integer(K),as.integer(T), as.double(R))
-	}else{
-		.Call("query",queries,lshData, as.integer(K),as.integer(T), as.double(R))
-	}
-}
-lshsearchAll <- function(matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA) 
-{
-
-	indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
-
-	.Call("lshsearchAll",as.character(matrixFile),indexFile,
-		as.double(W),as.integer(H),as.integer(M),as.integer(L),
-		as.integer(K),as.integer(T), as.double(R))
-}
 annoySearch <- function(queries,matrixFile,dimension,numNeighbors,searchK=-1)
 {
 	message("creating annoy index")
-	index <- AnnoyIndex(dimension,"euclidean")
+	index <-new(AnnoyEuclidean,dimension)
 	message("loading matrix file")
 	index$load(matrixFile)
 	message("done. num items in index: ",index$getNItems())
@@ -94,7 +33,7 @@ annoySearch <- function(queries,matrixFile,dimension,numNeighbors,searchK=-1)
 	message("found ",numQueries," queries")
 	result = array(0,c(numQueries,numNeighbors,2))
 	for(i in seq(numQueries)){
-		neighbors = index$getNNsByVector(queries[,i],numNeighbors,searchK,TRUE)
+		neighbors = index$getNNsByVectorList(queries[,i],numNeighbors,searchK,TRUE)
 		numResults = length(neighbors$item)
 		#message("got ",numResults," neighbors for query ",i)
 		if(numResults < numNeighbors){ #pad any missing neighbors with NA
@@ -110,7 +49,7 @@ annoySearch <- function(queries,matrixFile,dimension,numNeighbors,searchK=-1)
 annoySearchAll <- function(matrixFile,dimension,numNeighbors,searchK=-1)
 {
 	message("creating annoy index")
-	index <- AnnoyIndex(dimension,"euclidean")
+	index <-new(AnnoyEuclidean,dimension)
 	message("loading matrix file")
 	index$load(matrixFile)
 	numItems = index$getNItems()
@@ -118,7 +57,7 @@ annoySearchAll <- function(matrixFile,dimension,numNeighbors,searchK=-1)
 
 	result = array(0,c(numItems,numNeighbors,2))
 	for(i in seq(numItems)){
-		neighbors = index$getNNsByItem(i-1,numNeighbors,searchK,TRUE)
+		neighbors = index$getNNsByItemList(i-1,numNeighbors,searchK,TRUE)
 		numResults = length(neighbors$item)
 		#message("got ",numResults," neighbors for query ",i)
 		if(numResults < numNeighbors){ #pad any missing neighbors with NA
@@ -135,7 +74,6 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
 						 cl=NULL,connSource=NULL)
 {
-	#AnnoyIndex(3,"euclidean")
 
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
@@ -203,7 +141,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=getGroupSize(conn,name=file.path(dir,Main))*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL,annType="lsh",numTrees=100)
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL,numTrees=100)
 {
 	conn
 	workDir=NA
@@ -301,12 +239,13 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)
 
-	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource,annType=annType,numTrees=numTrees)
-	writeMatrixFile(conn,runId,dir=dir,samples=TRUE,annType=annType,numTrees=numTrees)
+	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource,numTrees=numTrees)
+	writeMatrixFile(conn,runId,dir=dir,samples=TRUE,numTrees=numTrees)
 
 	runId
 }
 
+#lshData deprecated
 eiQuery <- function(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
@@ -349,7 +288,7 @@ eiQuery <- function(runId,queries,format="sdf",
 		#if(debug) print(embeddedQueries)
 		hits = search(embeddedQueries,runId,
 							queryDescriptors,distance,dir=dir,conn=conn,
-							lshData=lshData,
+							lshData=lshData,K=K,
 							searchK=searchK)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
@@ -426,7 +365,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 
 eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 							 distance=getDefaultDist(descriptorType),
-							 conn=defaultConn(dir),annType="lsh",
+							 conn=defaultConn(dir),
 							  searchK=-1,type="cluster",linkage="single"){
 
 		if(debug) print("staring eiCluster")
@@ -451,10 +390,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		mainDescriptorIds = readMatrixIndex(matrixFile)
 
 	
-		if(annType=="annoy")
-			neighbors = annoySearchAll(searchCache$matrixFile,d,numNeighbors=2*K,...)
-		else
-			neighbors = lshsearchAll(matrixFile,K=2*K,searchK=searchK) #neighbors is now matrix space
+		#neighbors is in matrix space
+		neighbors = annoySearchAll(searchCache$matrixFile,d,numNeighbors=force(2*K),searchK=searchK)
 
 		compIds = descriptorsToCompounds(conn,mainDescriptorIds)
 
@@ -462,7 +399,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		compId2Sequential = 1:ml
 		names(compId2Sequential)=compIds
 
-	print(neighbors)
+		print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
@@ -560,8 +497,9 @@ invalidateCache <- function(){
 	searchCache$descriptorType = NULL
 }
 #expects one query per column
+#lshData is deprecated
 search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
-						 conn=defaultConn(dir),lshData=NULL,annType="lsh",...)
+						 conn=defaultConn(dir),lshData=NULL,searchK=-1)
 {
 		if(is.null(searchCache$descriptorIds) || 
 			(!is.null(searchCache$runId) && searchCache$runId != runId)){
@@ -570,10 +508,8 @@ search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 		message("quries:")
 		print(embeddedQueries)
 		
-		if(annType=="annoy")
-			neighbors = annoySearch(embeddedQueries,searchCache$matrixFile,searchCache$dimension,numNeighbors=2*K,...)
-		else
-			neighbors = lshsearch(embeddedQueries,searchCache$matrixFile,K=2*K,lshData=lshData,...)
+		neighbors = annoySearch(embeddedQueries,searchCache$matrixFile,searchCache$dimension,
+										numNeighbors=force(2*K),searchK=searchK)
 
 		
 		if(debug) print(paste("got ",paste(dim(neighbors),collapse=","),"neighbors back from lshsearch"))
@@ -739,9 +675,7 @@ genTestQueryResults <- function(distance,dir,descriptorType,conn=defaultConn(dir
 }
 eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 										conn=defaultConn(dir),
-										dir=".",annType="lsh", K=200,
-									#	W = 1.39564, M=19,L=10,T=30,
-										searchK=-1)
+										dir=".", K=200, searchK=-1)
 {
 	conn
 
@@ -774,9 +708,7 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 
 	hits = search(embeddedTestQueries,runId,
 						testQueryDescriptors,distance,dir=dir,conn=conn,
-						annType=annType,K=K,
-					#	W=W,M=M,L=L,T=T,
-						searchK=searchK)
+						K=K, searchK=searchK)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
 	#if(debug) print(hits)

@@ -54,8 +54,8 @@ connSource(TRUE) # reset postgres
 
 lastRunId=0
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 
 test_aa.eiInit <- function() {

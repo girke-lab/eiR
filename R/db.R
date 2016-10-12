@@ -345,7 +345,7 @@ getGroupDescriptorIds <- function(conn,groupId,descriptorTypeId){
 												" AND cgm.compound_group_id = ",groupId))[[1]]
 }
 
-writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL,annType="lsh",numTrees=50){
+writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL,numTrees=50){
 
 	message("Regenerating matrix file...")
 
@@ -371,18 +371,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	annoy = ""
 
 	numCols = runInfo$dimension
-	if(annType=="lsh"){
-		f = file(matrixFileTemp,"wb")
-		floatSize = 4
-
-		if(debug)  message("numRows: ",numRows," numCols: ",numCols)
-
-		writeBin(as.integer(floatSize),f,floatSize)
-		writeBin(as.integer(numRows),f,floatSize)
-		writeBin(as.integer(numCols),f,floatSize)
-	}else if(annType =="annoy"){
-		annoy <- AnnoyIndex(runInfo$dimension,"euclidean")
-	}
+	#annoy <- AnnoyIndex(runInfo$dimension,"euclidean")
+	annoy <- new(AnnoyEuclidean,runInfo$dimension)
 	
 
 	indexF = file(matrixFileIndexTemp,"w")
@@ -409,27 +399,19 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 				stop(numIncomplete," descriptors missing values")
 			}
 			
-			if(annType == "lsh"){
-				for( i in 1:nrow(df)){
-					if(count %% numCols == 0)
-						cat(paste(df$descriptor_id[i]),file=indexF,sep="\n")
-					count <<- count + 1
-				}
-				writeBin(as.vector(df$value),f,floatSize)
-			}else if(annType == "annoy"){
-				numDescriptors = nrow(df) / numCols
-				for(i in seq(numDescriptors)){
-					# 1:numCols
-					# numCols+1 : 2*numCols
-					# 2*numCols+1 : 3*numCols
-					v = as.vector(df$value[((i-1)*numCols+1):(i*numCols) ])
-					#if(debug) message("inserting at ",df$descriptor_id[[(i-1)*numCols+1]]," ",paste(v,collapse=","))
-				   #annoy$addItem(df$descriptor_id[[(i-1)*numCols+1]], v)
-				   annoy$addItem(itemCount, v) #number using 0 index system
-					itemCount <<- itemCount + 1
-					count <<- count + length(v)
-				}
+			numDescriptors = nrow(df) / numCols
+			for(i in seq(numDescriptors)){
+				# 1:numCols
+				# numCols+1 : 2*numCols
+				# 2*numCols+1 : 3*numCols
+				v = as.vector(df$value[((i-1)*numCols+1):(i*numCols) ])
+				#if(debug) message("inserting at ",df$descriptor_id[[(i-1)*numCols+1]]," ",paste(v,collapse=","))
+				#annoy$addItem(df$descriptor_id[[(i-1)*numCols+1]], v)
+				annoy$addItem(itemCount, v) #number using 0 index system
+				itemCount <<- itemCount + 1
+				count <<- count + length(v)
 			}
+			
    }
 
 
@@ -447,13 +429,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	if(count/numCols != numRows)
 		stop("expected to find ",numRows," but wrote ",count/numCols)
 	
-	if(annType=="lsh"){
-		close(f)
-		close(indexF)
-	}else if(annType=="annoy"){
-		annoy$build(numTrees)
-		annoy$save(matrixFileTemp)
-	}
+	annoy$build(numTrees)
+	annoy$save(matrixFileTemp)
 
 	file.rename(matrixFileTemp,matrixFile)
 	file.rename(matrixFileIndexTemp,paste(matrixFile,".index",sep=""))

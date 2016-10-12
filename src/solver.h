@@ -6,6 +6,12 @@ using namespace std;
 class Solver
 {
 	private:
+
+		typedef long int integer;
+		typedef double doublereal;
+		typedef long int ftnlen;
+		typedef long int logical;
+
 		int k;			// dimensionality
 		int m;			// trait size
 		int nmax, mmax;
