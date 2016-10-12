@@ -184,7 +184,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	mainIds <- readIddb(conn,file.path(dir,Main))
 
 	if(is.character(refs)){ #assume its a filename
-		refIds=readIddbFile(refs,sorted=TRUE)
+		refIds=readIddbFile(refs)
 		r=length(refIds)
 		createWorkDir(r)
 	}else if(is.numeric(refs)){
