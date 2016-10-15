@@ -209,13 +209,13 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 				  ordering = as.vector(sapply(1:descriptorLength,function(i) rep(i,numDescriptors))),
 				  value = data)
 
-	fields = c("embedding_id","descriptor_id","ordering","value")
 	if(inherits(conn,"SQLiteConnection")){
-		getPreparedQuery(conn, 
+		dbGetPreparedQuery(conn, 
 			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
-				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert[fields])
+				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
 	}else if(inherits(conn,"PostgreSQLConnection")){
 
+		fields = c("embedding_id","descriptor_id","ordering","value")
 
 		postgresqlWriteTable(conn,"embedded_descriptors",toInsert[,fields],append=TRUE,row.names=FALSE)
 
@@ -241,12 +241,12 @@ insertEmbeddedDescriptorsByCompoundId <-function(conn,embeddingId,compoundIds,da
 				  ordering = as.vector(sapply(1:descriptorLength,function(i) rep(i,numDescriptors))),
 				  value = data)
 
-	fields = c("embedding_id","descriptor_id","ordering","value")
 	if(inherits(conn,"SQLiteConnection")){
-		getPreparedQuery(conn, 
+		dbGetPreparedQuery(conn, 
 			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
-				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert[fields])
+				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
 	}else if(inherits(conn,"PostgreSQLConnection")){
+		fields = c("embedding_id","descriptor_id","ordering","value")
 		postgresqlWriteTable(conn,"embedded_descriptors",toInsert[,fields],append=TRUE,row.names=FALSE)
 
 	}else{
@@ -502,11 +502,11 @@ insertGroupMembers <- function(conn,data){
 	#print("member data: ")
 	#print(data)
 
-	fields = c("compound_group_id","compound_id")
 	if(inherits(conn,"SQLiteConnection")){
-		getPreparedQuery(conn, paste("INSERT INTO compound_group_members(compound_group_id,compound_id) ",
-				"VALUES (:compound_group_id,:compound_id)"),bind.data=data[fields])
+		dbGetPreparedQuery(conn, paste("INSERT INTO compound_group_members(compound_group_id,compound_id) ",
+				"VALUES (:compound_group_id,:compound_id)"),bind.data=data)
 	}else if(inherits(conn,"PostgreSQLConnection")){
+		fields = c("compound_group_id","compound_id")
 		postgresqlWriteTable(conn,"compound_group_members",data[,fields],append=TRUE,row.names=FALSE)
 
 		#apply(data[,fields],1,function(row) 
@@ -516,13 +516,6 @@ insertGroupMembers <- function(conn,data){
 		stop("database ",class(conn)," unsupported")
 	}
 
-}
-
-getPreparedQuery <- function(conn,statement,bind.data){
-	res <- dbSendQuery(conn,statement)
-	on.exit(dbClearResult(res)) #clear result set when this function exits
-	dbBind(res,bind.data)
-	dbFetch(res)
 }
 
 runQuery <- function(conn,query,...){
