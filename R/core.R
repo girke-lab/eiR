@@ -970,7 +970,12 @@ checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 							refIds=readIddb(conn,groupId=runInfo$references_group_id,sorted=TRUE),
 							coords = getCoords(conn,runId,dir)) {
 	runInfo = getExtendedRunInfo(conn,runId) 
+	message("run info: ")
+	print(runInfo)
+
 	descriptorType=getDescriptorType(conn,info =runInfo)
+	message("descriptor type:")
+	print(descriptorType)
 
 	solver <- getSolver(runInfo$num_references,runInfo$dimension,coords)	
 
@@ -982,7 +987,11 @@ checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 		#print(descriptorType)
 		rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
 		print(head(t(rawDists)))
-		apply(rawDists,c(1), function(x) embedCoord(solver,runInfo$dimension,x)) # return embeddedd descriptors
+		embeddedDesc = apply(rawDists,c(1), function(x) embedCoord(solver,runInfo$dimension,x)) # return embeddedd descriptors
+		print(descriptors)
+		print(embeddedDesc)
+
+		embeddedDesc
  	}
 
 	for(descriptorId in descriptorIds){
