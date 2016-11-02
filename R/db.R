@@ -519,10 +519,21 @@ insertGroupMembers <- function(conn,data){
 }
 
 getPreparedQuery <- function(conn,statement,bind.data){
-	res <- dbSendQuery(conn,statement)
-	on.exit(dbClearResult(res)) #clear result set when this function exits
-	dbBind(res,bind.data)
-	dbFetch(res)
+#	message("SQL statement: ")
+#	print(statement)
+#	message("data:")
+#	print(colnames(bind.data))
+
+	dbSendPreparedQuery(conn,statement,bind.data)
+	
+#	print("sending query")
+#	res <- dbSendQuery(conn,statement)
+#	print("after sendQuery")
+#	on.exit(dbClearResult(res)) #clear result set when this function exits
+#	print("after exit callback registered")
+#	dbBind(res,bind.data)
+#	print("after dbBind")
+#	dbFetch(res)
 }
 
 runQuery <- function(conn,query,...){

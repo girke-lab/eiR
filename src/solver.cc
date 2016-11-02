@@ -60,14 +60,26 @@ doublereal Solver::udist(doublereal* x, doublereal* y)
 
 doublereal Solver::calc_f(doublereal *x, doublereal *d)
 {
+//	printf("x: ");
+//	for(int i=0;i<m;i++) printf("%f,",x[i]);
+//	printf("\n");
+
 	doublereal e = 0;
 	doublereal dd = 0;
 	doublereal t = 0;
+	//doublereal *row=0;
 	for (int i = 0; i < m; i ++) {
+	//	row = p+k*i;
+	//	printf("coords[%d]: ",i);
+	//	for(int j=0;j<k;j++) printf("%f,",*(row+j));
+	//	printf("\n");
+
+
 		dd = udist(x, p + k * i);
 		t = dd - d[i];
 		e += (t * t);
 	}
+	//printf("f(x): %f\n",e);
 	return e;
 }
 
@@ -77,7 +89,7 @@ void Solver::calc_g(doublereal *x, doublereal *d, doublereal *g)
 		doublereal s = 0, tt;
 		for (int j = 0; j < m; j ++) {
 			doublereal dd = udist(x, p + k * j);
-			tt = (x[i] - p[k * j + i]) * (1 - d[j] / dd);
+			tt = (x[i] - p[k * j + i])   *    (1 - d[j] / dd);
 			s += tt;
 		}
 		g[i] = 2 * s;

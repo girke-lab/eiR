@@ -1,4 +1,6 @@
 
+set.seed(42)
+
 library(eiR)
 library(snow)
 library(DBI)
@@ -54,8 +56,8 @@ connSource(TRUE) # reset postgres
 
 lastRunId=0
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 
 test_aa.eiInit <- function() {
@@ -106,7 +108,7 @@ testRefs <- function(){
 
 test_ba.parDist <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	conn = connSource()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
@@ -208,7 +210,7 @@ test_bb.eiMakeDb <- function() {
 
 test_ca.eiQuery <- function(){
 
-	#DEACTIVATED("slow")
+	DEACTIVATED("slow")
 	message("eiQuery")
 	conn=connSource()
    data(sdfsample)
@@ -289,7 +291,7 @@ test_ea.eiAdd<- function(){
 
 }
 test_fa.eiCluster <- function(){
-	#DEACTIVATED("off")
+	DEACTIVATED("off")
 	numNbrs=5
 	minNbrs=2
 	cutoff=0.5

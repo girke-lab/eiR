@@ -11,8 +11,8 @@ Main = file.path(DataDir,"main.iddb")
 
 tmessage = function(...) message(Sys.time(),": ",...)
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
@@ -22,8 +22,9 @@ debug=FALSE
 #	#TODO: make this more efficient
 #	length(readIddb(conn,file.path(dir,Main)))
 #}
-embedCoord <- function(s,len,coords) 
+embedCoord <- function(s,len,coords){
 	.Call("embedCoord",s,as.integer(len),as.double(coords))
+}
 
 embedCoordTest <- function(r,d,refCoords,coords) 
 	.Call("embedCoordTest",as.integer(r),as.integer(d),as.double(refCoords),as.double(coords))
@@ -419,7 +420,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		compId2Sequential = 1:ml
 		names(compId2Sequential)=compIds
 
-		#print(neighbors)
+		print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
@@ -431,7 +432,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 			descriptors = getDescriptorsByDescriptorId(conn,indexSet)
 
 			lapply(1:length(indexSet),function(x){ #for each descriptor id, i
-				#print(neighbors[i,,])
+				message("-------------- ",i," -----------------")
+				print(neighbors[i,,])
 				nonNAs=!is.na(neighbors[i,,1]) #matrix space
 			   n=neighbors[i,nonNAs,,drop=FALSE]   #matrix space
 				#must set this manually because if only one row is
@@ -442,24 +444,26 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 
 				#matrix space -> descriptor space 
 			   n[,1] = mainDescriptorIds[n[,1]]
-				#print("neighbors: ")
-				#print(n[,1])
+				print("neighbors: ")
+				print(n[,1])
 
 				#print(paste("refining",i))
 				refined = refine(n,descriptors[x],K,distance,dir,descriptorType=descriptorType,cutoff=cutoff,conn=conn)
-				#print("refined: ")
-				#print(refined)
+				print("refined: ")
+				print(refined)
 
 				#descriptor space -> compound space
 				refinedCompounds = compIds[as.character(refined[,1])]
-				#print(refinedCompounds)
+				print("refined compounds:")
+				print(refinedCompounds)
 
 				# compound space -> sequential id space
 				refinedNeighbors[i,1:nrow(refined)]<<-
 							compId2Sequential[as.character(refinedCompounds)]
 				if(type=="matrix")
 					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
-				#print(refinedNeighbors[i,1:nrow(refined)])
+				print("refined neighbors:")
+				print(refinedNeighbors[i,1:nrow(refined)])
 				i<<-i+1
 			})
 		 },batchSize=1000)
@@ -467,15 +471,15 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		
 
 		rownames(refinedNeighbors)=1:ml
-		#print("final refined:")
-		#print((refinedNeighbors))
+		print("final refined:")
+		print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
 							names=compIds,
 							similarities=similarities))
 
-		#print("clustering")
+		print("clustering")
 		rawClustering = jarvisPatrick_c(refinedNeighbors,minNbrs,fast=TRUE)
 		# sequential space -> descriptor space -> compound space
 		clustering = compIds[as.character(mainDescriptorIds[rawClustering])]
@@ -566,7 +570,7 @@ embedFromRefs <- function(r,d,refIddb,query2RefDists)
 #return the emedding of each row in the matrix
 embed <- function(r,d,coords, query2RefDists)
 {
-		solver = getSolver(r,d,coords)
+		solver = getSolver(r,d,(coords))
 		embeddedQueries = apply(query2RefDists,c(1),
 			function(x) embedCoord(solver,d,x))
 }
@@ -930,7 +934,7 @@ embedAll <- function(conn,runId, distance,dir=".",
 	if(debug) message("embedding ",length(unembeddedDescriptorIds)," unembedded descriptors")
 
 	embedJob = function(ids,jobId){
-		solver <- getSolver(r,d,coords)	
+		solver <- getSolver(r,d,(coords))
 
 		withConnection(connSource,function(conn){
 		
@@ -968,7 +972,7 @@ embedAll <- function(conn,runId, distance,dir=".",
 }
 checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 							refIds=readIddb(conn,groupId=runInfo$references_group_id,sorted=TRUE),
-							coords = getCoords(conn,runId,dir)) {
+							coords = getCoords(conn,runId,dir),callback=NA) {
 	runInfo = getExtendedRunInfo(conn,runId) 
 	message("run info: ")
 	print(runInfo)
@@ -977,7 +981,7 @@ checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 	message("descriptor type:")
 	print(descriptorType)
 
-	solver <- getSolver(runInfo$num_references,runInfo$dimension,coords)	
+	solver <- getSolver(runInfo$num_references,runInfo$dimension,(coords))
 
  	embedJob = function(ids){
 		print(ids)
@@ -986,20 +990,27 @@ checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 		#print(distance)
 		#print(descriptorType)
 		rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
-		print(head(t(rawDists)))
-		embeddedDesc = apply(rawDists,c(1), function(x) embedCoord(solver,runInfo$dimension,x)) # return embeddedd descriptors
-		print(descriptors)
-		print(embeddedDesc)
+		#print(head(t(rawDists)))
+		embeddedDesc = apply(rawDists,c(1), 
+									function(x) {
+										message("x dims: ",length(x))
+										embedCoord(solver,
+													  runInfo$dimension,x)})
+		#print(descriptors)
+		#print(embeddedDesc)
 
 		embeddedDesc
  	}
 
 	for(descriptorId in descriptorIds){
 		#fetch what is in the db
-		dbEmbeddedDescriptor = t(getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=descriptorIds))
+		dbEmbeddedDescriptor = t(getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=descriptorId))
 
 		#generate the embedding ourselves
 		localEmbeddedDescriptor = embedJob(descriptorId)
+
+		if(!is.na(callback)) 
+			callback(descriptorId,dbEmbeddedDescriptor,localEmbeddedDescriptor)
 
 		if( ! isTRUE(all.equal(dbEmbeddedDescriptor, localEmbeddedDescriptor))){
 			warning("found mismatched embedding!")
