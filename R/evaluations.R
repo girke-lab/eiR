@@ -112,6 +112,7 @@ evaluator <- function(reference,result,output=NA)
 
 compareSearch <- function(file1,file2)
 {
+	if(debug) print("comparing search results")
    getRanking<- function(line) 
       as.numeric(sapply(line,
                      function(y) strsplit(y,":",fixed=TRUE)[[1]][1]))
@@ -145,6 +146,9 @@ compareSearch <- function(file1,file2)
       ind1=getRanking(line1[1:p])
       ind2=getRanking(line2[1:p])
 
+		#print(ind1)
+		#print(ind2)
+		print("------------")
       results=c(results,length(intersect(ind1,ind2))/p)
    }
    close(in2)

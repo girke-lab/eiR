@@ -345,7 +345,7 @@ getGroupDescriptorIds <- function(conn,groupId,descriptorTypeId){
 												" AND cgm.compound_group_id = ",groupId))[[1]]
 }
 
-writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL){
+writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL,numTrees=50){
 
 	message("Regenerating matrix file...")
 
@@ -368,20 +368,16 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
 	matrixFileIndexTemp = paste(matrixFile,".index.temp",sep="")
 	if(debug) message("filename: ",matrixFile)
-
-	f = file(matrixFileTemp,"wb")
-	floatSize = 4
+	annoy = ""
 
 	numCols = runInfo$dimension
-	if(debug)  message("numRows: ",numRows," numCols: ",numCols)
-
-	writeBin(as.integer(floatSize),f,floatSize)
-	writeBin(as.integer(numRows),f,floatSize)
-	writeBin(as.integer(numCols),f,floatSize)
+	#annoy <- AnnoyIndex(runInfo$dimension,"euclidean")
+	annoy <- new(AnnoyEuclidean,runInfo$dimension)
 	
 
 	indexF = file(matrixFileIndexTemp,"w")
 	count=0
+	itemCount = 0 #number of items in annoy index so far
 
 	writeChunk = function(df){
 			if(debug) message("writing chunk. count= ",count)
@@ -403,13 +399,21 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 				stop(numIncomplete," descriptors missing values")
 			}
 			
-			for( i in 1:nrow(df)){
-				if(count %% numCols == 0)
-					cat(paste(df$descriptor_id[i]),file=indexF,sep="\n")
-				count <<- count + 1
+			numDescriptors = nrow(df) / numCols
+			for(i in seq(numDescriptors)){
+				# 1:numCols
+				# numCols+1 : 2*numCols
+				# 2*numCols+1 : 3*numCols
+				v = as.vector(df$value[((i-1)*numCols+1):(i*numCols) ])
+				#if(debug) message("inserting at ",df$descriptor_id[[(i-1)*numCols+1]]," ",paste(v,collapse=","))
+				#annoy$addItem(df$descriptor_id[[(i-1)*numCols+1]], v)
+				annoy$addItem(itemCount, v) #number using 0 index system
+				itemCount <<- itemCount + 1
+				count <<- count + length(v)
 			}
-			writeBin(as.vector(df$value),f,floatSize)
+			
    }
+
 
 
 	batchByIndex(descriptorIds,function(ids){
@@ -421,11 +425,13 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 												  "ORDER BY descriptor_id, ordering")))
 		if(!is.null(connSource)) dbDisconnect(c)
 	},10)
+	if(debug) message("final count: ",count,", num cols: ", numCols," num rows: ",numRows)
 	if(count/numCols != numRows)
 		stop("expected to find ",numRows," but wrote ",count/numCols)
 	
-	close(f)
-	close(indexF)
+	annoy$build(numTrees)
+	annoy$save(matrixFileTemp)
+
 	file.rename(matrixFileTemp,matrixFile)
 	file.rename(matrixFileIndexTemp,paste(matrixFile,".index",sep=""))
 	matrixFile
