@@ -174,7 +174,6 @@ getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds,descriptorIds=N
 
 	data = selectInBatches(conn,queryIds,queryFn)
 
-
 	embeddedDescriptors = aggregate(data$value,list(ids=data$ids),identity)$x
 	if(!is.matrix(embeddedDescriptors))
 		stop("Could not create a matrix from emebdded descriptors. Perhaps they are not all the correct (same) length? ")
@@ -408,6 +407,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 				#if(debug) message("inserting at ",df$descriptor_id[[(i-1)*numCols+1]]," ",paste(v,collapse=","))
 				#annoy$addItem(df$descriptor_id[[(i-1)*numCols+1]], v)
 				annoy$addItem(itemCount, v) #number using 0 index system
+				cat(paste(df$descriptor_id[ (i-1)*numCols+1 ]),file=indexF,sep="\n")
 				itemCount <<- itemCount + 1
 				count <<- count + length(v)
 			}
@@ -431,6 +431,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	
 	annoy$build(numTrees)
 	annoy$save(matrixFileTemp)
+	close(indexF)
 
 	file.rename(matrixFileTemp,matrixFile)
 	file.rename(matrixFileIndexTemp,paste(matrixFile,".index",sep=""))

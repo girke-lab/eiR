@@ -63,6 +63,8 @@ evaluator <- function(reference,result,output=NA)
    refFile=gzfile(reference,"r")
    targetFile=gzfile(result,"r")
 
+	diffSum=0
+	count=0;
    for(lineNum in 1:maxQueries)
    {
 		suppressWarnings({
@@ -81,15 +83,26 @@ evaluator <- function(reference,result,output=NA)
       d_target=1:length(x_target)
       names(d_target)=as.character(x_target)
 
-      for(i in 1:length(rs)){
-         updateCounter(i,rs[i])
-      }
+		#print(d_ref)
+		#print(d_target)
+		diff = rbo(d_ref,d_target,p=0.9)
+		diffSum = diffSum + diff
+		message("diff: ",diff)
+		count=count+1
+
+
+      #for(i in 1:length(rs)){
+      #   updateCounter(i,rs[i])
+      #}
 
       #print("=============================================")
       
    }
+	message("diffSum: ",diffSum,", count: ",count,". average diff: ",diffSum/count)
    close(targetFile)
    close(refFile)
+
+	return()
 
 
    ratios=sapply(1:length(rs), function(i){

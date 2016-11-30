@@ -108,7 +108,7 @@ testRefs <- function(){
 
 test_ba.parDist <- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 	conn = connSource()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
@@ -210,7 +210,7 @@ test_bb.eiMakeDb <- function() {
 
 test_ca.eiQuery <- function(){
 
-	DEACTIVATED("slow")
+	#DEACTIVATED("slow")
 	message("eiQuery")
 	conn=connSource()
    data(sdfsample)
@@ -247,9 +247,12 @@ test_da.eiPerformanceTest <- function() {
 	#DEACTIVATED("slow")
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
+	if(debug) message("checking chemical-search.results")
    checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
 	#only 19 queries where since some have dup descriptors
+	if(debug) message("checking eucsearch")
    checkMatrix(sprintf("eucsearch.%d-%d",r,d),15:20,numUniqueDescriptors)
+	if(debug) message("checking indexed.performance")
    checkMatrix("indexed.performance",20,1)
 }
 test_ea.eiAdd<- function(){
@@ -291,7 +294,7 @@ test_ea.eiAdd<- function(){
 
 }
 test_fa.eiCluster <- function(){
-	DEACTIVATED("off")
+	#DEACTIVATED("off")
 	numNbrs=5
 	minNbrs=2
 	cutoff=0.5
@@ -311,27 +314,33 @@ test_fa.eiCluster <- function(){
 	# 245 - 251							45 - 51
 	# 248 - 249							48 - 49
 	# 269 - 279							65 - 75
+	# 301 - 306							97 - 102
 
 	conn=connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
+	message("clustering:")
+	print(clustering)
 	print(sizes)
-	checkTrue(nrow(sizes) %in% c(6))  #orig test
+	checkTrue(nrow(sizes) %in% c(7))  #orig test
 	#checkTrue(nrow(sizes) %in% c(5))
 	checkTrue(all(sizes[,2]==2))
 
 
+	message("2 part clustering")
 	#returning just the matrix file and then clustering manually
 	nnm=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,type="matrix",cutoff=1-cutoff,dir=test_dir)
 
    clustering = jarvisPatrick(nnm,k=minNbrs,mode="a1b")
 	sizes= clusterSizes(clustering)
 
+	message("clustering:")
+	print(clustering)
 	print(clusterSizes(clustering))
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
-	checkTrue(nrow(sizes) %in% c(6))  #orig test
+	checkTrue(nrow(sizes) %in% c(7))  #orig test
 	#checkTrue(nrow(sizes) %in% c(5)) 
 	checkTrue(all(sizes[,2]==2))
 
@@ -348,7 +357,7 @@ test_fa.eiCluster <- function(){
 	sizes= clusterSizes(clustering)
 	print(sizes)
 	#checkTrue(nrow(sizes) %in% c(3))
-	checkTrue(nrow(sizes) %in% c(2))
+	checkTrue(nrow(sizes) %in% c(3))
 	checkTrue(all(sizes[,2]==2))
 
 
