@@ -210,7 +210,7 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 				  value = data)
 
 	if(inherits(conn,"SQLiteConnection")){
-		dbGetPreparedQuery(conn, 
+		getPreparedQuery(conn, 
 			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
 				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
 	}else if(inherits(conn,"PostgreSQLConnection")){
@@ -242,7 +242,7 @@ insertEmbeddedDescriptorsByCompoundId <-function(conn,embeddingId,compoundIds,da
 				  value = data)
 
 	if(inherits(conn,"SQLiteConnection")){
-		dbGetPreparedQuery(conn, 
+		getPreparedQuery(conn, 
 			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
 				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
 	}else if(inherits(conn,"PostgreSQLConnection")){
@@ -503,7 +503,7 @@ insertGroupMembers <- function(conn,data){
 	#print(data)
 
 	if(inherits(conn,"SQLiteConnection")){
-		dbGetPreparedQuery(conn, paste("INSERT INTO compound_group_members(compound_group_id,compound_id) ",
+		getPreparedQuery(conn, paste("INSERT INTO compound_group_members(compound_group_id,compound_id) ",
 				"VALUES (:compound_group_id,:compound_id)"),bind.data=data)
 	}else if(inherits(conn,"PostgreSQLConnection")){
 		fields = c("compound_group_id","compound_id")
@@ -517,7 +517,23 @@ insertGroupMembers <- function(conn,data){
 	}
 
 }
+getPreparedQuery <- function(conn,statement,bind.data){
+#	message("SQL statement: ")
+#	print(statement)
+#	message("data:")
+#	print(colnames(bind.data))
 
+	#dbSendPreparedQuery(conn,statement,bind.data)
+	
+#	print("sending query")
+	res <- dbSendQuery(conn,statement)
+#	print("after sendQuery")
+	on.exit(dbClearResult(res)) #clear result set when this function exits
+#	print("after exit callback registered")
+	dbBind(res,bind.data)
+#	print("after dbBind")
+	dbFetch(res)
+}
 runQuery <- function(conn,query,...){
 	#if(debug) message(query)
 	if(is.character(conn)){
