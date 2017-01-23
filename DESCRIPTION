@@ -2,7 +2,7 @@ Package: eiR
 Type: Package
 Title: Accelerated similarity searching of small molecules
 Version: 1.15.1
-Date: 2016-10-15
+Date: 2017-1-23
 Author: Kevin Horan, Yiqun Cao and Tyler Backman
 Maintainer: Thomas Girke <thomas.girke@ucr.edu>
 Suggests: RCurl, snow, BiocStyle, knitcitations, knitr, knitrBootstrap
