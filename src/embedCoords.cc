@@ -24,15 +24,15 @@ SEXP embedCoord(SEXP s, SEXP d, SEXP dist)
 }
 double udist(int k,doublereal* x, doublereal* y)
 {
-	printf("----- udist -----------------\n ");
-	printf("x: ");
-	for(int i=0;i<k;i++) printf("%f,",*(x+i));
-	printf("\n");
-
-	printf("y: ");
-	for(int i=0;i<k;i++) printf("%f,",*(y+i));
-	printf("\n");
-	printf("-----------------------------\n ");
+//	printf("----- udist -----------------\n ");
+//	printf("x: ");
+//	for(int i=0;i<k;i++) printf("%f,",*(x+i));
+//	printf("\n");
+//
+//	printf("y: ");
+//	for(int i=0;i<k;i++) printf("%f,",*(y+i));
+//	printf("\n");
+//	printf("-----------------------------\n ");
 
 
 	doublereal dist = 0;
@@ -56,7 +56,7 @@ SEXP calcF(SEXP xS,SEXP dS,SEXP pS)
 //	printf("x: ");
 //	for(int i=0;i<m;i++) printf("%f,",x[i]);
 //	printf("\n");
-	printf("p: "); //see what major order is
+	//printf("p: "); //see what major order is
 	//for(int i=0;i<length(pS);i++) printf("%f,",p[i]);
 	
 	/*
@@ -69,13 +69,13 @@ SEXP calcF(SEXP xS,SEXP dS,SEXP pS)
 	 */
 
 
-	for(int i=0;i<4;i++){
-		for(int j=0;j<10;j++)
-			printf("%f,",p[10*i + j]); //row-major
-			//printf("%f,",p[4*j + i]); //col-major
-		printf("\n");
-	}
-	printf("\n");
+//	for(int i=0;i<4;i++){
+//		for(int j=0;j<10;j++)
+//			printf("%f,",p[10*i + j]); //row-major
+//			//printf("%f,",p[4*j + i]); //col-major
+//		printf("\n");
+//	}
+//	printf("\n");
 
 
 

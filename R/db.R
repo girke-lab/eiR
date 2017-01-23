@@ -364,6 +364,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 		descriptorIds = getDescriptorIds(conn,compoundIds,descriptorTypeId=runInfo$descriptor_type_id)
 		numRows = length(descriptorIds)
 	}
+	if(samples)
+		message("query descriptor ids: ",paste(descriptorIds,collapse=","))
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
 	matrixFileIndexTemp = paste(matrixFile,".index.temp",sep="")
 	if(debug) message("filename: ",matrixFile)
@@ -405,6 +407,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 				# 2*numCols+1 : 3*numCols
 				v = as.vector(df$value[((i-1)*numCols+1):(i*numCols) ])
 				#if(debug) message("inserting at ",df$descriptor_id[[(i-1)*numCols+1]]," ",paste(v,collapse=","))
+				if(samples)
+					message("query_matrix ",runInfo$embedding_id," ",paste(format(v,digits=6),collapse=" "))
 				#annoy$addItem(df$descriptor_id[[(i-1)*numCols+1]], v)
 				annoy$addItem(itemCount, v) #number using 0 index system
 				cat(paste(df$descriptor_id[ (i-1)*numCols+1 ]),file=indexF,sep="\n")
@@ -531,16 +535,16 @@ getPreparedQuery <- function(conn,statement,bind.data){
 #	message("data:")
 #	print(colnames(bind.data))
 
-	dbSendPreparedQuery(conn,statement,bind.data)
+	#dbSendPreparedQuery(conn,statement,bind.data)
 	
 #	print("sending query")
-#	res <- dbSendQuery(conn,statement)
+	res <- dbSendQuery(conn,statement)
 #	print("after sendQuery")
-#	on.exit(dbClearResult(res)) #clear result set when this function exits
+	on.exit(dbClearResult(res)) #clear result set when this function exits
 #	print("after exit callback registered")
-#	dbBind(res,bind.data)
+	dbBind(res,bind.data)
 #	print("after dbBind")
-#	dbFetch(res)
+	dbFetch(res)
 }
 
 runQuery <- function(conn,query,...){

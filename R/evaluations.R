@@ -91,9 +91,9 @@ evaluator <- function(reference,result,output=NA)
 		count=count+1
 
 
-      #for(i in 1:length(rs)){
-      #   updateCounter(i,rs[i])
-      #}
+      for(i in 1:length(rs)){
+         updateCounter(i,rs[i])
+      }
 
       #print("=============================================")
       
@@ -102,7 +102,7 @@ evaluator <- function(reference,result,output=NA)
    close(targetFile)
    close(refFile)
 
-	return()
+	#return()
 
 
    ratios=sapply(1:length(rs), function(i){
