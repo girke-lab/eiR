@@ -11,8 +11,8 @@ Main = file.path(DataDir,"main.iddb")
 
 tmessage = function(...) message(Sys.time(),": ",...)
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 # Notes
 #  Need function to produce descriptors from sdf or smile
@@ -184,7 +184,7 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	mainIds <- readIddb(conn,file.path(dir,Main))
 
 	if(is.character(refs)){ #assume its a filename
-		refIds=readIddbFile(refs)
+		refIds=readIddbFile(refs,sorted=TRUE)
 		r=length(refIds)
 		createWorkDir(r)
 	}else if(is.numeric(refs)){
