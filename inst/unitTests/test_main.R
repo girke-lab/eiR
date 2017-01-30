@@ -235,10 +235,10 @@ test_ca.eiQuery <- function(){
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
 
-	message("eiQuery test 4")
-	lshData = loadLSHData(r,d,dir=test_dir)
-	results=eiQuery(runId,c("650002","650003"), format="name",K=15,lshData=lshData,dir=test_dir)
-	freeLSHData(lshData)
+	#message("eiQuery test 4")
+	#lshData = loadLSHData(r,d,dir=test_dir)
+	#results=eiQuery(runId,c("650002","650003"), format="name",K=15,lshData=lshData,dir=test_dir)
+	#freeLSHData(lshData)
 
 
 }
@@ -432,8 +432,8 @@ checkDescriptor = function(conn,rid,descriptorIndex=NULL,
 									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
 									 " ORDER BY ordering"))[[1]]
 
-		#if(!all(as.vector(embeddedDesc) == dbEmbeddedDesc)){
-		if(printAll){
+		if(!all(as.vector(embeddedDesc) == dbEmbeddedDesc)){
+		#if(printAll){
 			print(desc)
 			print(as.vector(embeddedDesc))
 			print(dbEmbeddedDesc)
