@@ -10,7 +10,6 @@ Description: The eiR package provides utilities for accelerated
         structure similarity searching of very large small molecule
         data sets using an embedding and indexing approach.
 License: Artistic-2.0
-SystemRequirements: GSL (>=1.14) http://www.gnu.org/software/gsl/
 Depends: R (>= 2.10.0), ChemmineR (>= 2.15.15), methods, DBI
 Imports: snow, tools, snowfall, RUnit, methods, ChemmineR, RCurl, digest,
         BiocGenerics, gespeR
@@ -19,4 +18,3 @@ biocViews: Cheminformatics, BiomedicalInformatics, Pharmacogenetics,
         Infrastructure, DataImport, Clustering, Proteomics
 URL: https://github.com/girke-lab/eiR
 VignetteBuilder: knitr
-LinkingTo: BH

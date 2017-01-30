@@ -56,8 +56,8 @@ connSource(TRUE) # reset postgres
 
 lastRunId=0
 
-debug=TRUE
-#debug=FALSE
+#debug=TRUE
+debug=FALSE
 
 
 test_aa.eiInit <- function() {
@@ -235,12 +235,6 @@ test_ca.eiQuery <- function(){
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
 
-	#message("eiQuery test 4")
-	#lshData = loadLSHData(r,d,dir=test_dir)
-	#results=eiQuery(runId,c("650002","650003"), format="name",K=15,lshData=lshData,dir=test_dir)
-	#freeLSHData(lshData)
-
-
 }
 
 test_da.eiPerformanceTest <- function() {
@@ -324,7 +318,7 @@ test_fa.eiCluster <- function(){
 	message("clustering:")
 	print(clustering)
 	print(sizes)
-	checkTrue(nrow(sizes) %in% c(7))  #orig test
+	checkTrue(nrow(sizes) %in% c(6))  #orig test
 	#checkTrue(nrow(sizes) %in% c(5))
 	checkTrue(all(sizes[,2]==2))
 
@@ -340,7 +334,7 @@ test_fa.eiCluster <- function(){
 	print(clustering)
 	print(clusterSizes(clustering))
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
-	checkTrue(nrow(sizes) %in% c(7))  #orig test
+	checkTrue(nrow(sizes) %in% c(6))  #orig test
 	#checkTrue(nrow(sizes) %in% c(5)) 
 	checkTrue(all(sizes[,2]==2))
 
@@ -432,11 +426,17 @@ checkDescriptor = function(conn,rid,descriptorIndex=NULL,
 									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
 									 " ORDER BY ordering"))[[1]]
 
-		if(!all(as.vector(embeddedDesc) == dbEmbeddedDesc)){
+		if(!isTRUE(all.equal(dbEmbeddedDesc,as.vector(embeddedDesc)))){
 		#if(printAll){
+			
 			print(desc)
 			print(as.vector(embeddedDesc))
 			print(dbEmbeddedDesc)
+			#message("mismatched values from db: ")
+			#print(dbEmbeddedDesc[mismatches])
+			#message("mismatched values just computed: ")
+			#print(embeddedDesc[mismatches])
+			stop("descriptor mismatch found! db version does not match the just computed one")
 		}
 		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
 

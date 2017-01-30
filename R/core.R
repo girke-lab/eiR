@@ -11,15 +11,10 @@ Main = file.path(DataDir,"main.iddb")
 
 tmessage = function(...) message(Sys.time(),": ",...)
 
-debug=TRUE
-#debug=FALSE
+#debug=TRUE
+debug=FALSE
 
-embedCoord <- function(s,len,coords){
-	.Call("embedCoord",s,as.integer(len),as.double(coords))
-}
 
-embedCoordTest <- function(r,d,refCoords,coords) 
-	.Call("embedCoordTest",as.integer(r),as.integer(d),as.double(refCoords),as.double(coords))
 
 
 annoySearch <- function(queries,matrixFile,dimension,numNeighbors,searchK=-1)
@@ -401,8 +396,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		compId2Sequential = 1:ml
 		names(compId2Sequential)=compIds
 
-		message("neighbors:")
-		print(neighbors)
+		#message("neighbors:")
+		#print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
@@ -453,15 +448,15 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		
 
 		rownames(refinedNeighbors)=1:ml
-		print("final refined:")
-		print((refinedNeighbors))
+		#print("final refined:")
+		#print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
 							names=compIds,
 							similarities=similarities))
 
-		print("clustering")
+		#print("clustering")
 		rawClustering = jarvisPatrick_c(refinedNeighbors,minNbrs,fast=TRUE)
 		# sequential space -> descriptor space -> compound space
 		clustering = compIds[as.character(mainDescriptorIds[rawClustering])]
@@ -520,8 +515,8 @@ search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 		
 		if(debug) print(paste("got ",paste(dim(neighbors),collapse=","),"neighbors back from lshsearch"))
 
-		message("K=",K," neighbors:")
-		print(neighbors)
+		#message("K=",K," neighbors:")
+		#print(neighbors)
 
 		#select only those positions actually used so we don't have to query
 		# all descriptors every time.
@@ -578,9 +573,7 @@ embedFromRefs <- function(r,d,refIddb,query2RefDists)
 #return the emedding of each row in the matrix
 embed <- function(r,d,coords, query2RefDists)
 {
-		#solver = getSolver(r,d,t(coords))
 		embeddedQueries = apply(query2RefDists,c(1),
-			#function(x) embedCoord(solver,d,x))
 			function(x) newEmbed(x,coords,r,d))
 }
 refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorType,cutoff=NULL,
@@ -636,17 +629,10 @@ readNames <- function(file) as.numeric(readLines(file))
 # testing
 genTestQueryIds <- function(numSamples,dir,mainIds,refIds=c())
 {
-	#testQueryFile <-file.path(dir,TestQueries)
 	set=setdiff(mainIds,refIds)
 	if(numSamples < 0 || numSamples > length(set)) 
 		stop(paste("trying to take more samples than there are compounds available",numSamples,length(set)))
-	queryIds <- sort(sample(set,numSamples))
-#	writeIddb(conn,queryIds,testQueryFile)
-
-	##REMOVE ME!
-	#queryIds = c( 256,265,269,274,279,280,281,284,290,297)
-
-	queryIds
+	sort(sample(set,numSamples))
 }
 genRefs <- function(n,mainIds,queryIds=c())
 {
@@ -704,30 +690,15 @@ writeTopN = function(N,d,ids,outputFile){
 testEmbeddedSpaceDists <- function(outputFile,runInfo,embeddedTestDescriptors,dir, conn=defaultConn(dir)){
 	message("computing embedded distances on test quries")
 
-	#allIds = readIddb(conn,groupId=runInfo$compound_group_id)
 	allDescIds = getGroupDescriptorIds(conn,runInfo$compound_group_id,runInfo$descriptor_type_id)
 	testIds = readIddb(conn,file.path(dir,TestQueries))
-	message(length(allDescIds)," total descriptors, ",length(testIds)," test quries")
-	print(allDescIds)
+	#message(length(allDescIds)," total descriptors, ",length(testIds)," test quries")
 	allEmbeddedDescriptors = getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=allDescIds)
-	message("test embbedded descriptors:")
-	print(str(embeddedTestDescriptors))
-	message("all embbedded descriptors:")
-	print(str(allEmbeddedDescriptors))
 	
 	dists=sapply(1:dim(allEmbeddedDescriptors)[1],function(i){
 			 sapply(1:dim(embeddedTestDescriptors)[1],function(j){
-				 #message("query ",j,": ",paste(format(embeddedTestDescriptors[j,],digits=6),collapse=" "))
-				 #message("db ",i,": ",paste(format(allEmbeddedDescriptors[i,],digits=6),collapse=" "))
-				 dist=sqrt(sum( (allEmbeddedDescriptors[i,]-embeddedTestDescriptors[j,])^2))
-				 #message("dist=",dist)
-				 dist
-		})})
+				 sqrt(sum( (allEmbeddedDescriptors[i,]-embeddedTestDescriptors[j,])^2))  })})
 	
-	message("dists:")
-	print(str(dists))
-	write.table(format(dists,digits=6),"raw_embedded_dists",quote=FALSE,row.names=FALSE,col.names=FALSE)
-
 	writeTopN(50000,dists,allDescIds,outputFile)
 }
 eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
@@ -735,7 +706,7 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 										dir=".", K=200, searchK=-1)
 {
 	conn
-	message("in eiPerformanceTest ========================")
+	#message("in eiPerformanceTest ========================")
 
 	runInfo = getExtendedRunInfo(conn,runId) 
 	if(nrow(runInfo)==0)
@@ -756,17 +727,9 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 
 
 	testDescriptorSpaceDists(distance,dir,descriptorType,conn=conn)
-#	testEmbeddedSpaceDists(eucsearch,embeddingId,dir,conn=conn)
 
-	#computes distance from each query to every other descriptor in db
-	#keeps only top 50000 (or db size) nearest results
-	#saves them in eucsearch file as "Id:distance" pairs.
-#	eucsearch2file(file.path(workDir,sprintf("matrix.%s-%s",r,d)),
-#				 file.path(workDir,sprintf("matrix.query.%s-%s",r,d)),
-#				 50000,eucsearch)
 
-	#evaluator TestQueryResuts eucsearch-r-d recall
-	message("running evaluator ========================")
+	#message("running evaluator ========================")
 	evaluator(file.path(dir,DescriptorSpaceDists),eucsearch,
 		file.path(workDir,"recall"))
 
@@ -1013,19 +976,13 @@ embedAll <- function(conn,runId, distance,dir=".",
 	if(debug) message("embedding ",length(unembeddedDescriptorIds)," unembedded descriptors")
 
 	embedJob = function(ids,jobId){
-		#solver <- getSolver(r,d,t(coords))
 
 		withConnection(connSource,function(conn){
 		
 			descriptors = getDescriptorsByDescriptorId(conn,ids)
 			rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
-			#embeddedDescriptors = apply(rawDists,c(1), function(x) embedCoord(solver,d,x))
 			embeddedDescriptors = apply(rawDists,c(1), function(x){
-							 desc = newEmbed(x,coords,r,d)
-							 #message("comparison| descriptor: ", paste(format(x,digits=5),collapse=","))
-							 #message("comparison| embed desc: ", paste(format(desc,digits=5),collapse=","))
-							 desc
-						})
+							 newEmbed(x,coords,r,d) })
 
 			insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
 		})
@@ -1067,7 +1024,6 @@ newEmbed = function(rawDists,coords,r,d){
 			hessian = FALSE)
 	#print(str(result))
 	result$par
-
 }
 
 checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
@@ -1084,7 +1040,6 @@ checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 	r= runInfo$num_referances
 	d = runInfo$dimension
 
-	#solver <- getSolver(runInfo$num_references,runInfo$dimension,t(coords))
 
  	embedJob = function(ids){
 		print(ids)
@@ -1097,7 +1052,6 @@ checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 		embeddedDesc = apply(rawDists,c(1), 
 									function(x) {
 										message("x dims: ",length(x))
-										#embedCoord(solver, runInfo$dimension,x)
 										newEmbed(x,coords,r,d)
 									})
 		#print(descriptors)

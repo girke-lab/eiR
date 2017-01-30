@@ -200,7 +200,9 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 		return()
 
 	descriptorLength = ncol(data)
-	assert(numDescriptors == length(descriptorIds))
+	if(numDescriptors != length(descriptorIds))
+		stop("in 'insertEmbeddedDescriptors, numDescriptors, ",numDescriptors,
+			  " does not equal the number of descriptor ids, ",length(descriptorIds))
 	data=as.vector(data)
 
 	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
@@ -214,10 +216,7 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
 				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert[fields])
 	}else if(inherits(conn,"PostgreSQLConnection")){
-
-
 		postgresqlWriteTable(conn,"embedded_descriptors",toInsert[,fields],append=TRUE,row.names=FALSE)
-
 	}else{
 		stop("database ",class(conn)," unsupported")
 	}
@@ -233,7 +232,10 @@ insertEmbeddedDescriptorsByCompoundId <-function(conn,embeddingId,compoundIds,da
 	descriptorIds = getDescriptorIds(conn,compoundIds,descriptorType,keepOrder=TRUE)
 	numDescriptors = nrow(data)
 	descriptorLength = ncol(data)
-	assert(numDescriptors == length(descriptorIds))
+
+	if(numDescriptors != length(descriptorIds))
+		stop("in 'insertEmbeddedDescriptorsByCompoundId, numDescriptors, ",numDescriptors,
+			  " does not equal the number of descriptor ids, ",length(descriptorIds))
 	data=as.vector(data)
 	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
 				  #ordering = rep(1:descriptorLength,numDescriptors),
@@ -364,10 +366,6 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 		descriptorIds = getDescriptorIds(conn,compoundIds,descriptorTypeId=runInfo$descriptor_type_id)
 		numRows = length(descriptorIds)
 	}
-	#if(samples)
-		#message("query descriptor ids: ",paste(descriptorIds,collapse=","))
-	#else
-		#message("db descriptor ids (",length(descriptorIds),") : ",paste(descriptorIds,collapse=","))
 
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
 	matrixFileIndexTemp = paste(matrixFile,".index.temp",sep="")
@@ -405,14 +403,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 			
 			numDescriptors = nrow(df) / numCols
 			for(i in seq(numDescriptors)){
-				# 1:numCols
-				# numCols+1 : 2*numCols
-				# 2*numCols+1 : 3*numCols
 				v = as.vector(df$value[((i-1)*numCols+1):(i*numCols) ])
 				#if(debug) message("inserting at ",df$descriptor_id[[(i-1)*numCols+1]]," ",paste(v,collapse=","))
-				#if(samples)
-					#message("query_matrix ",runInfo$embedding_id," ",paste(format(v,digits=6),collapse=" "))
-				#annoy$addItem(df$descriptor_id[[(i-1)*numCols+1]], v)
 				annoy$addItem(itemCount, v) #number using 0 index system
 				cat(paste(df$descriptor_id[ (i-1)*numCols+1 ]),file=indexF,sep="\n")
 				itemCount <<- itemCount + 1
@@ -537,8 +529,6 @@ getPreparedQuery <- function(conn,statement,bind.data){
 #	print(statement)
 #	message("data:")
 #	print(colnames(bind.data))
-
-	#dbSendPreparedQuery(conn,statement,bind.data)
 	
 #	print("sending query")
 	res <- dbSendQuery(conn,statement)

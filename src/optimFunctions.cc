@@ -1,27 +1,17 @@
 #include <R.h>
 #include <Rinternals.h>
-#include "solver.h"
 
 extern "C" {
-   SEXP embedCoord(SEXP s, SEXP d, SEXP dist);
 	SEXP calcF(SEXP xS,SEXP dS,SEXP pS);
 	SEXP calcG(SEXP xS,SEXP dS,SEXP pS);
 }
 
-// refcoords is r x d
-Solver* getSolver(int r,int d, double *refCoords)
-{
-   return new Solver(d,r,3,refCoords);
-}
-SEXP embedCoord(SEXP s, SEXP d, SEXP dist)
-{
-   SEXP ans;
-   Solver *solver = reinterpret_cast<Solver*>( R_ExternalPtrAddr(s));
-   PROTECT(ans = allocVector(REALSXP, INTEGER(d)[0]));
-   solver->optim(REAL(ans),REAL(dist));
-   UNPROTECT(1);
-   return ans;
-}
+typedef long int integer;
+typedef double doublereal;
+typedef long int ftnlen;
+typedef long int logical;
+
+
 double udist(int k,doublereal* x, doublereal* y)
 {
 //	printf("----- udist -----------------\n ");
