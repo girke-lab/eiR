@@ -511,8 +511,8 @@ search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 			(!is.null(searchCache$runId) && searchCache$runId != runId)){
 			loadSearchCache(conn,runId,dir)
 		}
-		message("quries:")
-		print(embeddedQueries)
+		#message("quries:")
+		#print(embeddedQueries)
 		
 		neighbors = annoySearch(embeddedQueries,searchCache$matrixFile,searchCache$dimension,
 										numNeighbors=force(2*K),searchK=searchK)
@@ -643,8 +643,8 @@ genTestQueryIds <- function(numSamples,dir,mainIds,refIds=c())
 	queryIds <- sort(sample(set,numSamples))
 #	writeIddb(conn,queryIds,testQueryFile)
 
-	#REMOVE ME!
-	queryIds = c( 256,265,269,274,279,280,281,284,290,297)
+	##REMOVE ME!
+	#queryIds = c( 256,265,269,274,279,280,281,284,290,297)
 
 	queryIds
 }
@@ -704,11 +704,12 @@ writeTopN = function(N,d,ids,outputFile){
 testEmbeddedSpaceDists <- function(outputFile,runInfo,embeddedTestDescriptors,dir, conn=defaultConn(dir)){
 	message("computing embedded distances on test quries")
 
-	allIds = readIddb(conn,groupId=runInfo$compound_group_id)
+	#allIds = readIddb(conn,groupId=runInfo$compound_group_id)
+	allDescIds = getGroupDescriptorIds(conn,runInfo$compound_group_id,runInfo$descriptor_type_id)
 	testIds = readIddb(conn,file.path(dir,TestQueries))
-	message(length(allIds)," total descriptors, ",length(testIds)," test quries")
-	print(allIds)
-	allEmbeddedDescriptors = getEmbeddedDescriptors(conn,runInfo$embedding_id,allIds)
+	message(length(allDescIds)," total descriptors, ",length(testIds)," test quries")
+	print(allDescIds)
+	allEmbeddedDescriptors = getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=allDescIds)
 	message("test embbedded descriptors:")
 	print(str(embeddedTestDescriptors))
 	message("all embbedded descriptors:")
@@ -716,10 +717,10 @@ testEmbeddedSpaceDists <- function(outputFile,runInfo,embeddedTestDescriptors,di
 	
 	dists=sapply(1:dim(allEmbeddedDescriptors)[1],function(i){
 			 sapply(1:dim(embeddedTestDescriptors)[1],function(j){
-				 message("query ",j,": ",paste(format(embeddedTestDescriptors[j,],digits=6),collapse=" "))
-				 message("db ",i,": ",paste(format(allEmbeddedDescriptors[i,],digits=6),collapse=" "))
+				 #message("query ",j,": ",paste(format(embeddedTestDescriptors[j,],digits=6),collapse=" "))
+				 #message("db ",i,": ",paste(format(allEmbeddedDescriptors[i,],digits=6),collapse=" "))
 				 dist=sqrt(sum( (allEmbeddedDescriptors[i,]-embeddedTestDescriptors[j,])^2))
-				 message("dist=",dist)
+				 #message("dist=",dist)
 				 dist
 		})})
 	
@@ -727,7 +728,7 @@ testEmbeddedSpaceDists <- function(outputFile,runInfo,embeddedTestDescriptors,di
 	print(str(dists))
 	write.table(format(dists,digits=6),"raw_embedded_dists",quote=FALSE,row.names=FALSE,col.names=FALSE)
 
-	writeTopN(50000,dists,allIds,outputFile)
+	writeTopN(50000,dists,allDescIds,outputFile)
 }
 eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 										conn=defaultConn(dir),

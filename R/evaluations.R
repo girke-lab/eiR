@@ -85,6 +85,7 @@ evaluator <- function(reference,result,output=NA)
 
 		#print(d_ref)
 		#print(d_target)
+		#RBO: Rank Biased Overlap. falls in range [0,1]. 0 => max difference, 1 => identical
 		diff = rbo(d_ref,d_target,p=0.9)
 		diffSum = diffSum + diff
 		message("diff: ",diff)
