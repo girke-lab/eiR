@@ -356,7 +356,6 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 		matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
 								  paste(if(samples) "matrix.query" else "matrix",".",runInfo$num_references,"-",runInfo$dimension,sep=""))
 
-		viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
 		descriptorIds= getGroupDescriptorIds(conn,if(samples) runInfo$sample_group_id else runInfo$compound_group_id,
 												 runInfo$descriptor_type_id)
 		numRows = length(descriptorIds)
@@ -370,10 +369,8 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
 	matrixFileIndexTemp = paste(matrixFile,".index.temp",sep="")
 	if(debug) message("filename: ",matrixFile)
-	annoy = ""
 
 	numCols = runInfo$dimension
-	#annoy <- AnnoyIndex(runInfo$dimension,"euclidean")
 	annoy <- new(AnnoyEuclidean,runInfo$dimension)
 	
 

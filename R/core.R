@@ -500,7 +500,7 @@ invalidateCache <- function(){
 #expects one query per column
 #lshData is deprecated
 search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
-						 conn=defaultConn(dir),lshData=NULL,searchK=-1)
+						 conn=defaultConn(dir),lshData=NULL,searchK=-1,returnDescriptorIds=FALSE)
 {
 		if(is.null(searchCache$descriptorIds) || 
 			(!is.null(searchCache$runId) && searchCache$runId != runId)){
@@ -555,7 +555,8 @@ search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 			 #print("comp id neighbors:")
 			 #print(n)
 			 refined = refine(n,queryDescriptors[i],K,distance,dir,descriptorType=searchCache$descriptorType,conn=conn)
-			 refined[,1] = compIds[as.character(refined[,1])]
+			 if(! returnDescriptorIds)
+				 refined[,1] = compIds[as.character(refined[,1])]
 			 #print("refined: ")
 			 #print(refined)
 			 refined
@@ -639,7 +640,6 @@ genRefs <- function(n,mainIds,queryIds=c())
 	set=setdiff(mainIds,queryIds)
 	if(n < 0 || n > length(set)) stop(paste("found more refereneces than compound candidates",n,length(set)))
 	refIds = sort(sample(set,n))
-	#writeIddb(conn,refIds,refFile)
 	refIds
 }
 genGroupName <- function(members)
@@ -649,40 +649,33 @@ genRefName <- function(workDir)
 				 paste(paste(sample(c(0:9,letters),32,replace=TRUE),
 								 collapse=""),
 						 "cdb",sep="."))
-testDescriptorSpaceDists<- function(distance,dir,descriptorType,conn=defaultConn(dir))
+testDescriptorSpaceDists<- function(distance,dir,descriptorType,
+												runInfo, conn=defaultConn(dir))
 {
 	if(file.exists(file.path(dir,DescriptorSpaceDists)))
 		return()
 
-#	out=file(file.path(dir,DescriptorSpaceDists),"w")
-#	print(out)
 	print("getting test query ids")
-	allIds = readIddb(conn,file.path(dir,Main))
-	d=IddbVsIddbDist(conn,
-		readIddb(conn,file.path(dir,TestQueries)),
-		allIds,distance,descriptorType)
+	allDescIds=getGroupDescriptorIds(conn,runInfo$compound_group_id, runInfo$descriptor_type_id)
+	sampleDescIds =getGroupDescriptorIds(conn,runInfo$sample_group_id,runInfo$descriptor_type_id)
+	sampleDescs = getDescriptorsByDescriptorId(conn,sampleDescIds)
 
-	writeTopN(50000,d,allIds,file.path(dir,DescriptorSpaceDists))
+	d=t(IddbVsGivenDistByDescId(conn,
+			allDescIds,
+			sampleDescs,
+			distance,descriptorType))
 
-#	if(debug) print(paste("dim(d): ",dim(d)))
-#	maxLength=min(dim(d)[2],50000)
-#	for(i in 1:(dim(d)[1]))
-#		cat(paste(
-#				#paste(1:dim(d)[2],d[i,],sep=":")[order(d[i,])[1:maxLength]],
-#				paste(allIds[1:dim(d)[2]],d[i,],sep=":")[order(d[i,])[1:maxLength]],
-#				collapse=" "),"\n",file=out)	
-#	close(out)
+	writeTopN(50000,d,allDescIds,file.path(dir,DescriptorSpaceDists))
 }
 writeTopN = function(N,d,ids,outputFile){
 	message("writing top ",N," to file ",outputFile)
 	out=file(outputFile,"w")
 	print(out)
 	if(debug) print(paste("dim(d): ",dim(d)))
-	maxLength=min(dim(d)[2],50000)
+	maxLength=min(dim(d)[2],N)
 	for(i in 1:(dim(d)[1])) # each row
 		cat(paste(
-				#paste(ids[1:dim(d)[2]],d[i,],sep=":")[order(d[i,])[1:maxLength]],
-				paste(1:dim(d)[2],d[i,],sep=":")[order(d[i,])[1:maxLength]],
+				paste(ids[1:dim(d)[2]],d[i,],sep=":")[order(d[i,])[1:maxLength]],
 				collapse=" "),"\n",file=out)	
 	close(out)
 
@@ -726,21 +719,21 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 	testEmbeddedSpaceDists(eucsearch,runInfo,embeddedTestQueries,dir,conn=conn)
 
 
-	testDescriptorSpaceDists(distance,dir,descriptorType,conn=conn)
+	testDescriptorSpaceDists(distance,dir,descriptorType,runInfo,conn=conn)
 
 
-	#message("running evaluator ========================")
-	evaluator(file.path(dir,DescriptorSpaceDists),eucsearch,
-		file.path(workDir,"recall"))
-
-	matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
+	descVsEuc=compareListsRBO(file.path(dir,DescriptorSpaceDists),eucsearch)
+	message("average embedding performance: ",mean(descVsEuc))
+	write.table(descVsEuc,
+			file=file.path(workDir,"embedding.performance"),
+			row.names=F,col.names=F,quote=F)
 
 	testQueryDescriptors=getDescriptors(conn,descriptorType,sampleCompoundIds )
 
 
 	hits = search(t(embeddedTestQueries),runId,
 						testQueryDescriptors,distance,dir=dir,conn=conn,
-						K=K, searchK=searchK)
+						K=K, searchK=searchK,returnDescriptorIds=TRUE)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
 	#if(debug) print(hits)
@@ -749,12 +742,12 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 		cat(paste(x[,1],x[,2],sep=":",collapse=" "),"\n",file=out)
 	close(out)
 
-	#indexed_evalutator DescriptorSpaceDists indexed indexed.performance
-	results = compareSearch(file.path(dir,DescriptorSpaceDists),indexed)
-	write.table(results,
+	descVsIndx= compareListsRBO(file.path(dir,DescriptorSpaceDists),indexed)
+	message("average indexing performance: ",mean(descVsIndx))
+	write.table(descVsIndx,
 			file=file.path(workDir,"indexed.performance"),
 			row.names=F,col.names=F,quote=F)
-	return(results)
+	return(descVsIndx)
 }
 
 
