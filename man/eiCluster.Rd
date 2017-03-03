@@ -10,7 +10,7 @@
 \usage{
 	eiCluster(runId,K,minNbrs,compoundIds=c(), dir=".",cutoff=NULL,
 							 distance=getDefaultDist(descriptorType),
-							 conn=defaultConn(dir), W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single")
+							 conn=defaultConn(dir), searchK=-1,type="cluster",linkage="single")
 }
 \arguments{
 	\item{runId}{
@@ -49,20 +49,12 @@
 	\item{conn}{
 		Database connection to use.
 	}
-	\item{W}{
-     Tunable LSH parameter. See LSHKIT page for details.
-     \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html}
+  \item{searchK}{
+     Tunable Annoy LSH parameter. A larger value will give more accurate results, but will take longer time to return.
+	  The default value of -1 will allow the value to chosen automatically, which will set a value of numTrees * (approximate number of nearest neighbors).
+	  See Annoy page for details.  \url{https://github.com/spotify/annoy}
    }
-  \item{M}{
-     Tunable LSH parameter. See LSHKIT page for details.
-     \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html}
-   }
-  \item{L}{
-     Number of hash tables
-   }
-  \item{T}{
-     Number of probes
-   }
+
    \item{type}{
 		If "cluster", returns a clustering, else, if "matrix", returns a list in the format 
 		expected by the \code{jarvisPatrick} function in ChemmineR. This list contains the 
