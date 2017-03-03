@@ -34,7 +34,7 @@ compareListsRBO<- function(file1,file2)
 		#print(ind2)
       #results=c(results,length(intersect(ind1,ind2))/p)
 		rboDiff = rbo(ind1,ind2,p=0.9,side="bottom")
-		message("------------ diff:",rboDiff)
+		#message("------------ diff:",rboDiff)
       results=c(results, rboDiff)
    }
    close(in2)

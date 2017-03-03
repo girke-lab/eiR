@@ -56,8 +56,8 @@ connSource(TRUE) # reset postgres
 
 lastRunId=0
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 
 test_aa.eiInit <- function() {
@@ -242,7 +242,7 @@ test_da.eiPerformanceTest <- function() {
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
 	if(debug) message("checking chemical-search.results")
-   checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
+   checkMatrix("chemical-search.results$",20, 96,file.path(test_dir,"data"))
 	#only 19 queries where since some have dup descriptors
 	if(debug) message("checking eucsearch")
    checkMatrix(sprintf("eucsearch.%d-%d",r,d),15:20,numUniqueDescriptors)

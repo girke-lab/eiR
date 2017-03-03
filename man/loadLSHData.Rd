@@ -1,9 +1,14 @@
-\name{loadLSHData}
+\name{loadLSHData-deprecated}
 \alias{loadLSHData}
 \title{
-	Load LSH Data
+	Depreacated Load LSH Data
 }
 \description{
+
+	This function is no longer needed with the new LSH package in use now.
+	It will be defunct in the next release.
+
+
 	Load the LSH index and data. If many queries are going to be performed it is advantageous 
 	to load this object first and then hand it to \code{\link{eiQuery}} via the
 	\code{lshData} parameter for each query. 

@@ -16,6 +16,13 @@ debug=FALSE
 
 
 
+loadLSHData <- function(r, d, W = NA, M = NA, L = NA, K = NA, T = NA, dir = ".",
+								matrixFile = NULL){
+	.Deprecated("loadLSHData")
+}
+freeLSHData <- function(lshData) {
+	.Deprecated("freeLSHData")
+}
 
 annoySearch <- function(queries,matrixFile,dimension,numNeighbors,searchK=-1)
 {
@@ -247,7 +254,7 @@ eiQuery <- function(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
 		asSimilarity=FALSE,K=200, searchK=-1, lshData=NULL,
-		mainIds =readIddb(conn,file.path(dir,Main),sorted=TRUE))
+		mainIds =readIddb(conn,file.path(dir,Main)))
 {
 		conn
 		if(debug) print("eiQuery")
