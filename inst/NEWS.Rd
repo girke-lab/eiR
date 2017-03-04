@@ -1,6 +1,23 @@
 
 \name{NEWS}
 \title{EiR News}
+\section{CHANGES IN VERSION 1.6.0 2017-4-14}{
+   \subsection{NEW FEATURES}{
+      \itemize{
+			\item Removed almost all C/C++ code, so compiling on different platforms is easier
+			\item New LSH algorithm based on Annoy library produced by Spotify (https://github.com/spotify/annoy).
+			\item Performance tests are now based on Rank Based Overlap measure (http://www.williamwebber.com/research/papers/wmz10_tois.pdf).
+		}
+	}
+	\subsection{UPGRADING}{
+		\itemize{
+			\item LSH parameters have changed. See man pages for eiQuery and eiCluster for details
+			\item loadLSHData and freeLSHData are deprecated and no longer do anything. See man pages for details.
+		}
+	}
+}
+
+
 \section{CHANGES IN VERSION 1.4.0 2014-4-14}{
    \subsection{NEW FEATURES}{
       \itemize{
