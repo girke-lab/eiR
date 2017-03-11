@@ -1,4 +1,6 @@
 
+set.seed(42)
+
 library(eiR)
 library(snow)
 library(DBI)
@@ -54,8 +56,8 @@ connSource(TRUE) # reset postgres
 
 lastRunId=0
 
-#debug=TRUE
-debug=FALSE
+debug=TRUE
+#debug=FALSE
 
 
 test_aa.eiInit <- function() {
@@ -233,21 +235,18 @@ test_ca.eiQuery <- function(){
    checkEquals(results$distance[1],0)
    #checkEquals(results$distance[9],0) # not reliable
 
-	message("eiQuery test 4")
-	lshData = loadLSHData(r,d,dir=test_dir)
-	results=eiQuery(runId,c("650002","650003"), format="name",K=15,lshData=lshData,dir=test_dir)
-	freeLSHData(lshData)
-
-
 }
 
 test_da.eiPerformanceTest <- function() {
 	#DEACTIVATED("slow")
 	runId = lastRunId
    eiPerformanceTest(runId,K=22,dir=test_dir)
-   checkMatrix("chemical-search.results$",20, N,file.path(test_dir,"data"))
+	if(debug) message("checking chemical-search.results")
+   checkMatrix("chemical-search.results$",20, 96,file.path(test_dir,"data"))
 	#only 19 queries where since some have dup descriptors
+	if(debug) message("checking eucsearch")
    checkMatrix(sprintf("eucsearch.%d-%d",r,d),15:20,numUniqueDescriptors)
+	if(debug) message("checking indexed.performance")
    checkMatrix("indexed.performance",20,1)
 }
 test_ea.eiAdd<- function(){
@@ -301,27 +300,42 @@ test_fa.eiCluster <- function(){
 	print(byCluster(clustering))
 	checkTrue(length(clustering) >= numUniqueDescriptors) #eiAdd will add some stuff
 
+	# expected clustering
+	# as compound ids          descriptor ids
+	# 211 - 286							11 - 82
+	# 215 - 264							15 - 60
+	# 216 - 272							16 - 68
+	# 245 - 251							45 - 51
+	# 248 - 249							48 - 49
+	# 269 - 279							65 - 75
+	# 301 - 306							97 - 102
+
 	conn=connSource()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
+	message("clustering:")
+	print(clustering)
 	print(sizes)
-	# checkTrue(nrow(sizes) %in% c(6))
-	checkTrue(nrow(sizes) %in% c(5))
+	checkTrue(nrow(sizes) %in% c(6))  #orig test
+	#checkTrue(nrow(sizes) %in% c(5))
 	checkTrue(all(sizes[,2]==2))
 
 
+	message("2 part clustering")
 	#returning just the matrix file and then clustering manually
 	nnm=eiCluster(runId,K=numNbrs,minNbrs=minNbrs,type="matrix",cutoff=1-cutoff,dir=test_dir)
 
    clustering = jarvisPatrick(nnm,k=minNbrs,mode="a1b")
 	sizes= clusterSizes(clustering)
 
+	message("clustering:")
+	print(clustering)
 	print(clusterSizes(clustering))
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
-	# checkTrue(nrow(sizes) %in% c(6))
-	checkTrue(nrow(sizes) %in% c(5)) 
+	checkTrue(nrow(sizes) %in% c(6))  #orig test
+	#checkTrue(nrow(sizes) %in% c(5)) 
 	checkTrue(all(sizes[,2]==2))
 
 	#clustering a subset
@@ -336,8 +350,8 @@ test_fa.eiCluster <- function(){
 	names(clustering)=compoundNames
 	sizes= clusterSizes(clustering)
 	print(sizes)
-	# checkTrue(nrow(sizes) %in% c(3))
-	checkTrue(nrow(sizes) %in% c(2))
+	#checkTrue(nrow(sizes) %in% c(3))
+	checkTrue(nrow(sizes) %in% c(3))
 	checkTrue(all(sizes[,2]==2))
 
 
@@ -412,11 +426,17 @@ checkDescriptor = function(conn,rid,descriptorIndex=NULL,
 									 embedding_id=",parameters$embedding_id," and descriptor_id=",descId  ,
 									 " ORDER BY ordering"))[[1]]
 
-		#if(!all(as.vector(embeddedDesc) == dbEmbeddedDesc)){
-		if(printAll){
+		if(!isTRUE(all.equal(dbEmbeddedDesc,as.vector(embeddedDesc)))){
+		#if(printAll){
+			
 			print(desc)
 			print(as.vector(embeddedDesc))
 			print(dbEmbeddedDesc)
+			#message("mismatched values from db: ")
+			#print(dbEmbeddedDesc[mismatches])
+			#message("mismatched values just computed: ")
+			#print(embeddedDesc[mismatches])
+			stop("descriptor mismatch found! db version does not match the just computed one")
 		}
 		checkEquals(as.vector(embeddedDesc),dbEmbeddedDesc)
 

@@ -1,6 +1,7 @@
 useDynLib(eiR)
 
-import(tools,snow,snowfall,digest,DBI,methods)
+import(tools,snow,snowfall,digest,DBI,methods,gespeR)
+import(RcppAnnoy)
 import(ChemmineR)
 
 
@@ -8,4 +9,5 @@ export("eiInit","eiMakeDb","eiQuery","eiAdd","eiPerformanceTest","eiCluster")
 
 export("setDefaultDistance","addTransform")
 
+#leave these, but mark deprecated
 export("loadLSHData","freeLSHData")
