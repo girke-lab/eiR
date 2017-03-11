@@ -9,8 +9,8 @@
 \usage{
 	eiQuery(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),conn=defaultConn(dir),
-		asSimilarity=FALSE, K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,
-		mainIds = readIddb(conn,file.path(dir, Main),sorted=TRUE))
+		asSimilarity=FALSE, K=200, searchK=-1,lshData=NULL,
+		mainIds = readIddb(conn,file.path(dir, Main)))
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -51,28 +51,13 @@
   \item{K}{
      The number of results to return.
    }
-  \item{W}{
-     Tunable LSH parameter. See LSHKIT page for details.
-     \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html}
-   }
-  \item{M}{
-     Tunable LSH parameter. See LSHKIT page for details.
-     \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html}
-   }
-  \item{L}{
-     Number of hash tables
-   }
-  \item{T}{
-     Number of probes
+  \item{searchK}{
+     Tunable Annoy LSH parameter. A larger value will give more accurate results, but will take longer time to return.
+	  The default value of -1 will allow the value to chosen automatically, which will set a value of numTrees * (approximate number of nearest neighbors).
+	  See Annoy page for details.  \url{https://github.com/spotify/annoy}
    }
 	\item{lshData}{
-		A pointer returned by \code{\link{loadLSHData}}. The LSH data is generally the largest
-		chunk of data that must be held in memory while performing a query. Since it
-		remains the same across queries it makes sense to pre-load the is data once when
-		doing multiple queries. 
-
-		If this value is \code{NULL} the LSH data will be loaded internally and then released before
-		\code{eiQuery} returns.
+		DEPRECATED. This is no longer used.
 	}
 	\item{mainIds}{
 		A vector of all id numbers in the current database. This is mainly provided as an option

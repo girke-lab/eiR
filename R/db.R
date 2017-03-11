@@ -174,7 +174,6 @@ getEmbeddedDescriptors <- function(conn,embeddingId, compoundIds,descriptorIds=N
 
 	data = selectInBatches(conn,queryIds,queryFn)
 
-
 	embeddedDescriptors = aggregate(data$value,list(ids=data$ids),identity)$x
 	if(!is.matrix(embeddedDescriptors))
 		stop("Could not create a matrix from emebdded descriptors. Perhaps they are not all the correct (same) length? ")
@@ -201,7 +200,9 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 		return()
 
 	descriptorLength = ncol(data)
-	assert(numDescriptors == length(descriptorIds))
+	if(numDescriptors != length(descriptorIds))
+		stop("in 'insertEmbeddedDescriptors, numDescriptors, ",numDescriptors,
+			  " does not equal the number of descriptor ids, ",length(descriptorIds))
 	data=as.vector(data)
 
 	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
@@ -209,16 +210,13 @@ insertEmbeddedDescriptors <-function(conn,embeddingId,descriptorIds,data){
 				  ordering = as.vector(sapply(1:descriptorLength,function(i) rep(i,numDescriptors))),
 				  value = data)
 
+	fields = c("embedding_id","descriptor_id","ordering","value")
 	if(inherits(conn,"SQLiteConnection")){
 		getPreparedQuery(conn, 
 			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
-				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
+				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert[fields])
 	}else if(inherits(conn,"PostgreSQLConnection")){
-
-		fields = c("embedding_id","descriptor_id","ordering","value")
-
 		postgresqlWriteTable(conn,"embedded_descriptors",toInsert[,fields],append=TRUE,row.names=FALSE)
-
 	}else{
 		stop("database ",class(conn)," unsupported")
 	}
@@ -234,19 +232,22 @@ insertEmbeddedDescriptorsByCompoundId <-function(conn,embeddingId,compoundIds,da
 	descriptorIds = getDescriptorIds(conn,compoundIds,descriptorType,keepOrder=TRUE)
 	numDescriptors = nrow(data)
 	descriptorLength = ncol(data)
-	assert(numDescriptors == length(descriptorIds))
+
+	if(numDescriptors != length(descriptorIds))
+		stop("in 'insertEmbeddedDescriptorsByCompoundId, numDescriptors, ",numDescriptors,
+			  " does not equal the number of descriptor ids, ",length(descriptorIds))
 	data=as.vector(data)
 	toInsert = data.frame(embedding_id=embeddingId,descriptor_id=descriptorIds,
 				  #ordering = rep(1:descriptorLength,numDescriptors),
 				  ordering = as.vector(sapply(1:descriptorLength,function(i) rep(i,numDescriptors))),
 				  value = data)
 
+	fields = c("embedding_id","descriptor_id","ordering","value")
 	if(inherits(conn,"SQLiteConnection")){
 		getPreparedQuery(conn, 
 			 paste("INSERT INTO embedded_descriptors(embedding_id,descriptor_id,ordering,value) ",
-				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert)
+				"VALUES (:embedding_id,:descriptor_id,:ordering,:value)"),bind.data=toInsert[fields])
 	}else if(inherits(conn,"PostgreSQLConnection")){
-		fields = c("embedding_id","descriptor_id","ordering","value")
 		postgresqlWriteTable(conn,"embedded_descriptors",toInsert[,fields],append=TRUE,row.names=FALSE)
 
 	}else{
@@ -345,7 +346,7 @@ getGroupDescriptorIds <- function(conn,groupId,descriptorTypeId){
 												" AND cgm.compound_group_id = ",groupId))[[1]]
 }
 
-writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL){
+writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=NULL,connSource=NULL,numTrees=50){
 
 	message("Regenerating matrix file...")
 
@@ -355,7 +356,6 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 		matrixFile = file.path(dir,paste("run",runInfo$num_references,runInfo$dimension,sep="-"),
 								  paste(if(samples) "matrix.query" else "matrix",".",runInfo$num_references,"-",runInfo$dimension,sep=""))
 
-		viewName = if(samples) "run_sample_embedded_descriptors" else "run_embedded_descriptors"
 		descriptorIds= getGroupDescriptorIds(conn,if(samples) runInfo$sample_group_id else runInfo$compound_group_id,
 												 runInfo$descriptor_type_id)
 		numRows = length(descriptorIds)
@@ -365,23 +365,18 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 		descriptorIds = getDescriptorIds(conn,compoundIds,descriptorTypeId=runInfo$descriptor_type_id)
 		numRows = length(descriptorIds)
 	}
+
 	matrixFileTemp = paste(matrixFile,".temp",sep="")
 	matrixFileIndexTemp = paste(matrixFile,".index.temp",sep="")
 	if(debug) message("filename: ",matrixFile)
 
-	f = file(matrixFileTemp,"wb")
-	floatSize = 4
-
 	numCols = runInfo$dimension
-	if(debug)  message("numRows: ",numRows," numCols: ",numCols)
-
-	writeBin(as.integer(floatSize),f,floatSize)
-	writeBin(as.integer(numRows),f,floatSize)
-	writeBin(as.integer(numCols),f,floatSize)
+	annoy <- new(AnnoyEuclidean,runInfo$dimension)
 	
 
 	indexF = file(matrixFileIndexTemp,"w")
 	count=0
+	itemCount = 0 #number of items in annoy index so far
 
 	writeChunk = function(df){
 			if(debug) message("writing chunk. count= ",count)
@@ -403,13 +398,18 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 				stop(numIncomplete," descriptors missing values")
 			}
 			
-			for( i in 1:nrow(df)){
-				if(count %% numCols == 0)
-					cat(paste(df$descriptor_id[i]),file=indexF,sep="\n")
-				count <<- count + 1
+			numDescriptors = nrow(df) / numCols
+			for(i in seq(numDescriptors)){
+				v = as.vector(df$value[((i-1)*numCols+1):(i*numCols) ])
+				#if(debug) message("inserting at ",df$descriptor_id[[(i-1)*numCols+1]]," ",paste(v,collapse=","))
+				annoy$addItem(itemCount, v) #number using 0 index system
+				cat(paste(df$descriptor_id[ (i-1)*numCols+1 ]),file=indexF,sep="\n")
+				itemCount <<- itemCount + 1
+				count <<- count + length(v)
 			}
-			writeBin(as.vector(df$value),f,floatSize)
+			
    }
+
 
 
 	batchByIndex(descriptorIds,function(ids){
@@ -421,11 +421,14 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 												  "ORDER BY descriptor_id, ordering")))
 		if(!is.null(connSource)) dbDisconnect(c)
 	},10)
+	if(debug) message("final count: ",count,", num cols: ", numCols," num rows: ",numRows)
 	if(count/numCols != numRows)
 		stop("expected to find ",numRows," but wrote ",count/numCols)
 	
-	close(f)
+	annoy$build(numTrees)
+	annoy$save(matrixFileTemp)
 	close(indexF)
+
 	file.rename(matrixFileTemp,matrixFile)
 	file.rename(matrixFileIndexTemp,paste(matrixFile,".index",sep=""))
 	matrixFile
@@ -502,11 +505,11 @@ insertGroupMembers <- function(conn,data){
 	#print("member data: ")
 	#print(data)
 
+	fields = c("compound_group_id","compound_id")
 	if(inherits(conn,"SQLiteConnection")){
 		getPreparedQuery(conn, paste("INSERT INTO compound_group_members(compound_group_id,compound_id) ",
-				"VALUES (:compound_group_id,:compound_id)"),bind.data=data)
+				"VALUES (:compound_group_id,:compound_id)"),bind.data=data[fields])
 	}else if(inherits(conn,"PostgreSQLConnection")){
-		fields = c("compound_group_id","compound_id")
 		postgresqlWriteTable(conn,"compound_group_members",data[,fields],append=TRUE,row.names=FALSE)
 
 		#apply(data[,fields],1,function(row) 
@@ -534,6 +537,7 @@ getPreparedQuery <- function(conn,statement,bind.data){
 #	print("after dbBind")
 	dbFetch(res)
 }
+
 runQuery <- function(conn,query,...){
 	#if(debug) message(query)
 	if(is.character(conn)){
