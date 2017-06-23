@@ -8,7 +8,7 @@
 }
 \usage{
 	eiPerformanceTest(runId,distance=getDefaultDist(descriptorType),
-		conn=defaultConn(dir),dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
+		conn=defaultConn(dir),dir=".",K=200, searchK=-1)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -34,57 +34,46 @@
   \item{K}{
      Number of search results to use for LSH performance test.
    }
-  \item{W}{
-     Tunable LSH parameter. See LSHKIT page for details.
-     \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html}
-   }
-  \item{M}{
-     Tunable LSH parameter. See LSHKIT page for details.
-     \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html}
-   }
-  \item{L}{
-     Number of hash tables
-   }
-  \item{T}{
-     Number of probes
+  \item{searchK}{
+     Tunable Annoy LSH parameter. A larger value will give more accurate results, but will take longer time to return.
+	  See Annoy page for details.
+     \url{https://github.com/spotify/annoy}
    }
 }
 \details{
-   This will perform two different tests.
-   The first tests the embedding results in similarity search. The way this works is by
-   approximating 1,000 random similarity searches (determined by
-   data/test_queries.iddb) by nearest neighbor search using the coordinates
-   from the embedding results. The search results are then compared to the
-   reference search results (chemical-search.results.gz). 
+	This function can be used to tune the two Annoy LSH parameters, \code{numTrees}, and \code{searchK}. 
 
-   The comparison results are summarized in two types of files. The first
-   type lists the recall for different k values, k being the number of
-   numbers to retrieve. These files are named as ``recall-ratio-k''.
-   For example, if the recall is 70% for top-100
-   compound search - 70 of the 100 results are among the real top-100
-   compounds - then the value at line 100 is 0.7. Several relaxation ration
-   are used, each generating a file in this form. For instance,
-   recall.ratio-10 is the file listing the recalls when relaxation
-   ratio is 10. The other file, recall.csv, lists recalls of different
-   relaxation ratios in one file by limiting to selected k value. In this
-   CSV file, the rows correspond to different relaxation ratios, and the
-   columns are different k values. You will be able to pick an appropriate
-   relaxation ratio for the k values you are interested in.
+	NumTrees is provided to the  eiMakeDb function and affects the build time and the index size. A larger value will produce
+	more accurate results, but use more disk space. 
+
+	SearchK is given to the eiQuery function, or to this function. A larger value will give more accurate results, but will require more time to run. 
 
 
-   The second test measures the performance of the Locality Sensitive Hash (LSH).
-   The results for lsh-assisted search will be in
-   run-r-d/indexed.performance. It's a 1,000-line files of recall values. Each
-   line corresponds to one test query.  LSH search performance is
-   highly sensitive to your LSH parameters (K, W, M, L, T). The
-   default parameters are listed in the man page for
-   \code{eiPerformanceTest}. When you have your embedding result in
-   a matrix file, you should follow instruction on
-   \url{http://lshkit.sourceforge.net/dd/d2a/mplsh-tune_8cpp.html} to
-   find the best values for these parameters.
+   This function will perform two different tests.
+	The first test is how well the embedding is working. When the 
+	\link{eiMakeDb} function is run, you can specify the number of test samples
+	to use for this test. If not specified, it will default to 10\% of the data set
+	size. During this test, we take each sample and compute its distance to 
+	every other compund in the dataset using both the given descriptor distance function (e.g., "AP" or "fingerprint"), 
+	as well as the euclidean distance computed on the embedded version. We
+	then measure how similar the resulting ranks of these lists are using 
+	Rank Based Overlap (Webber,2010) (\url{http://www.williamwebber.com/research/papers/wmz10_tois.pdf}).
+	The similarity for each sample is output in a file called 'embedding.performance' in the work directory. Each
+	line corresponds to one sample. 
+
+	The second test compares the rankings produced using the descriptor distance function, to the
+	rankings produced by the final output of the LSH search, for each sample query. Again, rank 
+	based overlap (RBO) is used to compare the rankings. The results are output in the same format
+	as for the fist test, in a file called 'indexed.performance'.
+
+	RBO is a similarity measure that produces a value in the range of [0,1]. Values closer to 0 are very
+	dissimilar, while values closer to 1 are more similar. 
+
 }
 \value{
-   No value is returned. Creates files in \code{dir}/run-r-d.
+   Returns the results of the indexing test. Each element of the resulting
+	vector is the RBO similarity for the coresponding query. 
+	Creates files in \code{dir}/run-r-d.
 }
 \author{
    Kevin Horan

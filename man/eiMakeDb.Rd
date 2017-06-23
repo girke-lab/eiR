@@ -11,7 +11,7 @@
 	eiMakeDb(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=getGroupSize(conn,
 				name = file.path(dir,Main)) * 0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL,numTrees=100)
 
 }
 %- maybe also 'usage' for other objects documented here.
@@ -60,6 +60,12 @@
 
 		This function can also be used to setup the envrionment on the cluster worker nodes. For
 		example, you might need to re-load libraries like RSQLite and such.
+	}
+	\item{numTrees}{
+		Affects the build time and the index size. A larger value will produce
+		more accurate results, but use more disk space. 
+		  See \url{https://github.com/spotify/annoy} for more details.
+
 	}
 }
 \details{

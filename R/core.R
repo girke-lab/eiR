@@ -3,7 +3,7 @@ library(snow)
 
 DataDir = "data"
 TestQueries = file.path(DataDir,"test_query.iddb")
-TestQueryResults=file.path(DataDir,"chemical-search.results")
+DescriptorSpaceDists=file.path(DataDir,"chemical-search.results")
 ChemPrefix="chem"
 ChemDb = file.path(DataDir,paste(ChemPrefix,".db",sep=""))
 ChemIndex = file.path(DataDir,paste(ChemPrefix,".index",sep=""))
@@ -14,90 +14,71 @@ tmessage = function(...) message(Sys.time(),": ",...)
 debug=TRUE
 #debug=FALSE
 
-# Notes
-#  Need function to produce descriptors from sdf or smile
-#  Need function to compute distances between descriptors
-
-#cdbSize <- function(dir=".") {
-#	#TODO: make this more efficient
-#	length(readIddb(conn,file.path(dir,Main)))
-#}
-embedCoord <- function(s,len,coords) 
-	.Call("embedCoord",s,as.integer(len),as.double(coords))
-
-embedCoordTest <- function(r,d,refCoords,coords) 
-	.Call("embedCoordTest",as.integer(r),as.integer(d),as.double(refCoords),as.double(coords))
 
 
-lshPrep <- function(matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,dir=".") {
-
-	if(!file.exists(matrixFile)) stop(paste("could not find matrix file:",matrixFile))
-
-	#TODO: see about removeing old .lshindex files
-	matrixHash = digest(file = matrixFile,serialize=FALSE)
-	matrixDir=dirname(matrixFile)
-	indexName = file.path(matrixDir,paste(paste(matrixHash,W,H,M,L,T,R,sep="-"),"lshindex",sep="."))
-	if(debug) print(paste("index name: ",indexName))
-	indexName
+loadLSHData <- function(r, d, W = NA, M = NA, L = NA, K = NA, T = NA, dir = ".",
+								matrixFile = NULL){
+	.Deprecated("loadLSHData")
+}
+freeLSHData <- function(lshData) {
+	.Deprecated("freeLSHData")
 }
 
-
-loadLSHData <- function(r,d, W=NA,M=NA,L=NA,K=NA,T=NA,dir=".",matrixFile=NULL) {
-
-	if(is.null(matrixFile)){
-		workDir=file.path(dir,paste("run",r,d,sep="-"))
-		matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
-	}
-
-	indexFile = lshPrep(matrixFile,W,NA,M,L,K,T,NA)
-	.Call("getIndexedData",as.character(matrixFile),indexFile,
-		as.double(W),NA,as.integer(M),as.integer(L))
-}
-
-freeLSHData <- function(lshData){
-	.Call("freeIndexedData",lshData)
-}
-
-# requires one query per column, not per row
-lshsearch <- function(queries,matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA,lshData=NULL) 
+annoySearch <- function(queries,matrixFile,dimension,numNeighbors,searchK=-1)
 {
-	if(is.null(lshData)){
-		indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
-		.Call("lshsearch",queries,as.character(matrixFile),indexFile,
-			as.double(W),as.integer(H),as.integer(M),as.integer(L),
-			as.integer(K),as.integer(T), as.double(R))
-	}else{
-		.Call("query",queries,lshData, as.integer(K),as.integer(T), as.double(R))
+	message("creating annoy index")
+	index <-new(AnnoyEuclidean,dimension)
+	message("loading matrix file")
+	index$load(matrixFile)
+	message("done. num items in index: ",index$getNItems())
+
+	numQueries = dim(queries)[2]
+	message("found ",numQueries," queries")
+	result = array(0,c(numQueries,numNeighbors,2))
+	for(i in seq(numQueries)){
+		neighbors = index$getNNsByVectorList(queries[,i],numNeighbors,searchK,TRUE)
+		numResults = length(neighbors$item)
+		#message("got ",numResults," neighbors for query ",i)
+		if(numResults < numNeighbors){ #pad any missing neighbors with NA
+			neighbors$item[(numResults+1):numNeighbors]=NA
+			neighbors$distance[(numResults+1):numNeighbors]=NA
+		}
+		result[i,,1] = neighbors$item + 1 #shift to 1 indexed
+		result[i,,2] = neighbors$distance
 	}
+	result
 }
-lshsearchAll <- function(matrixFile,
-	W=NA,H=NA,M=NA,L=NA,K=NA,T=NA,R=NA) 
+#find neighbors for everything in database
+annoySearchAll <- function(matrixFile,dimension,numNeighbors,searchK=-1)
 {
+	message("creating annoy index
+			  ",matrixFile,dimension,numNeighbors,searchK)
+	index <-new(AnnoyEuclidean,dimension)
+	message("loading matrix file")
+	index$load(matrixFile)
+	numItems = index$getNItems()
+	message("done. num items in index: ",numItems)
 
-	indexFile = lshPrep(matrixFile,W,H,M,L,K,T,R)
-
-	.Call("lshsearchAll",as.character(matrixFile),indexFile,
-		as.double(W),as.integer(H),as.integer(M),as.integer(L),
-		as.integer(K),as.integer(T), as.double(R))
+	result = array(0,c(numItems,numNeighbors,2))
+	for(i in seq(numItems)){
+		neighbors = index$getNNsByItemList(i-1,numNeighbors,searchK,TRUE)
+		numResults = length(neighbors$item)
+		#message("got ",numResults," neighbors for query ",i)
+		if(numResults < numNeighbors){ #pad any missing neighbors with NA
+			neighbors$item[(numResults+1):numNeighbors]=NA
+			neighbors$distance[(numResults+1):numNeighbors]=NA
+		}
+		result[i,,1] = neighbors$item + 1 #shift to 1 indexed
+		result[i,,2] = neighbors$distance
+	}
+	result
 }
-
-
-# functions needed for sql backend:
-# distance
-
-# descriptorStr  raw format (sdf,smile) -> descriptor object -> string
-# str2Descriptor  string -> descriptor object
-# also need descrptor type, ie, "ap" "fpap", etc.
-
-# and compound format, ei, "SDF", "SMILE", etc.
-# X optionally: compound -> string and string -> compound
 
 eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
 						 cl=NULL,connSource=NULL)
 {
+
 	if(!file.exists(file.path(dir,DataDir)))
 		if(!dir.create(file.path(dir,DataDir)))
 			stop("failed to create data directory ",file.path(dir,DataDir))
@@ -164,7 +145,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 }
 eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descriptorType), 
 				dir=".",numSamples=getGroupSize(conn,name=file.path(dir,Main))*0.1,conn=defaultConn(dir),
-				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL)
+				cl=makeCluster(1,type="SOCK",outfile=""),connSource=NULL,numTrees=100)
 {
 	conn
 	workDir=NA
@@ -262,17 +243,18 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)
 
-	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource)
-	writeMatrixFile(conn,runId,dir=dir,samples=TRUE)
+	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource,numTrees=numTrees)
+	writeMatrixFile(conn,runId,dir=dir,samples=TRUE,numTrees=numTrees)
 
 	runId
 }
 
+#lshData deprecated
 eiQuery <- function(runId,queries,format="sdf",
 		dir=".",distance=getDefaultDist(descriptorType),
 		conn=defaultConn(dir),
-		asSimilarity=FALSE,K=200, W = 1.39564, M=19,L=10,T=30,lshData=NULL,
-		mainIds =readIddb(conn,file.path(dir,Main),sorted=TRUE))
+		asSimilarity=FALSE,K=200, searchK=-1, lshData=NULL,
+		mainIds =readIddb(conn,file.path(dir,Main)))
 {
 		conn
 		if(debug) print("eiQuery")
@@ -310,8 +292,8 @@ eiQuery <- function(runId,queries,format="sdf",
 		#if(debug) print(embeddedQueries)
 		hits = search(embeddedQueries,runId,
 							queryDescriptors,distance,dir=dir,conn=conn,
-							lshData=lshData,
-							K=K,W=W,M=M,L=L,T=T)
+							lshData=lshData,K=K,
+							searchK=searchK)
 		#if(debug) print("hits")
 		#if(debug) print(hits)
 
@@ -388,9 +370,9 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 							 distance=getDefaultDist(descriptorType),
 							 conn=defaultConn(dir),
-							  W = 1.39564, M=19,L=10,T=30,type="cluster",linkage="single"){
+							  searchK=-1,type="cluster",linkage="single"){
 
-		if(debug) print("staring eiCluster")
+		if(debug) print("starting eiCluster")
 
 		conn
 		runInfo = getExtendedRunInfo(conn,runId) 
@@ -411,7 +393,9 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		}
 		mainDescriptorIds = readMatrixIndex(matrixFile)
 
-		neighbors = lshsearchAll(matrixFile,K=2*K,W=W,M=M,L=L,T=T) #neighbors is now matrix space
+	
+		#neighbors is in matrix space
+		neighbors = annoySearchAll(matrixFile,d,numNeighbors=force(2*K),searchK=searchK)
 
 		compIds = descriptorsToCompounds(conn,mainDescriptorIds)
 
@@ -419,7 +403,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		compId2Sequential = 1:ml
 		names(compId2Sequential)=compIds
 
-	print(neighbors)
+		#message("neighbors:")
+		#print(neighbors)
 
 		refinedNeighbors=array(NA,dim=c(ml,K))
 		if(type=="matrix")
@@ -431,6 +416,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 			descriptors = getDescriptorsByDescriptorId(conn,indexSet)
 
 			lapply(1:length(indexSet),function(x){ #for each descriptor id, i
+				#message("-------------- ",i," -----------------")
 				#print(neighbors[i,,])
 				nonNAs=!is.na(neighbors[i,,1]) #matrix space
 			   n=neighbors[i,nonNAs,,drop=FALSE]   #matrix space
@@ -452,6 +438,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 
 				#descriptor space -> compound space
 				refinedCompounds = compIds[as.character(refined[,1])]
+				#print("refined compounds:")
 				#print(refinedCompounds)
 
 				# compound space -> sequential id space
@@ -459,6 +446,7 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 							compId2Sequential[as.character(refinedCompounds)]
 				if(type=="matrix")
 					similarities[i,1:nrow(refined)] <<- 1 - refined[,2]
+				#print("refined neighbors:")
 				#print(refinedNeighbors[i,1:nrow(refined)])
 				i<<-i+1
 			})
@@ -500,6 +488,7 @@ loadSearchCache <- function(conn,runId,dir) {
 
 
 		searchCache$runId=runId
+		searchCache$dimension=runInfo$dimension
 		searchCache$matrixFile = matrixFile
 		searchCache$descriptorType = descriptorType
 		searchCache$descriptorIds = getRunDescriptorIds(conn,runId)
@@ -511,22 +500,29 @@ invalidateCache <- function(){
 
 	searchCache$descriptorIds=NULL
 	searchCache$runId=NULL
+	searchCache$dimension=NULL
 	searchCache$matrixFile = NULL
 	searchCache$descriptorType = NULL
 }
 #expects one query per column
+#lshData is deprecated
 search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
-						 conn=defaultConn(dir),lshData=NULL,...)
+						 conn=defaultConn(dir),lshData=NULL,searchK=-1,returnDescriptorIds=FALSE)
 {
 		if(is.null(searchCache$descriptorIds) || 
 			(!is.null(searchCache$runId) && searchCache$runId != runId)){
 			loadSearchCache(conn,runId,dir)
 		}
+		#message("quries:")
+		#print(embeddedQueries)
 		
-		neighbors = lshsearch(embeddedQueries,searchCache$matrixFile,K=2*K,lshData=lshData,...)
+		neighbors = annoySearch(embeddedQueries,searchCache$matrixFile,searchCache$dimension,
+										numNeighbors=force(2*K),searchK=searchK)
+
 		
 		if(debug) print(paste("got ",paste(dim(neighbors),collapse=","),"neighbors back from lshsearch"))
-		#print("neighbors:")
+
+		#message("K=",K," neighbors:")
 		#print(neighbors)
 
 		#select only those positions actually used so we don't have to query
@@ -540,17 +536,36 @@ search <- function(embeddedQueries,runId,queryDescriptors,distance,K,dir,
 		#compute distance between each query and its candidates	
 		Map(function(i) { # for each query 
 			 nonNAs = ! is.na(neighbors[i,,1])
-			 #print(nonNAs)
+		#	 print(nonNAs)
 			 n=neighbors[i,nonNAs,]
 			 dim(n)=c(sum(nonNAs) ,2)
-			 #print(sum(nonNAs))
-			 #print(n)
-			 #n[,1] = compIds[as.character(searchCache$descriptorIds[n[,1]])]
+		#	 print(sum(nonNAs))
+		#	 print(n)
+
+
+		#	 message("length of n[,1]: ",length(n[,1]))
+		#	 message("length of descriptorIds: ",length(searchCache$descriptorIds))
+		#	 message("length of compIds: ",length(compIds))
+
+		#	 message("mapping to descriptor ids: ")
+		#	 print(searchCache$descriptorIds[n[,1]])
+
+		#	 message("mapping to comp ids: ")
+		#	 print(compIds[as.character(searchCache$descriptorIds[n[,1]])])
+
+		#	 message("length of final mapping: ",length( compIds[as.character(searchCache$descriptorIds[n[,1]])] ))
+		#	 message("descriptor Ids: ")
+		#	 print(searchCache$descriptorIds)
+
+		#	 n[,1] = compIds[as.character(searchCache$descriptorIds[n[,1]])]
 			 n[,1] = searchCache$descriptorIds[n[,1]]
 			 #print("comp id neighbors:")
 			 #print(n)
 			 refined = refine(n,queryDescriptors[i],K,distance,dir,descriptorType=searchCache$descriptorType,conn=conn)
-			 refined[,1] = compIds[as.character(refined[,1])]
+			 if(! returnDescriptorIds)
+				 refined[,1] = compIds[as.character(refined[,1])]
+			 #print("refined: ")
+			 #print(refined)
 			 refined
 		  }, 1:(dim(embeddedQueries)[2]))
 }
@@ -566,9 +581,8 @@ embedFromRefs <- function(r,d,refIddb,query2RefDists)
 #return the emedding of each row in the matrix
 embed <- function(r,d,coords, query2RefDists)
 {
-		solver = getSolver(r,d,coords)
 		embeddedQueries = apply(query2RefDists,c(1),
-			function(x) embedCoord(solver,d,x))
+			function(x) newEmbed(x,coords,r,d))
 }
 refine <- function(lshNeighbors,queryDescriptors,limit,distance,dir,descriptorType,cutoff=NULL,
 						 conn=defaultConn(dir))
@@ -623,20 +637,16 @@ readNames <- function(file) as.numeric(readLines(file))
 # testing
 genTestQueryIds <- function(numSamples,dir,mainIds,refIds=c())
 {
-	#testQueryFile <-file.path(dir,TestQueries)
 	set=setdiff(mainIds,refIds)
 	if(numSamples < 0 || numSamples > length(set)) 
 		stop(paste("trying to take more samples than there are compounds available",numSamples,length(set)))
-	queryIds <- sort(sample(set,numSamples))
-#	writeIddb(conn,queryIds,testQueryFile)
-	queryIds
+	sort(sample(set,numSamples))
 }
 genRefs <- function(n,mainIds,queryIds=c())
 {
 	set=setdiff(mainIds,queryIds)
 	if(n < 0 || n > length(set)) stop(paste("found more refereneces than compound candidates",n,length(set)))
 	refIds = sort(sample(set,n))
-	#writeIddb(conn,refIds,refFile)
 	refIds
 }
 genGroupName <- function(members)
@@ -646,32 +656,57 @@ genRefName <- function(workDir)
 				 paste(paste(sample(c(0:9,letters),32,replace=TRUE),
 								 collapse=""),
 						 "cdb",sep="."))
-genTestQueryResults <- function(distance,dir,descriptorType,conn=defaultConn(dir))
+testDescriptorSpaceDists<- function(distance,dir,descriptorType,
+												runInfo, conn=defaultConn(dir))
 {
-	if(file.exists(file.path(dir,TestQueryResults)))
+	if(file.exists(file.path(dir,DescriptorSpaceDists)))
 		return()
 
-	out=file(file.path(dir,TestQueryResults),"w")
-	print(out)
 	print("getting test query ids")
-	allIds = readIddb(conn,file.path(dir,Main))
-	d=IddbVsIddbDist(conn,
-		readIddb(conn,file.path(dir,TestQueries)),
-		allIds,distance,descriptorType)
+	allDescIds=getGroupDescriptorIds(conn,runInfo$compound_group_id, runInfo$descriptor_type_id)
+	sampleDescIds =getGroupDescriptorIds(conn,runInfo$sample_group_id,runInfo$descriptor_type_id)
+	sampleDescs = getDescriptorsByDescriptorId(conn,sampleDescIds)
+
+	d=t(IddbVsGivenDistByDescId(conn,
+			allDescIds,
+			sampleDescs,
+			distance,descriptorType))
+
+	writeTopN(50000,d,allDescIds,file.path(dir,DescriptorSpaceDists))
+}
+writeTopN = function(N,d,ids,outputFile){
+	message("writing top ",N," to file ",outputFile)
+	out=file(outputFile,"w")
+	print(out)
 	if(debug) print(paste("dim(d): ",dim(d)))
-	maxLength=min(dim(d)[2],50000)
-	for(i in 1:(dim(d)[1]))
+	maxLength=min(dim(d)[2],N)
+	for(i in 1:(dim(d)[1])) # each row
 		cat(paste(
-				#paste(1:dim(d)[2],d[i,],sep=":")[order(d[i,])[1:maxLength]],
-				paste(allIds[1:dim(d)[2]],d[i,],sep=":")[order(d[i,])[1:maxLength]],
+				paste(ids[1:dim(d)[2]],d[i,],sep=":")[order(d[i,])[1:maxLength]],
 				collapse=" "),"\n",file=out)	
 	close(out)
+
+}
+testEmbeddedSpaceDists <- function(outputFile,runInfo,embeddedTestDescriptors,dir, conn=defaultConn(dir)){
+	message("computing embedded distances on test quries")
+
+	allDescIds = getGroupDescriptorIds(conn,runInfo$compound_group_id,runInfo$descriptor_type_id)
+	testIds = readIddb(conn,file.path(dir,TestQueries))
+	#message(length(allDescIds)," total descriptors, ",length(testIds)," test quries")
+	allEmbeddedDescriptors = getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=allDescIds)
+	
+	dists=sapply(1:dim(allEmbeddedDescriptors)[1],function(i){
+			 sapply(1:dim(embeddedTestDescriptors)[1],function(j){
+				 sqrt(sum( (allEmbeddedDescriptors[i,]-embeddedTestDescriptors[j,])^2))  })})
+	
+	writeTopN(50000,dists,allDescIds,outputFile)
 }
 eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 										conn=defaultConn(dir),
-										dir=".",K=200, W = 1.39564, M=19,L=10,T=30)
+										dir=".", K=200, searchK=-1)
 {
 	conn
+	#message("in eiPerformanceTest ========================")
 
 	runInfo = getExtendedRunInfo(conn,runId) 
 	if(nrow(runInfo)==0)
@@ -684,24 +719,28 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 
 	workDir=file.path(dir,paste("run",r,d,sep="-"))
 	eucsearch=file.path(workDir,sprintf("eucsearch.%s-%s",r,d))
-	genTestQueryResults(distance,dir,descriptorType,conn=conn)
-	eucsearch2file(file.path(workDir,sprintf("matrix.%s-%s",r,d)),
-				 file.path(workDir,sprintf("matrix.query.%s-%s",r,d)),
-				 50000,eucsearch)
-
-	#evaluator TestQueryResuts eucsearch-r-d recall
-	evaluator(file.path(dir,TestQueryResults),eucsearch,
-		file.path(workDir,"recall"))
-
-	matrixFile =file.path(workDir,sprintf("matrix.%d-%d",r,d))
 
 	sampleCompoundIds = readIddb(conn,groupId=sampleGroupId)
+	embeddedTestQueries = getEmbeddedDescriptors(conn,embeddingId,sampleCompoundIds)
+	write.table(embeddedTestQueries,file="embeddedTestQueries",row.names=FALSE,col.names=FALSE,quote=FALSE)
+	testEmbeddedSpaceDists(eucsearch,runInfo,embeddedTestQueries,dir,conn=conn)
+
+
+	testDescriptorSpaceDists(distance,dir,descriptorType,runInfo,conn=conn)
+
+
+	descVsEuc=compareListsRBO(file.path(dir,DescriptorSpaceDists),eucsearch)
+	message("average embedding performance: ",mean(descVsEuc))
+	write.table(descVsEuc,
+			file=file.path(workDir,"embedding.performance"),
+			row.names=F,col.names=F,quote=F)
+
 	testQueryDescriptors=getDescriptors(conn,descriptorType,sampleCompoundIds )
 
-	embeddedTestQueries = t(getEmbeddedDescriptors(conn,embeddingId,sampleCompoundIds))
 
-	hits = search(embeddedTestQueries,runId,
-						testQueryDescriptors,distance,dir=dir,conn=conn,K=K,W=W,M=M,L=L,T=T)
+	hits = search(t(embeddedTestQueries),runId,
+						testQueryDescriptors,distance,dir=dir,conn=conn,
+						K=K, searchK=searchK,returnDescriptorIds=TRUE)
 	indexed=file.path(workDir,"indexed")
 	out=file(indexed,"w")
 	#if(debug) print(hits)
@@ -710,12 +749,12 @@ eiPerformanceTest <- function(runId,distance=getDefaultDist(descriptorType),
 		cat(paste(x[,1],x[,2],sep=":",collapse=" "),"\n",file=out)
 	close(out)
 
-	#indexed_evalutator TestQueryResults indexed indexed.performance
-	results = compareSearch(file.path(dir,TestQueryResults),indexed)
-	write.table(results,
+	descVsIndx= compareListsRBO(file.path(dir,DescriptorSpaceDists),indexed)
+	message("average indexing performance: ",mean(descVsIndx))
+	write.table(descVsIndx,
 			file=file.path(workDir,"indexed.performance"),
 			row.names=F,col.names=F,quote=F)
-	return(results)
+	return(descVsIndx)
 }
 
 
@@ -937,13 +976,13 @@ embedAll <- function(conn,runId, distance,dir=".",
 	if(debug) message("embedding ",length(unembeddedDescriptorIds)," unembedded descriptors")
 
 	embedJob = function(ids,jobId){
-		solver <- getSolver(r,d,coords)	
 
 		withConnection(connSource,function(conn){
 		
 			descriptors = getDescriptorsByDescriptorId(conn,ids)
 			rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
-			embeddedDescriptors = apply(rawDists,c(1), function(x) embedCoord(solver,d,x))
+			embeddedDescriptors = apply(rawDists,c(1), function(x){
+							 newEmbed(x,coords,r,d) })
 
 			insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
 		})
@@ -973,13 +1012,34 @@ embedAll <- function(conn,runId, distance,dir=".",
 		x
 	}
 }
+newEmbed = function(rawDists,coords,r,d){
+	f =function(x) .Call("calcF",as.double(x),as.double(rawDists),as.double((coords)))
+	g =function(x) .Call("calcG",as.double(x),as.double(rawDists),as.double((coords)))
+
+	initValue = rep(0,d)
+	result = optim(initValue,f,g,method="L-BFGS-B",
+			lower= rep(-0.5,r) ,
+			upper=  rep(0.5,r),
+			control = list(pgtol=1e-2,factr = 1e12, lmm=3),
+			hessian = FALSE)
+	#print(str(result))
+	result$par
+}
+
 checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 							refIds=readIddb(conn,groupId=runInfo$references_group_id,sorted=TRUE),
-							coords = getCoords(conn,runId,dir)) {
+							coords = getCoords(conn,runId,dir),callback=NA) {
 	runInfo = getExtendedRunInfo(conn,runId) 
-	descriptorType=getDescriptorType(conn,info =runInfo)
+	message("run info: ")
+	print(runInfo)
 
-	solver <- getSolver(runInfo$num_references,runInfo$dimension,coords)	
+	descriptorType=getDescriptorType(conn,info =runInfo)
+	message("descriptor type:")
+	print(descriptorType)
+
+	r= runInfo$num_referances
+	d = runInfo$dimension
+
 
  	embedJob = function(ids){
 		print(ids)
@@ -988,16 +1048,27 @@ checkEmbedding <- function(conn,descriptorIds,runId,distance,dir=".",
 		#print(distance)
 		#print(descriptorType)
 		rawDists = t(IddbVsGivenDist(conn,refIds,descriptors,distance,descriptorType))
-		print(head(t(rawDists)))
-		apply(rawDists,c(1), function(x) embedCoord(solver,runInfo$dimension,x)) # return embeddedd descriptors
+		#print(head(t(rawDists)))
+		embeddedDesc = apply(rawDists,c(1), 
+									function(x) {
+										message("x dims: ",length(x))
+										newEmbed(x,coords,r,d)
+									})
+		#print(descriptors)
+		#print(embeddedDesc)
+
+		embeddedDesc
  	}
 
 	for(descriptorId in descriptorIds){
 		#fetch what is in the db
-		dbEmbeddedDescriptor = t(getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=descriptorIds))
+		dbEmbeddedDescriptor = t(getEmbeddedDescriptors(conn,runInfo$embedding_id,descriptorIds=descriptorId))
 
 		#generate the embedding ourselves
 		localEmbeddedDescriptor = embedJob(descriptorId)
+
+		if(!is.na(callback)) 
+			callback(descriptorId,dbEmbeddedDescriptor,localEmbeddedDescriptor)
 
 		if( ! isTRUE(all.equal(dbEmbeddedDescriptor, localEmbeddedDescriptor))){
 			warning("found mismatched embedding!")
