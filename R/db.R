@@ -2,14 +2,16 @@
 withConnection <- function(connSource,connUser){
 
 	#given a connection object directly
-	if(inherits(connSource,"DBIConnection")){
+   if(inherits(connSource,"DBIConnection")){
 		connUser(connSource)
 	}else{
 		conn=connSource()
 		tryCatch({
 			connUser(conn)
 		  },error = function(e) stop(e),
-		  finally = dbDisconnect(conn)
+		  finally = {
+			  dbDisconnect(conn)
+		  } 
 		)
 	}
 }
@@ -35,7 +37,7 @@ ensureSchema <- function(conn) {
 							  collapse=""),";",fixed=TRUE)))
 #		print(statements)
 
-		Map(function(sql) runQuery(conn,sql),statements)
+		Map(function(sql) executeQuery(conn,sql),statements)
 	}
 
 }
@@ -103,7 +105,7 @@ writeIddb <- function(conn,ids,name,append=FALSE) {
 		if(debug) message("writeiddb name: ",name)
 		groupId = getCompoundGroupId(conn,name,create=TRUE)
 		if(!append) # delete existing group
-			runQuery(conn,paste("DELETE FROM compound_group_members WHERE compound_group_id = ",groupId))
+			executeQuery(conn,paste("DELETE FROM compound_group_members WHERE compound_group_id = ",groupId))
 
 		if(debug) message("groupid: ",groupId)
 		if(debug) message("inserting members")
@@ -491,7 +493,7 @@ getOrCreate <- function(conn,getQuery,createQuery,create=FALSE,errorTag=getQuery
 	if(length(id)==0 || is.na(id)){
 		if(!create)
 			stop("could not find an entry for ",errorTag)
-		runQuery(conn,createQuery)
+		executeQuery(conn,createQuery)
 		id = getOrCreate(conn,getQuery,createQuery,create=FALSE)
 		if(length(id)==0 || is.na(id))
 			stop("could not find or create an entry for ",errorTag)
@@ -521,42 +523,51 @@ insertGroupMembers <- function(conn,data){
 
 }
 getPreparedQuery <- function(conn,statement,bind.data){
-#	message("SQL statement: ")
-#	print(statement)
+	#message("SQL statement: ")
+	#print(statement)
 #	message("data:")
 #	print(colnames(bind.data))
 
 	#dbSendPreparedQuery(conn,statement,bind.data)
 	
-#	print("sending query")
-	res <- dbSendQuery(conn,statement)
-#	print("after sendQuery")
+	#print("sending query")
+	res <- dbSendStatement(conn,statement)
+	#print("after sendQuery")
 	on.exit(dbClearResult(res)) #clear result set when this function exits
-#	print("after exit callback registered")
-	dbBind(res,bind.data)
-#	print("after dbBind")
-	dbFetch(res)
+	#print("after exit callback registered")
+
+	#suppress warnings about factors being converted to strings
+	suppressWarnings(dbBind(res,bind.data))
+	#print("after dbBind")
 }
 
-runQuery <- function(conn,query,...){
+executeQuery <- function(conn,query,...){
+	runQuery(conn,query,execute=TRUE,...)
+}
+runQuery <- function(conn,query,execute=FALSE,...){
 	#if(debug) message(query)
 	if(is.character(conn)){
 		if(debug) print(class(conn))
 		print(sys.calls())
 	}
-	df = dbGetQuery(conn,query,...)
-	if(is.null(df))
-		return(NULL)
+	if(execute)
+		dbExecute(conn,query,...)
+	else{
+		df = dbGetQuery(conn,query,...)
 
-	#the postgres driver insists on returning a data frame
-	#with no columns when an empty result is returned.
-	#this breaks everything that might use an index
-	# so we make up some columns in that case...
-	#print(class(df))
+		if(is.null(df))
+			return(NULL)
 
-	if(ncol(df)==0){	
-	   as.data.frame(rep(list(dummy=numeric(0)), 20))
-	}else{
-		df
+		#the postgres driver insists on returning a data frame
+		#with no columns when an empty result is returned.
+		#this breaks everything that might use an index
+		# so we make up some columns in that case...
+		#print(class(df))
+
+		if(ncol(df)==0){	
+			as.data.frame(rep(list(dummy=numeric(6)), 20))
+		}else{
+			df
+		}
 	}
 }
