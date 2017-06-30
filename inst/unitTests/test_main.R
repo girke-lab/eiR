@@ -5,7 +5,7 @@ library(eiR)
 library(snow)
 library(DBI)
 
-options(warn=2)
+#options(warn=2)
 #options(error=dump.frames)
 options(warnPartialMatchDollar=TRUE)
 
