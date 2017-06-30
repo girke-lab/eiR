@@ -242,7 +242,6 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	embedAll(conn,runId,refIds=refIds,
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)
-
 	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource,numTrees=numTrees)
 	writeMatrixFile(conn,runId,dir=dir,samples=TRUE,numTrees=numTrees)
 
@@ -455,8 +454,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		
 
 		rownames(refinedNeighbors)=1:ml
-		#print("final refined:")
-		#print((refinedNeighbors))
+		print("final refined:")
+		print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
@@ -985,6 +984,7 @@ embedAll <- function(conn,runId, distance,dir=".",
 							 newEmbed(x,coords,r,d) })
 
 			insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
+		
 		})
 	}
 	
