@@ -1,12 +1,13 @@
 
+message("test_main start")
 set.seed(42)
 
 library(eiR)
 library(snow)
 library(DBI)
 
-options(warn=2)
-#options(error=dump.frames)
+#options(warn=2)
+#options(error=recover)
 options(warnPartialMatchDollar=TRUE)
 
 test_dir="test_workspace"
@@ -34,7 +35,7 @@ resetDb <- function(conn){
    tables = dbListTables(conn)
    print(tables)
    for(table in tables)
-      dbGetQuery(conn, paste("DROP TABLE ",table," CASCADE"))
+      dbExecute(conn, paste("DROP TABLE ",table," CASCADE"))
    initDb(conn)
 }
 
@@ -49,6 +50,7 @@ pgSource=function(reset=FALSE){
 	eiR:::setDefaultConn(conn)
 	conn
 }
+
 
 connSource = sqliteSource
 #connSource = pgSource

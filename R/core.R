@@ -11,8 +11,8 @@ Main = file.path(DataDir,"main.iddb")
 
 tmessage = function(...) message(Sys.time(),": ",...)
 
-debug=TRUE
-#debug=FALSE
+#debug=TRUE
+debug=FALSE
 
 
 
@@ -242,7 +242,6 @@ eiMakeDb <- function(refs,d,descriptorType="ap",distance=getDefaultDist(descript
 	embedAll(conn,runId,refIds=refIds,
 				coords=coords,distance=distance,
 				cl=cl,connSource=connSource)
-
 	writeMatrixFile(conn,runId,dir=dir,cl=cl,connSource=connSource,numTrees=numTrees)
 	writeMatrixFile(conn,runId,dir=dir,samples=TRUE,numTrees=numTrees)
 
@@ -985,6 +984,7 @@ embedAll <- function(conn,runId, distance,dir=".",
 							 newEmbed(x,coords,r,d) })
 
 			insertEmbeddedDescriptors(conn,embeddingId,ids,t(embeddedDescriptors))
+		
 		})
 	}
 	
