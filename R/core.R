@@ -454,8 +454,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		
 
 		rownames(refinedNeighbors)=1:ml
-		print("final refined:")
-		print((refinedNeighbors))
+		#print("final refined:")
+		#print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
