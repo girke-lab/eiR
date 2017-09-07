@@ -320,7 +320,7 @@ test_fa.eiCluster <- function(){
 	message("clustering:")
 	print(clustering)
 	print(sizes)
-	checkTrue(nrow(sizes) %in% c(6))  #orig test
+	checkTrue(nrow(sizes) %in% c(6,7))  #orig test
 	#checkTrue(nrow(sizes) %in% c(5))
 	checkTrue(all(sizes[,2]==2))
 
@@ -336,7 +336,7 @@ test_fa.eiCluster <- function(){
 	print(clustering)
 	print(clusterSizes(clustering))
 	checkTrue(length(clustering) >= N) #eiAdd will add some stuff
-	checkTrue(nrow(sizes) %in% c(6))  #orig test
+	checkTrue(nrow(sizes) %in% c(6,7))  #orig test
 	#checkTrue(nrow(sizes) %in% c(5)) 
 	checkTrue(all(sizes[,2]==2))
 
