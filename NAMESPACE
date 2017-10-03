@@ -5,6 +5,10 @@ import(tools,snow,snowfall,digest,DBI,methods)
 import(RcppAnnoy)
 import(ChemmineR)
 
+importFrom("stats", "aggregate", "cmdscale", "optim")
+importFrom("utils", "head", "read.table", "str", "write.table")
+
+
 
 export("eiInit","eiMakeDb","eiQuery","eiAdd","eiPerformanceTest","eiCluster")
 

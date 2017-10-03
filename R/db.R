@@ -429,6 +429,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	
 	annoy$build(numTrees)
 	annoy$save(matrixFileTemp)
+	annoy$unload() # releases filehandle
 	close(indexF)
 
 	file.rename(matrixFileTemp,matrixFile)
