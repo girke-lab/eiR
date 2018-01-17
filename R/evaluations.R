@@ -5,8 +5,8 @@ compareListsRBO<- function(file1,file2)
       as.numeric(sapply(line,
                      function(y) strsplit(y,":",fixed=TRUE)[[1]][1]))
 
-   in1=gzfile(file1,"r")
-   in2=gzfile(file2,"r")
+   in1=file(file1,"r")
+   in2=file(file2,"r")
 
    p=NA
 
@@ -32,7 +32,7 @@ compareListsRBO<- function(file1,file2)
 
 		#print(ind1)
 		#print(ind2)
-      #results=c(results,length(intersect(ind1,ind2))/p)
+      ##results=c(results,length(intersect(ind1,ind2))/p)
 		rboDiff = rbo(ind1,ind2,p=0.9,side="bottom")
 		#message("------------ diff:",rboDiff)
       results=c(results, rboDiff)
