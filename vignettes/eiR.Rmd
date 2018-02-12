@@ -259,6 +259,11 @@ example, to add one compound from an SDFset you would do:
 ```{r term=FALSE}
  eiAdd(runId,sdfsample[100]) 
 ```
+```{r echo = FALSE, results = 'asis'}
+# on windows it seems the file handle used in eiAdd 
+# does not get closed right away, so we wait a little here first
+Sys.sleep(1)
+```
 
 The returned value is a list of the compounds ids that were just
 added.
