@@ -337,7 +337,7 @@ By default `eiCluster` will cluster the entire dataset specified by
 provide their compound id values to the `compoundIds` parameter.
 
 
-```{r }
+```{r eval=FALSE }
 	clustering <- eiCluster(runId,K=5,minNbrs=2,cutoff=0.5)
 	byCluster(clustering)
 ```
