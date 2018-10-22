@@ -1,8 +1,8 @@
 Package: eiR
 Type: Package
 Title: Accelerated similarity searching of small molecules
-Version: 1.21.0
-Date: 2018-4-23
+Version: 1.21.1
+Date: 2018-10-22
 Author: Kevin Horan, Yiqun Cao and Tyler Backman
 Maintainer: Thomas Girke <thomas.girke@ucr.edu>
 Suggests:   BiocStyle, knitcitations, knitr, knitrBootstrap
@@ -15,6 +15,6 @@ Imports: snow, tools, snowfall, RUnit, methods, ChemmineR, RCurl, digest,
         BiocGenerics, gespeR,RcppAnnoy (>= 0.0.9)
 biocViews: Cheminformatics, BiomedicalInformatics, Pharmacogenetics, 
         Pharmacogenomics, MicrotitrePlateAssay, CellBasedAssays, Visualization,
-        Infrastructure, DataImport, Clustering, Proteomics
+        Infrastructure, DataImport, Clustering, Proteomics, Metabolomics
 URL: https://github.com/girke-lab/eiR
 VignetteBuilder: knitr
