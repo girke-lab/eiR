@@ -566,7 +566,7 @@ runQuery <- function(conn,query,execute=FALSE,...){
 		#print(class(df))
 
 		if(ncol(df)==0){	
-			as.data.frame(rep(list(dummy=numeric(6)), 20))
+			as.data.frame(rep(list(dummy=numeric(0)), 20))
 		}else{
 			df
 		}
