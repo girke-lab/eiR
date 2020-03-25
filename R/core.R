@@ -76,7 +76,7 @@ annoySearchAll <- function(matrixFile,dimension,numNeighbors,searchK=-1)
 
 eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
-						 cl=NULL,connSource=NULL)
+						 cl=NULL,connSource=NULL,priorityFn = forestSizePriorities)
 {
 
 	if(!file.exists(file.path(dir,DataDir)))
@@ -139,7 +139,7 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
 	if(length(compoundIds)!=0 ){
 		descIds = getDescriptorIds(conn,compoundIds,descriptorType)
-		setPriorities(conn,forestSizePriorities,descIds,cl=cl,connSource=connSource)
+		setPriorities(conn,priorityFn,descIds,cl=cl,connSource=connSource)
 	}
 	compoundIds
 }

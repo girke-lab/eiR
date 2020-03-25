@@ -9,7 +9,8 @@
 }
 \usage{
 	eiInit(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
-	conn=defaultConn(dir,create=TRUE), updateByName = FALSE, cl = NULL, connSource = NULL)
+	conn=defaultConn(dir,create=TRUE), updateByName = FALSE, cl = NULL, connSource = NULL,
+	priorityFn = forestSizePriorities)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -65,6 +66,16 @@
 		This function can also be used to setup the envrionment on the cluster worker nodes. For
 		example, you might need to re-load libraries like RSQLite and such.
 	}
+	\item{priorityFn}{
+		This option takes a function that takes a list of compound ids and returns
+		a data frame with the compound ids as the column 'compound_id', and their priority as
+		the column 'priority'. There are two pre-defined functions in ChemmineR:
+		'randomPriorities', and 'forestSizePriorities' (default). 
+
+		When several compounds map to the same descriptor, then when some functions need to go
+		from a descriptor to a compound, there is ambiguity about which compount to select. In
+		that case, it will pick the compound with the highest priority. 
+	}
 
 }
 \details{
@@ -102,7 +113,7 @@
    data(sdfsample)
    dir=file.path(tempdir(),"init")
    dir.create(dir)
-   eiInit(sdfsample,dir=dir)
+   eiInit(sdfsample,dir=dir,priorityFn=randomPriorities)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

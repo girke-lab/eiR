@@ -88,7 +88,7 @@ test_aa.eiInit <- function() {
 
 	message("default descriptor")
    data(sdfsample)
-   compoundIds = eiInit(sdfsample[1:N],descriptorType=descType,dir=test_dir)
+   compoundIds = eiInit(sdfsample[1:N],descriptorType=descType,dir=test_dir,priorityFn = randomPriorities)
 	#checkData(compoundIds)
 
 	message("fp descriptor")
@@ -99,7 +99,7 @@ test_aa.eiInit <- function() {
 	# we just test with one node as SQLite does not support parallel writes
 	cl=makeCluster(1,type="SOCK",outfile=file.path(test_dir,"eiInit.snow"))
 	fpCids = eiInit(file.path(fpDir,c("f1","f2","f3")),dir=fpDir,descriptorType="fp",cl=cl,
-						 connSource=connSource )
+						 connSource=connSource,priorityFn = randomPriorities )
 	stopCluster(cl)
 	#checkData(fpCids)
 }

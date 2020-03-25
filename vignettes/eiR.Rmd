@@ -103,7 +103,7 @@ An initial compound database must be created with the following command:
 ```{r }
 library(eiR) 
 data(sdfsample) 
-eiInit(sdfsample[1:99]) 
+eiInit(sdfsample[1:99],priorityFn=randomPriorities) 
 ```
 
 
