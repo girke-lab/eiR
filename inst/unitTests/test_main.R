@@ -20,15 +20,17 @@ runDir<-file.path(test_dir,paste("run",r,d,sep="-"))
 fpDir=file.path(test_dir,"fp_test")
 descType="ap"
 
-sqliteSource=function(reset=FALSE){
-	require(eiR)
-	require(RSQLite)
-	path = file.path(test_dir,"data")
-	if(!file.exists(path))
-		dir.create(path,recursive=TRUE)
-	conn=initDb(file.path(path,"chem.db"))
-	#checkTrue(file.exists(file.path(test_dir,"data","chem.db")))
-	conn
+sqliteSourceGen=function(reset=FALSE,dir=test_dir){
+  function(){
+  	require(eiR)
+  	require(RSQLite)
+    path=file.path(dir,"data")
+  	if(!file.exists(path))
+  		dir.create(path,recursive=TRUE)
+  	conn=initDb(file.path(path,"chem.db"))
+  	#checkTrue(file.exists(file.path(test_dir,"data","chem.db")))
+  	conn
+  }
 }
 
 resetDb <- function(conn){
@@ -39,22 +41,24 @@ resetDb <- function(conn){
    initDb(conn)
 }
 
-pgSource=function(reset=FALSE){
-	require(eiR)
-	require(RPostgreSQL)
-	conn=dbConnect(dbDriver("PostgreSQL"),user="chemminer_tests",password="40ersfdv90erijgfk",
-				 dbname="chemminer_tests",host="girke-db-1.bioinfo.ucr.edu")
-	if(reset)
-		resetDb(conn)
-	initDb(conn)
-	eiR:::setDefaultConn(conn)
-	conn
+pgSourceGen=function(reset=FALSE,dir="ignored for pgSource"){
+  function(){
+  	require(eiR)
+  	require(RPostgreSQL)
+  	conn=dbConnect(dbDriver("PostgreSQL"),user="chemminer_tests",password="40ersfdv90erijgfk",
+  				 dbname="chemminer_tests",host="girke-db-1.bioinfo.ucr.edu")
+  	if(reset)
+  		resetDb(conn)
+  	initDb(conn)
+  	eiR:::setDefaultConn(conn)
+  	conn
+  }
 }
 
 
-connSource = sqliteSource
-#connSource = pgSource
-connSource(TRUE) # reset postgres
+connSourceGen = sqliteSourceGen
+#connSource = pgSourceGen
+connSourceGen(TRUE)() # reset postgres
 
 lastRunId=0
 
@@ -66,14 +70,14 @@ test_aa.eiInit <- function() {
 	#DEACTIVATED("slow")
 
    cleanup()
-	connSource() #sets default connection
+	connSourceGen()() #sets default connection
 
 	checkData <- function(cids,dir=test_dir){
 		checkTrue(file.exists(file.path(dir,"data","main.iddb")))
 		i <- readLines(file.path(dir,"data","main.iddb"))
 		checkEquals(length(i),N)
 		checkEquals(length(cids),N)
-		sdfFromDb = getCompounds(connSource(),cids)
+		sdfFromDb = getCompounds(connSourceGen()(),cids)
 		checkEquals(length(sdfFromDb),N)
 	}
 
@@ -99,7 +103,7 @@ test_aa.eiInit <- function() {
 	# we just test with one node as SQLite does not support parallel writes
 	cl=makeCluster(1,type="SOCK",outfile=file.path(test_dir,"eiInit.snow"))
 	fpCids = eiInit(file.path(fpDir,c("f1","f2","f3")),dir=fpDir,descriptorType="fp",cl=cl,
-						 connSource=connSource,priorityFn = randomPriorities )
+						 connSource=connSourceGen(dir=fpDir),priorityFn = randomPriorities )
 	stopCluster(cl)
 	#checkData(fpCids)
 }
@@ -111,7 +115,7 @@ testRefs <- function(){
 test_ba.parDist <- function(){
 
 	#DEACTIVATED("slow")
-	conn = connSource()
+	conn = connSourceGen()()
 	distance = eiR:::getDefaultDist("ap") 
 	require(snow)
 	cl = makeSOCKcluster(3,outfile="")
@@ -128,7 +132,7 @@ test_ba.parDist <- function(){
 	}
    
 	eiR:::IddbVsIddbDist(conn,set1,set2, distance,"ap",file=file.path(test_dir,"parDist.final"),
-								cl=cl, connSource= connSource )
+								cl=cl, connSource= connSourceGen() )
 	stopCluster(cl)
 #
 #	checkTrue(file.exists(file.path(test_dir,"parDist.final")))
@@ -141,9 +145,9 @@ test_bb.eiMakeDb <- function() {
 
 	message("  eiMakeDb   ")
 
-	conn = connSource()
+  conn = connSourceGen()()
 	runDbChecks = function(rid,targetSampleNum=20){
-
+	  
 		parameters = eiR:::runQuery(conn,paste("SELECT e.name,e.embedding_id,dimension,num_references FROM runs as r JOIN embeddings as e USING(embedding_id) 
 										WHERE r.run_id = ",rid))
 		#print(parameters)
@@ -190,19 +194,19 @@ test_bb.eiMakeDb <- function() {
    refFile = file.path(test_dir,"reference_file.cdb")
 	eiR:::writeIddbFile((1:r)+200,refFile)
    rid=eiMakeDb(refFile,d,cl=cl,descriptorType=descType,dir=test_dir,
-		connSource=connSource	)
+		connSource=connSourceGen()	)
    runDbChecks(rid,targetSampleNum = N*0.1)
 	unlink(runDir,recursive=TRUE)
 
 	print("by number")
    rid=eiMakeDb(r,d,numSamples=20,cl=cl,descriptorType=descType,dir=test_dir,
-		connSource=connSource	)
+		connSource=connSourceGen()	)
    runDbChecks(rid)
 	unlink(runDir,recursive=TRUE)
 
 	print("by vector")
    rid=eiMakeDb(testRefs(),d,numSamples=20,cl=cl,descriptorType=descType, dir=test_dir,
-		connSource=connSource	)
+		connSource=connSourceGen()	)
 	stopCluster(cl)
    runDbChecks(rid)
 
@@ -214,7 +218,7 @@ test_ca.eiQuery <- function(){
 
 	#DEACTIVATED("slow")
 	message("eiQuery")
-	conn=connSource()
+	conn=connSourceGen()()
    data(sdfsample)
 
 	runId = lastRunId
@@ -254,7 +258,7 @@ test_da.eiPerformanceTest <- function() {
 test_ea.eiAdd<- function(){
 
 	#DEACTIVATED("slow")
-	conn = connSource()
+	conn = connSourceGen()()
 
    data(example_compounds)
    cat(paste(paste(example_compounds,collapse="\n"),"\n",sep=""),
@@ -312,7 +316,7 @@ test_fa.eiCluster <- function(){
 	# 269 - 279							65 - 75
 	# 301 - 306							97 - 102
 
-	conn=connSource()
+	conn=connSourceGen()()
 	compoundIds=names(clustering)
 	compoundNames=getCompoundNames(conn,compoundIds)
 	names(clustering)=compoundNames
@@ -383,7 +387,7 @@ cleanup<- function(){
    #junk <- c("data","example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"),fpDir)
    #junk <- c("example_compounds.sdf","example_queries.sdf",paste("run",r,d,sep="-"))
    #unlink(junk,recursive=T)
-	conn=connSource()
+	conn=connSourceGen()()
 }
 findRefIddb <- function(runDir){
    matches<-dir(runDir,pattern=".cdb$",full.names=T)
