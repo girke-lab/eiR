@@ -9,7 +9,7 @@
 \usage{
 	eiAdd(runId,additions,dir=".",format="sdf",conn=defaultConn(dir),
 		distance=getDefaultDist(descriptorType),
-		updateByName = FALSE)
+		updateByName = FALSE,...)
 
 }
 \arguments{
@@ -49,6 +49,9 @@
 		an existing compound is added it will not update the existing one, it will add the modified one 
 		as a completely new compound with a new compound id. 
 	}
+	\item{...}{
+		Additional options passed to \code{\link{eiInit}}.
+	}
 
 }
 \details{
@@ -67,7 +70,7 @@
    data(sdfsample)
    dir=file.path(tempdir(),"add")
    dir.create(dir)
-   eiInit(sdfsample[1:99],dir=dir)
+   eiInit(sdfsample[1:99],dir=dir,skipPriorities=TRUE)
 
    #create compound db
    runId=eiMakeDb(r,d,numSamples=20,dir=dir)

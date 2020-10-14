@@ -332,7 +332,7 @@ eiQuery <- function(runId,queries,format="sdf",
 
 eiAdd <- function(runId,additions,dir=".",format="sdf",
 						conn=defaultConn(dir), 
-						distance=getDefaultDist(descriptorType),updateByName=FALSE)
+						distance=getDefaultDist(descriptorType),updateByName=FALSE,...)
 {
 		conn
 
@@ -353,7 +353,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		#TODO make this work for modified descriptors
 
 		# add additions to database
-		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName,conn=conn)
+		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName,conn=conn,...)
 		#print("new compound ids: "); print(compoundIds)
 		#message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 		

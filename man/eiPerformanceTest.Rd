@@ -94,7 +94,7 @@
    data(sdfsample)
    dir=file.path(tempdir(),"perf")
    dir.create(dir)
-   eiInit(sdfsample,dir=dir)
+   eiInit(sdfsample,dir=dir,skipPriorities=TRUE)
 
    #create compound db
    runId = eiMakeDb(r,d,numSamples=20,dir=dir,
