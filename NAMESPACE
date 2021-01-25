@@ -1,6 +1,5 @@
 useDynLib(eiR)
 
-import(gespeR)
 import(tools,snow,snowfall,digest,DBI,methods)
 import(RcppAnnoy)
 import(ChemmineR)

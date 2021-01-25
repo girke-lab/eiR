@@ -1,8 +1,8 @@
 Package: eiR
 Type: Package
 Title: Accelerated similarity searching of small molecules
-Version: 1.29.2
-Date: 2020-10-14
+Version: 1.29.3
+Date: 2021-01-25
 Author: Kevin Horan, Yiqun Cao and Tyler Backman
 Maintainer: Thomas Girke <thomas.girke@ucr.edu>
 Suggests:   BiocStyle, knitcitations, knitr, knitrBootstrap
@@ -12,7 +12,7 @@ Description: The eiR package provides utilities for accelerated
 License: Artistic-2.0
 Depends: R (>= 2.10.0), ChemmineR (>= 2.15.15), methods, DBI
 Imports: snow, tools, snowfall, RUnit, methods, ChemmineR, RCurl, digest,
-        BiocGenerics, gespeR,RcppAnnoy (>= 0.0.9)
+        BiocGenerics, RcppAnnoy (>= 0.0.9)
 biocViews: Cheminformatics, BiomedicalInformatics, Pharmacogenetics, 
         Pharmacogenomics, MicrotitrePlateAssay, CellBasedAssays, Visualization,
         Infrastructure, DataImport, Clustering, Proteomics, Metabolomics
