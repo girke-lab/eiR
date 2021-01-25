@@ -6,9 +6,14 @@ package: "`r pkg_ver('eiR')`"
 output:
   BiocStyle::html_document:
     toc: true
+    toc_float: true
     toc_depth: 3
+    code_folding: show
     fig_caption: yes
-
+vignette: >
+    %\VignetteIndexEntry{eiR: Accelerated Similarity Searching of Small Molecules}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}  
 fontsize: 14pt
 bibliography: references.bib
 ---
