@@ -429,6 +429,7 @@ writeMatrixFile<- function(conn,runId,compoundIds=c(),dir=".",samples=FALSE,cl=N
 	
 	annoy$build(numTrees)
 	annoy$save(matrixFileTemp)
+	annoy$unload() # releases filehandle
 	close(indexF)
 
 	file.rename(matrixFileTemp,matrixFile)
@@ -565,7 +566,7 @@ runQuery <- function(conn,query,execute=FALSE,...){
 		#print(class(df))
 
 		if(ncol(df)==0){	
-			as.data.frame(rep(list(dummy=numeric(6)), 20))
+			as.data.frame(rep(list(dummy=numeric(0)), 20))
 		}else{
 			df
 		}

@@ -9,7 +9,8 @@
 }
 \usage{
 	eiInit(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
-	conn=defaultConn(dir,create=TRUE), updateByName = FALSE, cl = NULL, connSource = NULL)
+	conn=defaultConn(dir,create=TRUE), updateByName = FALSE, cl = NULL, connSource = NULL,
+	priorityFn = forestSizePriorities,skipPriorities=FALSE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -23,7 +24,7 @@
       current directory.
    }
 	\item{format}{
-		The format of the data in \code{inputs}. Currenly only "sdf" and "smiles" is 
+		The format of the data in \code{inputs}. Currently only "sdf" and "smiles" is 
 		supported.
 	}
 	\item{descriptorType}{
@@ -32,7 +33,7 @@
 	}
 	\item{append}{
 		If true the given compounds will be added to an existing database
-		and the <data-dir>/Main.iddb file will be udpated with the new
+		and the <data-dir>/Main.iddb file will be updated with the new
 		compound id numbers. This should not normally be used directly, use
 		\code{\link{eiAdd}} instead to add new compounds to a database.
 	}
@@ -53,17 +54,31 @@
 	}
   \item{cl}{
      A SNOW cluster can be given here to run this function in
-     parrallel.
+     parallel.
    }
 	\item{connSource}{
-		A function returning a new database connection. Note that it is not suffient to return a
+		A function returning a new database connection. Note that it is not sufficient to return a
 		reference to an existing connection, it must be a distinct, new connection.  
 		This is needed for cluster operations
-		that make use of the database as they will each need to craete a new connection.
-		If not given, certain parts of this function will not be parrallelized.
+		that make use of the database as they will each need to create a new connection.
+		If not given, certain parts of this function will not be parallelized.
 
-		This function can also be used to setup the envrionment on the cluster worker nodes. For
+		This function can also be used to setup the environment on the cluster worker nodes. For
 		example, you might need to re-load libraries like RSQLite and such.
+	}
+	\item{priorityFn}{
+		This option takes a function that takes a list of compound ids and returns
+		a data frame with the compound ids as the column 'compound_id', and their priority as
+		the column 'priority'. There are two pre-defined functions in ChemmineR:
+		'randomPriorities', and 'forestSizePriorities' (default). 
+
+		When several compounds map to the same descriptor, then when some functions need to go
+		from a descriptor to a compound, there is ambiguity about which compound to select. In
+		that case, it will pick the compound with the highest priority. 
+	}
+	\item{skipPriorities}{
+		If this is true, then no priority values will be computed. See option \code{priorityFn} 
+		for an explanation of priorities.
 	}
 
 }
@@ -102,7 +117,7 @@
    data(sdfsample)
    dir=file.path(tempdir(),"init")
    dir.create(dir)
-   eiInit(sdfsample,dir=dir)
+   eiInit(sdfsample,dir=dir,priorityFn=randomPriorities)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory.

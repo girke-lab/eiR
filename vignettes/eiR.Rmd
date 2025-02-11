@@ -6,9 +6,14 @@ package: "`r pkg_ver('eiR')`"
 output:
   BiocStyle::html_document:
     toc: true
+    toc_float: true
     toc_depth: 3
+    code_folding: show
     fig_caption: yes
-
+vignette: >
+    %\VignetteIndexEntry{eiR: Accelerated Similarity Searching of Small Molecules}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}  
 fontsize: 14pt
 bibliography: references.bib
 ---
@@ -103,7 +108,7 @@ An initial compound database must be created with the following command:
 ```{r }
 library(eiR) 
 data(sdfsample) 
-eiInit(sdfsample[1:99]) 
+eiInit(sdfsample[1:99],priorityFn=randomPriorities) 
 ```
 
 
@@ -259,6 +264,11 @@ example, to add one compound from an SDFset you would do:
 ```{r term=FALSE}
  eiAdd(runId,sdfsample[100]) 
 ```
+```{r echo = FALSE, results = 'asis'}
+# on windows it seems the file handle used in eiAdd 
+# does not get closed right away, so we wait a little here first
+Sys.sleep(1)
+```
 
 The returned value is a list of the compounds ids that were just
 added.
@@ -332,7 +342,7 @@ By default `eiCluster` will cluster the entire dataset specified by
 provide their compound id values to the `compoundIds` parameter.
 
 
-```{r }
+```{r eval=FALSE }
 	clustering <- eiCluster(runId,K=5,minNbrs=2,cutoff=0.5)
 	byCluster(clustering)
 ```

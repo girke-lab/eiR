@@ -37,8 +37,8 @@ double udist(int k,doublereal* x, doublereal* y)
 SEXP calcF(SEXP xS,SEXP dS,SEXP pS)
 {
 
-	int k = length(xS); //length of result vector
-	int m = length(dS); //length of distance vector
+	int k = Rf_length(xS); //length of result vector
+	int m = Rf_length(dS); //length of distance vector
 	double *x=REAL(xS);
 	double *d=REAL(dS);
 	double *p=REAL(pS);
@@ -47,7 +47,7 @@ SEXP calcF(SEXP xS,SEXP dS,SEXP pS)
 //	for(int i=0;i<m;i++) printf("%f,",x[i]);
 //	printf("\n");
 	//printf("p: "); //see what major order is
-	//for(int i=0;i<length(pS);i++) printf("%f,",p[i]);
+	//for(int i=0;i<Rf_length(pS);i++) printf("%f,",p[i]);
 	
 	/*
 	 * d=2, 
@@ -88,7 +88,7 @@ SEXP calcF(SEXP xS,SEXP dS,SEXP pS)
 
 	//printf("f(x): %f\n",e);
 
-	SEXP result = PROTECT(allocVector(REALSXP, 1));
+	SEXP result = PROTECT(Rf_allocVector(REALSXP, 1));
 	REAL(result)[0] = e;
 	UNPROTECT(1);
 
@@ -96,10 +96,10 @@ SEXP calcF(SEXP xS,SEXP dS,SEXP pS)
 }
 SEXP calcG(SEXP xS,SEXP dS,SEXP pS)
 {
-	int k = length(xS); //length of result vector
-	int m = length(dS); //length distance vector
+	int k = Rf_length(xS); //length of result vector
+	int m = Rf_length(dS); //length distance vector
 
-	SEXP result = PROTECT(allocVector(REALSXP, k));
+	SEXP result = PROTECT(Rf_allocVector(REALSXP, k));
 	double *x=REAL(xS);
 	double *d=REAL(dS);
 	double *p=REAL(pS);

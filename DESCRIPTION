@@ -1,20 +1,20 @@
 Package: eiR
 Type: Package
 Title: Accelerated similarity searching of small molecules
-Version: 1.17.1
-Date: 2017-6-30
+Version: 1.47.1
+Date: 2025-02-11
 Author: Kevin Horan, Yiqun Cao and Tyler Backman
 Maintainer: Thomas Girke <thomas.girke@ucr.edu>
-Suggests:   BiocStyle, knitcitations, knitr, knitrBootstrap
+Suggests:   BiocStyle, knitcitations, knitr, knitrBootstrap,rmarkdown,RSQLite,codetools
 Description: The eiR package provides utilities for accelerated
         structure similarity searching of very large small molecule
         data sets using an embedding and indexing approach.
 License: Artistic-2.0
 Depends: R (>= 2.10.0), ChemmineR (>= 2.15.15), methods, DBI
 Imports: snow, tools, snowfall, RUnit, methods, ChemmineR, RCurl, digest,
-        BiocGenerics, gespeR,RcppAnnoy
+        BiocGenerics, RcppAnnoy (>= 0.0.9)
 biocViews: Cheminformatics, BiomedicalInformatics, Pharmacogenetics, 
         Pharmacogenomics, MicrotitrePlateAssay, CellBasedAssays, Visualization,
-        Infrastructure, DataImport, Clustering, Proteomics
+        Infrastructure, DataImport, Clustering, Proteomics, Metabolomics
 URL: https://github.com/girke-lab/eiR
 VignetteBuilder: knitr

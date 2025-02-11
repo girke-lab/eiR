@@ -124,7 +124,7 @@
    data(sdfsample)
    dir=file.path(tempdir(),"cluster")
    dir.create(dir)
-   eiInit(sdfsample,dir=dir)
+   eiInit(sdfsample,dir=dir,skipPriorities=TRUE)
 
    #create compound db
    runId=eiMakeDb(r,d,numSamples=20,dir=dir, cl=makeCluster(1,type="SOCK",outfile=""))

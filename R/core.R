@@ -76,7 +76,7 @@ annoySearchAll <- function(matrixFile,dimension,numNeighbors,searchK=-1)
 
 eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 						 conn=defaultConn(dir,create=TRUE),updateByName=FALSE,
-						 cl=NULL,connSource=NULL)
+						 cl=NULL,connSource=NULL,priorityFn = forestSizePriorities,skipPriorities=FALSE)
 {
 
 	if(!file.exists(file.path(dir,DataDir)))
@@ -137,9 +137,9 @@ eiInit <- function(inputs,dir=".",format="sdf",descriptorType="ap",append=FALSE,
 	print(paste(length(compoundIds)," loaded by eiInit"))
 
 	writeIddb(conn,compoundIds,file.path(dir,Main),append=append)
-	if(length(compoundIds)!=0 ){
+	if(length(compoundIds)!=0 && ! skipPriorities ){
 		descIds = getDescriptorIds(conn,compoundIds,descriptorType)
-		setPriorities(conn,forestSizePriorities,descIds,cl=cl,connSource=connSource)
+		setPriorities(conn,priorityFn,descIds,cl=cl,connSource=connSource)
 	}
 	compoundIds
 }
@@ -332,7 +332,7 @@ eiQuery <- function(runId,queries,format="sdf",
 
 eiAdd <- function(runId,additions,dir=".",format="sdf",
 						conn=defaultConn(dir), 
-						distance=getDefaultDist(descriptorType),updateByName=FALSE)
+						distance=getDefaultDist(descriptorType),updateByName=FALSE,...)
 {
 		conn
 
@@ -353,7 +353,7 @@ eiAdd <- function(runId,additions,dir=".",format="sdf",
 		#TODO make this work for modified descriptors
 
 		# add additions to database
-		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName,conn=conn)
+		compoundIds = eiInit(additions,dir,format,descriptorType,append=TRUE,updateByName=updateByName,conn=conn,...)
 		#print("new compound ids: "); print(compoundIds)
 		#message("new compound group size: ", getGroupSize(conn,groupId=runInfo$compound_group_id))
 		
@@ -454,8 +454,8 @@ eiCluster <- function(runId,K,minNbrs, compoundIds=c(), dir=".",cutoff=NULL,
 		
 
 		rownames(refinedNeighbors)=1:ml
-		#print("final refined:")
-		#print((refinedNeighbors))
+		print("final refined:")
+		print((refinedNeighbors))
 
 		if(type=="matrix")
 			return(list(indexes=refinedNeighbors,
